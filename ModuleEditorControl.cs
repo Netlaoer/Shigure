@@ -11,12 +11,19 @@ public sealed class ModuleEditorControl : UserControl
     private readonly CheckBox _enabledBox = new();
     private readonly TextBox _classBox = new();
     private readonly TextBox _specBox = new();
-    private readonly TextBox _partyTypeBox = new();
+    private readonly ComboBox _partyTypeBox = new();
     private readonly TextBox _heroTalentBox = new();
     private readonly DataGridView _rulesGrid = new();
     private readonly Label _pathLabel = new();
     private List<ModuleDefinition> _modules = new();
     private ModuleDefinition? _selectedModule;
+    private static readonly PartyTypeOption[] PartyTypeOptions =
+    [
+        new("任意 (*)", null),
+        new("单人 (0)", "0"),
+        new("团队 (1-40)", "1-40"),
+        new("队伍 (46)", "46")
+    ];
 
     public ModuleEditorControl(ModuleStore moduleStore, Action runtimeRestartRequested)
     {
@@ -323,7 +330,7 @@ public sealed class ModuleEditorControl : UserControl
         _enabledBox.Checked = module.Enabled;
         _classBox.Text = FormatMatchValue(module.Match.ClassId);
         _specBox.Text = FormatMatchValue(module.Match.SpecId);
-        _partyTypeBox.Text = FormatMatchValue(module.Match.PartyType);
+        SelectPartyType(module.Match.PartyType);
         _heroTalentBox.Text = FormatMatchValue(module.Match.HeroTalent);
         _pathLabel.Text = module.FilePath ?? "尚未保存";
         _rulesGrid.Rows.Clear();
@@ -341,7 +348,7 @@ public sealed class ModuleEditorControl : UserControl
         _enabledBox.Checked = false;
         _classBox.Clear();
         _specBox.Clear();
-        _partyTypeBox.Clear();
+        SelectPartyType(null);
         _heroTalentBox.Clear();
         _pathLabel.Text = "无模块";
         _rulesGrid.Rows.Clear();
@@ -415,7 +422,7 @@ public sealed class ModuleEditorControl : UserControl
         {
             ClassId = ParseMatchBox(_classBox, "职业"),
             SpecId = ParseMatchBox(_specBox, "专精"),
-            PartyType = ParseMatchBox(_partyTypeBox, "队伍类型"),
+            PartyType = ReadPartyTypeCombo(),
             HeroTalent = ParseMatchBox(_heroTalentBox, "英雄天赋")
         };
 
@@ -493,6 +500,15 @@ public sealed class ModuleEditorControl : UserControl
         row.Controls.Add(box, column + 1, 0);
     }
 
+    private static void AddMatchField(TableLayoutPanel row, string label, ComboBox box, int column)
+    {
+        row.Controls.Add(CreateLabel(label), column, 0);
+        UiTheme.StyleComboBox(box);
+        box.Dock = DockStyle.Fill;
+        ResetPartyTypeOptions(box);
+        row.Controls.Add(box, column + 1, 0);
+    }
+
     private static Label CreateLabel(string text)
     {
         return new Label
@@ -515,13 +531,64 @@ public sealed class ModuleEditorControl : UserControl
     private static string FormatModuleListItem(ModuleDefinition module)
     {
         var enabled = module.Enabled ? "●" : "○";
-        var match = $"{FormatMatchValue(module.Match.ClassId)}/{FormatMatchValue(module.Match.SpecId)}/{FormatMatchValue(module.Match.PartyType)}/{FormatMatchValue(module.Match.HeroTalent)}";
+        var match = $"{FormatMatchValue(module.Match.ClassId)}/{FormatMatchValue(module.Match.SpecId)}/{FormatPartyTypeValue(module.Match.PartyType)}/{FormatMatchValue(module.Match.HeroTalent)}";
         return $"{enabled} {module.Name}  [{match}]";
     }
 
     private static string FormatMatchValue(int? value)
     {
         return value?.ToString() ?? "*";
+    }
+
+    private void SelectPartyType(string? value)
+    {
+        ResetPartyTypeOptions(_partyTypeBox);
+        var normalized = ModuleMatch.NormalizePartyTypeValue(value);
+        var index = FindPartyTypeOption(normalized);
+        if (index < 0 && !string.IsNullOrWhiteSpace(normalized))
+        {
+            _partyTypeBox.Items.Add(new PartyTypeOption($"自定义 ({normalized})", normalized));
+            index = _partyTypeBox.Items.Count - 1;
+        }
+
+        _partyTypeBox.SelectedIndex = index >= 0 ? index : 0;
+    }
+
+    private string? ReadPartyTypeCombo()
+    {
+        return _partyTypeBox.SelectedItem is PartyTypeOption option ? option.Value : null;
+    }
+
+    private static void ResetPartyTypeOptions(ComboBox comboBox)
+    {
+        comboBox.Items.Clear();
+        comboBox.Items.AddRange(PartyTypeOptions);
+        comboBox.SelectedIndex = 0;
+    }
+
+    private static int FindPartyTypeOption(string? value)
+    {
+        for (var i = 0; i < PartyTypeOptions.Length; i++)
+        {
+            if (string.Equals(PartyTypeOptions[i].Value, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static string FormatPartyTypeValue(string? value)
+    {
+        return ModuleMatch.NormalizePartyTypeValue(value) switch
+        {
+            null => "*",
+            "0" => "单人",
+            "1-40" => "团队",
+            "46" => "队伍",
+            var other => other
+        };
     }
 
     private static string CellText(DataGridViewRow row, string columnName)
@@ -544,5 +611,13 @@ public sealed class ModuleEditorControl : UserControl
     private static int? ParseNullableInt(string text)
     {
         return int.TryParse(text, out var value) ? value : null;
+    }
+
+    private sealed record PartyTypeOption(string Text, string? Value)
+    {
+        public override string ToString()
+        {
+            return Text;
+        }
     }
 }

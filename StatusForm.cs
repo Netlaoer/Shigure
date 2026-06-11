@@ -5,6 +5,7 @@ namespace Shigure;
 public sealed class StatusForm : Form
 {
     private readonly List<(Button Button, Control View)> _navItems = new();
+    private bool _hasKnownBounds;
 
     private ListView _stateList = null!;
     private ListView _spellList = null!;
@@ -12,6 +13,7 @@ public sealed class StatusForm : Form
     private ListView _unitInfoList = null!;
     private TextBox _logTextBox = null!;
     private Panel _contentHost = null!;
+    private Panel _settingsHost = null!;
     private Panel _moduleHost = null!;
 
     public StatusForm()
@@ -29,6 +31,7 @@ public sealed class StatusForm : Form
     {
         if (e.CloseReason == CloseReason.UserClosing)
         {
+            _hasKnownBounds = true;
             e.Cancel = true;
             Hide();
         }
@@ -40,7 +43,7 @@ public sealed class StatusForm : Form
     {
         SuspendLayout();
 
-        Text = "Shigure - 状态";
+        Text = "Shigure - 设置";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(640, 420);
         Size = new Size(820, 560);
@@ -61,6 +64,13 @@ public sealed class StatusForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         Controls.Add(root);
+
+        _settingsHost = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Margin = new Padding(0)
+        };
 
         _moduleHost = new Panel
         {
@@ -118,6 +128,7 @@ public sealed class StatusForm : Form
             Margin = new Padding(0)
         };
 
+        AddNavItem(nav, "通用", _settingsHost);
         AddNavItem(nav, "模块", _moduleHost);
         AddNavItem(nav, "状态", statusSplit);
         AddNavItem(nav, "队伍", _partyList);
@@ -129,6 +140,12 @@ public sealed class StatusForm : Form
 
         ResumeLayout(false);
         SelectView(0);
+    }
+
+    public void AttachSettingsPanel(Control panel)
+    {
+        panel.Dock = DockStyle.Fill;
+        _settingsHost.Controls.Add(panel);
     }
 
     public void AttachModuleEditor(Control panel)
@@ -168,7 +185,10 @@ public sealed class StatusForm : Form
 
         StartPosition = FormStartPosition.Manual;
         Bounds = restoredBounds;
+        _hasKnownBounds = true;
     }
+
+    internal bool HasKnownBounds => _hasKnownBounds || Visible;
 
     private void AddNavItem(FlowLayoutPanel nav, string text, Control view)
     {
@@ -222,12 +242,20 @@ public sealed class StatusForm : Form
         if (!Visible)
         {
             Show();
+            _hasKnownBounds = true;
             EnsureNotTopmost();
         }
         else
         {
+            _hasKnownBounds = true;
             Activate();
         }
+    }
+
+    public void ShowSettings(RenderSnapshot? snapshot)
+    {
+        SelectView(0);
+        ShowOrActivate(snapshot);
     }
 
     private void EnsureNotTopmost()

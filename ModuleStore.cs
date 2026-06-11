@@ -56,7 +56,7 @@ public sealed class ModuleMatch
 {
     public int? ClassId { get; set; }
     public int? SpecId { get; set; }
-    public int? PartyType { get; set; }
+    public string? PartyType { get; set; }
     public int? HeroTalent { get; set; }
 
     [JsonIgnore]
@@ -67,7 +67,7 @@ public sealed class ModuleMatch
     {
         return MatchesOne(ClassId, classId)
             && MatchesOne(SpecId, specId)
-            && MatchesOne(PartyType, partyType)
+            && MatchesPartyType(PartyType, partyType)
             && MatchesOne(HeroTalent, heroTalent);
     }
 
@@ -77,9 +77,53 @@ public sealed class ModuleMatch
         {
             ClassId = ClassId,
             SpecId = SpecId,
-            PartyType = PartyType,
+            PartyType = NormalizePartyTypeValue(PartyType),
             HeroTalent = HeroTalent
         };
+    }
+
+    public static string? NormalizePartyTypeValue(string? value)
+    {
+        var text = value?.Trim();
+        if (string.IsNullOrWhiteSpace(text)
+            || text == "*"
+            || string.Equals(text, "any", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (string.Equals(text, "单人", StringComparison.OrdinalIgnoreCase))
+        {
+            return "0";
+        }
+
+        if (string.Equals(text, "团队", StringComparison.OrdinalIgnoreCase))
+        {
+            return "1-40";
+        }
+
+        if (string.Equals(text, "队伍", StringComparison.OrdinalIgnoreCase))
+        {
+            return "46";
+        }
+
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+            || int.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out number))
+        {
+            return number is >= 1 and <= 40 ? "1-40" : number.ToString(CultureInfo.InvariantCulture);
+        }
+
+        var rangeParts = text.Split('-', 2, StringSplitOptions.TrimEntries);
+        if (rangeParts.Length == 2
+            && int.TryParse(rangeParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var start)
+            && int.TryParse(rangeParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var end))
+        {
+            return start <= end
+                ? $"{start.ToString(CultureInfo.InvariantCulture)}-{end.ToString(CultureInfo.InvariantCulture)}"
+                : $"{end.ToString(CultureInfo.InvariantCulture)}-{start.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        return text;
     }
 
     private static bool MatchesOne(int? expected, int? actual)
@@ -87,9 +131,39 @@ public sealed class ModuleMatch
         return expected is null || actual == expected;
     }
 
+    private static bool MatchesPartyType(string? expected, int? actual)
+    {
+        var normalized = NormalizePartyTypeValue(expected);
+        if (normalized is null)
+        {
+            return true;
+        }
+
+        if (actual is null)
+        {
+            return false;
+        }
+
+        var rangeParts = normalized.Split('-', 2, StringSplitOptions.TrimEntries);
+        if (rangeParts.Length == 2
+            && int.TryParse(rangeParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var start)
+            && int.TryParse(rangeParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var end))
+        {
+            return actual.Value >= start && actual.Value <= end;
+        }
+
+        return int.TryParse(normalized, NumberStyles.Integer, CultureInfo.InvariantCulture, out var exact)
+            && actual.Value == exact;
+    }
+
     private static int Count(int? value)
     {
         return value is null ? 0 : 1;
+    }
+
+    private static int Count(string? value)
+    {
+        return NormalizePartyTypeValue(value) is null ? 0 : 1;
     }
 }
 
@@ -122,7 +196,11 @@ public sealed class ModuleStore
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters =
+        {
+            new StringOrNumberJsonConverter()
+        }
     };
 
     private readonly object _gate = new();
@@ -254,7 +332,7 @@ public sealed class ModuleStore
             .OrderByDescending(module => module.Enabled)
             .ThenBy(module => module.Match.ClassId ?? int.MaxValue)
             .ThenBy(module => module.Match.SpecId ?? int.MaxValue)
-            .ThenBy(module => module.Match.PartyType ?? int.MaxValue)
+            .ThenBy(module => PartyTypeSortKey(module.Match.PartyType))
             .ThenBy(module => module.Match.HeroTalent ?? int.MaxValue)
             .ThenBy(module => module.Name, StringComparer.CurrentCultureIgnoreCase);
     }
@@ -277,6 +355,11 @@ public sealed class ModuleStore
         return value?.ToString(CultureInfo.InvariantCulture) ?? "any";
     }
 
+    private static string MatchPart(string? value)
+    {
+        return ModuleMatch.NormalizePartyTypeValue(value) ?? "any";
+    }
+
     private static void Normalize(ModuleDefinition module)
     {
         if (string.IsNullOrWhiteSpace(module.Name))
@@ -290,6 +373,7 @@ public sealed class ModuleStore
         }
 
         module.Match ??= new ModuleMatch();
+        module.Match.PartyType = ModuleMatch.NormalizePartyTypeValue(module.Match.PartyType);
         module.Rules ??= new List<ModuleRule>();
     }
 
@@ -310,6 +394,47 @@ public sealed class ModuleStore
 
         text = Regex.Replace(text, @"\s+", "-");
         return text.Length > 64 ? text[..64] : text;
+    }
+
+    private static int PartyTypeSortKey(string? value)
+    {
+        return ModuleMatch.NormalizePartyTypeValue(value) switch
+        {
+            null => int.MaxValue,
+            "0" => 0,
+            "1-40" => 1,
+            "46" => 46,
+            var other when int.TryParse(other, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) => number,
+            _ => int.MaxValue - 1
+        };
+    }
+
+    private sealed class StringOrNumberJsonConverter : JsonConverter<string?>
+    {
+        public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return reader.TokenType switch
+            {
+                JsonTokenType.Null => null,
+                JsonTokenType.String => reader.GetString(),
+                JsonTokenType.Number when reader.TryGetInt64(out var integer) => integer.ToString(CultureInfo.InvariantCulture),
+                JsonTokenType.Number when reader.TryGetDouble(out var number) => number.ToString(CultureInfo.InvariantCulture),
+                JsonTokenType.True => "true",
+                JsonTokenType.False => "false",
+                _ => throw new JsonException($"无法将 {reader.TokenType} 转换为字符串。")
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
+        {
+            if (value is null)
+            {
+                writer.WriteNullValue();
+                return;
+            }
+
+            writer.WriteStringValue(value);
+        }
     }
 }
 

@@ -12,6 +12,9 @@ internal static class UiTheme
     private const int DwmwcpRound = 2;
     private const int DwmsbtMainWindow = 2;
     private const int DwmsbtTransientWindow = 3;
+    private const int WcaAccentPolicy = 19;
+    private const int AccentEnableBlurBehind = 3;
+    private const int AccentEnableAcrylicBlurBehind = 4;
 
     public static readonly Color Background = Color.FromArgb(13, 15, 18);
     public static readonly Color Surface = Color.FromArgb(22, 25, 31);
@@ -25,8 +28,40 @@ internal static class UiTheme
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(nint hwnd, ref Margins margins);
+
     [DllImport("gdi32.dll")]
     private static extern nint CreateRoundRectRgn(int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowCompositionAttribute(nint hwnd, ref WindowCompositionAttributeData data);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Margins
+    {
+        public int LeftWidth;
+        public int RightWidth;
+        public int TopHeight;
+        public int BottomHeight;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AccentPolicy
+    {
+        public int AccentState;
+        public int AccentFlags;
+        public int GradientColor;
+        public int AnimationId;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowCompositionAttributeData
+    {
+        public int Attribute;
+        public nint Data;
+        public int SizeOfData;
+    }
 
     public static void ApplyDarkTitleBar(Form form)
     {
@@ -46,7 +81,18 @@ internal static class UiTheme
 
     public static void ApplyTranslucentBackground(Form form)
     {
-        // Prefer Acrylic backdrop so only window background feels translucent.
+        form.BackColor = Color.FromArgb(18, 21, 26);
+
+        var margins = new Margins
+        {
+            LeftWidth = -1,
+            RightWidth = -1,
+            TopHeight = -1,
+            BottomHeight = -1
+        };
+        _ = DwmExtendFrameIntoClientArea(form.Handle, ref margins);
+
+        // Windows 11: transient backdrop is Acrylic-like and does not affect child control opacity.
         var backdrop = DwmsbtTransientWindow;
         var hr = DwmSetWindowAttribute(form.Handle, DwmwaSystemBackdropType, ref backdrop, sizeof(int));
         if (hr != 0)
@@ -55,9 +101,50 @@ internal static class UiTheme
             _ = DwmSetWindowAttribute(form.Handle, DwmwaSystemBackdropType, ref backdrop, sizeof(int));
         }
 
-        // Fallback for older Windows 11 builds.
+        // Windows 10/older fallback: apply Acrylic blur behind the form background only.
+        if (!TryApplyAccentPolicy(form.Handle, AccentEnableAcrylicBlurBehind, Color.FromArgb(18, 21, 26), 170))
+        {
+            _ = TryApplyAccentPolicy(form.Handle, AccentEnableBlurBehind, Color.FromArgb(18, 21, 26), 150);
+        }
+
+        // Fallback for older Windows 11 builds where system backdrop exists but acrylic fails.
         var enable = 1;
         _ = DwmSetWindowAttribute(form.Handle, DwmwaMicaEffect, ref enable, sizeof(int));
+    }
+
+    private static bool TryApplyAccentPolicy(nint hwnd, int accentState, Color tint, byte alpha)
+    {
+        var policy = new AccentPolicy
+        {
+            AccentState = accentState,
+            AccentFlags = 2,
+            GradientColor = ToAbgr(tint, alpha),
+            AnimationId = 0
+        };
+
+        var policySize = Marshal.SizeOf<AccentPolicy>();
+        var policyPointer = Marshal.AllocHGlobal(policySize);
+        try
+        {
+            Marshal.StructureToPtr(policy, policyPointer, false);
+            var data = new WindowCompositionAttributeData
+            {
+                Attribute = WcaAccentPolicy,
+                Data = policyPointer,
+                SizeOfData = policySize
+            };
+
+            return SetWindowCompositionAttribute(hwnd, ref data) != 0;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(policyPointer);
+        }
+    }
+
+    private static int ToAbgr(Color color, byte alpha)
+    {
+        return unchecked((int)(((uint)alpha << 24) | ((uint)color.B << 16) | ((uint)color.G << 8) | color.R));
     }
 
     public static Button CreateButton(string text, Color backColor, Color foreColor)

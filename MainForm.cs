@@ -17,6 +17,7 @@ public sealed class MainForm : Form, IMessageFilter
     private readonly StatusForm _statusForm;
     private readonly ModuleStore _moduleStore;
     private readonly AppOptions _initialOptions;
+    private readonly UiCacheState _uiCache;
     private ShigureRuntime? _runtime;
     private CancellationTokenSource? _runtimeCts;
     private Task? _runtimeTask;
@@ -29,14 +30,20 @@ public sealed class MainForm : Form, IMessageFilter
     public MainForm(AppOptions? initialOptions = null)
     {
         _initialOptions = initialOptions ?? AppOptions.FromArgs(Array.Empty<string>());
+        _uiCache = UiCacheStore.Load();
         _moduleStore = new ModuleStore(ModuleStore.ResolveModuleDirectory(AppContext.BaseDirectory));
         _statusForm = new StatusForm();
         Application.AddMessageFilter(this);
         InitializeComponent();
         _statusForm.AttachSettingsPanel(BuildSettingsPanel());
         _statusForm.AttachModuleEditor(new ModuleEditorControl(_moduleStore, RestartRuntimeFromEditor));
-        _statusForm.FormClosing += (_, _) => CancelToggleKeyCapture();
+        _statusForm.FormClosing += (_, _) =>
+        {
+            CancelToggleKeyCapture();
+            SaveUiCache();
+        };
         TryApplyApplicationIcon();
+        ApplyCachedWindowState();
         ApplyInitialOptions();
         WireSettingEvents();
         SetRuntimeControls(running: false);
@@ -59,6 +66,7 @@ public sealed class MainForm : Form, IMessageFilter
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        SaveUiCache();
         Application.RemoveMessageFilter(this);
         _runtimeCts?.Cancel();
         base.OnFormClosing(e);
@@ -74,8 +82,7 @@ public sealed class MainForm : Form, IMessageFilter
         FormBorderStyle = FormBorderStyle.None;
         TopMost = true;
         ClientSize = new Size(680, 64);
-        // Acrylic 透明背景的着色基底: 纯黑区域显示为半透明 tint。
-        BackColor = Color.Black;
+        BackColor = Color.FromArgb(18, 21, 26);
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
@@ -226,7 +233,11 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void ApplyInitialOptions()
     {
-        var initialToggleKey = string.IsNullOrWhiteSpace(_initialOptions.ToggleKey) ? "XBUTTON2" : _initialOptions.ToggleKey.Trim();
+        var cachedToggleKey = _uiCache.ToggleKey?.Trim();
+        var initialToggleKey = !string.IsNullOrWhiteSpace(cachedToggleKey)
+            ? cachedToggleKey
+            : _initialOptions.ToggleKey.Trim();
+        initialToggleKey = string.IsNullOrWhiteSpace(initialToggleKey) ? "XBUTTON2" : initialToggleKey;
         _toggleKeyName = IsUnsupportedToggleKey(initialToggleKey) ? "XBUTTON2" : initialToggleKey;
         _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
         _modeComboBox.SelectedIndex = _initialOptions.Mode switch
@@ -548,6 +559,7 @@ public sealed class MainForm : Form, IMessageFilter
         _isCapturingToggleKey = false;
         _toggleKeyName = keyName;
         _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+        SaveUiCache();
         AppendLog($"已录入触发键: {_toggleKeyName}");
         HandleSettingCommitted(this, EventArgs.Empty);
         return true;
@@ -589,9 +601,42 @@ public sealed class MainForm : Form, IMessageFilter
         _isCapturingToggleKey = false;
         _toggleKeyName = keyName;
         _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+        SaveUiCache();
         AppendLog($"已录入触发键: {_toggleKeyName}");
         HandleSettingCommitted(this, EventArgs.Empty);
         return true;
+    }
+
+    private void ApplyCachedWindowState()
+    {
+        if (_uiCache.MainWindowLocation is { } mainLocation)
+        {
+            var restoredBounds = new Rectangle(mainLocation.X, mainLocation.Y, Width, Height);
+            if (UiCacheStore.IsBoundsVisible(restoredBounds))
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = new Point(mainLocation.X, mainLocation.Y);
+            }
+        }
+
+        _statusForm.ApplyCachedBounds(_uiCache.SettingsWindowBounds);
+    }
+
+    private void SaveUiCache()
+    {
+        _uiCache.MainWindowLocation = new WindowLocation
+        {
+            X = Left,
+            Y = Top
+        };
+
+        if (_statusForm.HasKnownBounds)
+        {
+            _uiCache.SettingsWindowBounds = _statusForm.GetCachedBounds();
+        }
+
+        _uiCache.ToggleKey = _toggleKeyName;
+        UiCacheStore.Save(_uiCache);
     }
 
     private async Task ResetCaptureButtonTextAsync()
