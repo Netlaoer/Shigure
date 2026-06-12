@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Reflection;
 
 namespace Shigure;
 
@@ -15,6 +16,7 @@ public sealed class StatusForm : Form
     private Panel _contentHost = null!;
     private Panel _settingsHost = null!;
     private Panel _moduleHost = null!;
+    private Panel _aboutHost = null!;
 
     public StatusForm()
     {
@@ -79,6 +81,13 @@ public sealed class StatusForm : Form
             Margin = new Padding(0)
         };
 
+        _aboutHost = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Margin = new Padding(0)
+        };
+
         _stateList = UiTheme.CreateListView(Font, ("#", 40), ("名称", 150), ("值", 130));
         _spellList = UiTheme.CreateListView(Font, ("#", 40), ("技能", 150), ("状态", 110));
 
@@ -134,6 +143,8 @@ public sealed class StatusForm : Form
         AddNavItem(nav, "队伍", _partyList);
         AddNavItem(nav, "逻辑", _unitInfoList);
         AddNavItem(nav, "日志", _logTextBox);
+        AddNavItem(nav, "关于", _aboutHost);
+        _aboutHost.Controls.Add(BuildAboutPanel());
 
         root.Controls.Add(nav, 0, 0);
         root.Controls.Add(_contentHost, 0, 1);
@@ -230,6 +241,74 @@ public sealed class StatusForm : Form
                 view.BringToFront();
             }
         }
+    }
+
+    private Control BuildAboutPanel()
+    {
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(4)
+        };
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var title = new Label
+        {
+            Text = "Shigure",
+            AutoSize = true,
+            ForeColor = UiTheme.Text,
+            Font = new Font(Font.FontFamily, 16F, FontStyle.Bold),
+            Margin = new Padding(0, 0, 0, 12)
+        };
+        panel.Controls.Add(title, 0, 0);
+
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "未知";
+        var details = new TableLayoutPanel
+        {
+            AutoSize = true,
+            Dock = DockStyle.Top,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 2,
+            RowCount = 0
+        };
+        details.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        details.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        AddAboutRow(details, "产品", "Shigure");
+        AddAboutRow(details, "版本", version);
+        AddAboutRow(details, "类型", ".NET WinForms 桌面程序");
+        AddAboutRow(details, "用途", "扫描游戏窗口状态，根据模块规则和按键映射执行辅助逻辑。");
+        AddAboutRow(details, "运行目录", AppContext.BaseDirectory);
+        AddAboutRow(details, "模块目录", ModuleStore.ResolveModuleDirectory(AppContext.BaseDirectory));
+        AddAboutRow(details, "配置文件", Path.Combine(AppContext.BaseDirectory, "config.json"));
+
+        panel.Controls.Add(details, 0, 1);
+        return panel;
+    }
+
+    private static void AddAboutRow(TableLayoutPanel panel, string name, string value)
+    {
+        var row = panel.RowCount++;
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.Controls.Add(new Label
+        {
+            Text = name,
+            AutoSize = true,
+            ForeColor = UiTheme.Muted,
+            Margin = new Padding(0, 0, 16, 10)
+        }, 0, row);
+        panel.Controls.Add(new Label
+        {
+            Text = value,
+            AutoSize = true,
+            MaximumSize = new Size(580, 0),
+            ForeColor = UiTheme.Text,
+            Margin = new Padding(0, 0, 0, 10)
+        }, 1, row);
     }
 
     public void ShowOrActivate(RenderSnapshot? snapshot)

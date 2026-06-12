@@ -1,12 +1,12 @@
 {
-  "Id": "新模块-20260612012405894",
-  "Name": "戒律",
+  "Id": "新模块1-20260612100954681",
+  "Name": "新模块1",
   "Enabled": true,
   "Match": {
     "ClassId": 5,
     "SpecId": 1,
-    "PartyType": 46,
-    "HeroTalent": 2
+    "PartyType": "46",
+    "HeroTalent": 1
   },
   "Rules": [
     {

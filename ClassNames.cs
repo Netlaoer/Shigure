@@ -63,6 +63,102 @@ public static class ClassNames
         [(13, 3)] = "增辉"
     };
 
+    private static readonly Dictionary<(int ClassId, int SpecId, int HeroTalentId), string> HeroTalents = new()
+    {
+        [(1, 1, 1)] = "巨神兵",
+        [(1, 1, 2)] = "屠戮者",
+        [(1, 2, 2)] = "屠戮者",
+        [(1, 2, 3)] = "山丘领主",
+        [(1, 3, 1)] = "巨神兵",
+        [(1, 3, 3)] = "山丘领主",
+
+        [(2, 1, 1)] = "烈日先驱",
+        [(2, 1, 2)] = "铸光者",
+        [(2, 2, 1)] = "铸光者",
+        [(2, 2, 2)] = "圣殿骑士",
+        [(2, 3, 1)] = "烈日先驱",
+        [(2, 3, 2)] = "圣殿骑士",
+
+        [(3, 1, 1)] = "黑暗游侠",
+        [(3, 1, 2)] = "猎群领袖",
+        [(3, 2, 1)] = "黑暗游侠",
+        [(3, 2, 2)] = "哨兵",
+        [(3, 3, 1)] = "猎群领袖",
+        [(3, 3, 2)] = "哨兵",
+
+        [(4, 1, 1)] = "死亡猎手",
+        [(4, 1, 2)] = "命缚者",
+        [(4, 2, 1)] = "命缚者",
+        [(4, 2, 2)] = "欺诈者",
+        [(4, 3, 1)] = "死亡猎手",
+        [(4, 3, 2)] = "欺诈者",
+
+        [(5, 1, 1)] = "神谕者",
+        [(5, 1, 2)] = "虚空编织者",
+        [(5, 2, 1)] = "神谕者",
+        [(5, 2, 2)] = "执政官",
+        [(5, 3, 1)] = "执政官",
+        [(5, 3, 2)] = "虚空编织者",
+
+        [(6, 1, 1)] = "死亡使者",
+        [(6, 1, 2)] = "萨莱因",
+        [(6, 2, 1)] = "死亡使者",
+        [(6, 2, 2)] = "天启骑士",
+        [(6, 3, 1)] = "天启骑士",
+        [(6, 3, 2)] = "萨莱因",
+
+        [(7, 1, 1)] = "先知",
+        [(7, 1, 2)] = "风暴使者",
+        [(7, 2, 1)] = "风暴使者",
+        [(7, 2, 2)] = "图腾祭祀",
+        [(7, 3, 1)] = "先知",
+        [(7, 3, 2)] = "图腾祭祀",
+
+        [(8, 1, 1)] = "疾咒师",
+        [(8, 1, 2)] = "日怒",
+        [(8, 2, 1)] = "霜火",
+        [(8, 2, 2)] = "日怒",
+        [(8, 3, 1)] = "霜火",
+        [(8, 3, 2)] = "疾咒师",
+
+        [(9, 1, 1)] = "地狱召唤者",
+        [(9, 1, 2)] = "灵魂收割者",
+        [(9, 2, 1)] = "恶魔使徒",
+        [(9, 2, 2)] = "灵魂收割者",
+        [(9, 3, 1)] = "恶魔使徒",
+        [(9, 3, 2)] = "地狱召唤者",
+
+        [(10, 1, 1)] = "祥和宗师",
+        [(10, 1, 2)] = "影踪派",
+        [(10, 2, 1)] = "天神御师",
+        [(10, 2, 2)] = "祥和宗师",
+        [(10, 3, 1)] = "天神御师",
+        [(10, 3, 2)] = "影踪派",
+
+        [(11, 1, 1)] = "艾露恩钦选者",
+        [(11, 1, 2)] = "丛林守护者",
+        [(11, 2, 1)] = "利爪德鲁伊",
+        [(11, 2, 2)] = "荒野追猎者",
+        [(11, 3, 1)] = "利爪德鲁伊",
+        [(11, 3, 2)] = "艾露恩钦选者",
+        [(11, 4, 1)] = "丛林守护者",
+        [(11, 4, 2)] = "荒野追猎者",
+
+        [(12, 1, 1)] = "奥达奇收割者",
+        [(12, 1, 2)] = "邪痕枭雄",
+        [(12, 2, 1)] = "歼灭者",
+        [(12, 2, 2)] = "复仇英雄天赋2",
+        [(12, 3, 1)] = "噬灭英雄天赋1",
+        [(12, 3, 2)] = "噬灭英雄天赋2",
+
+        [(13, 1, 1)] = "塑焰者",
+        [(13, 1, 2)] = "鳞长",
+        [(13, 2, 1)] = "时空守卫",
+        [(13, 2, 2)] = "塑焰者",
+        [(13, 3, 1)] = "时空守卫",
+        [(13, 3, 2)] = "鳞长"
+    };
+
     public static (string? ClassName, string? SpecName) GetClassAndSpecName(int? classId, int? specId)
     {
         var className = classId is null or 0 ? null : Classes.GetValueOrDefault(classId.Value, $"职业{classId}");
@@ -70,6 +166,32 @@ public static class ClassNames
             ? null
             : Specs.GetValueOrDefault((classId.Value, specId.Value), $"专精{specId}");
         return (className, specName);
+    }
+
+    public static IReadOnlyList<(int Id, string Name)> GetClasses()
+    {
+        return Classes
+            .OrderBy(item => item.Key)
+            .Select(item => (item.Key, item.Value))
+            .ToList();
+    }
+
+    public static IReadOnlyList<(int Id, string Name)> GetSpecs(int classId)
+    {
+        return Specs
+            .Where(item => item.Key.ClassId == classId)
+            .OrderBy(item => item.Key.SpecId)
+            .Select(item => (item.Key.SpecId, item.Value))
+            .ToList();
+    }
+
+    public static IReadOnlyList<(int Id, string Name)> GetHeroTalents(int classId, int specId)
+    {
+        return HeroTalents
+            .Where(item => item.Key.ClassId == classId && item.Key.SpecId == specId)
+            .OrderBy(item => item.Key.HeroTalentId)
+            .Select(item => (item.Key.HeroTalentId, item.Value))
+            .ToList();
     }
 }
 

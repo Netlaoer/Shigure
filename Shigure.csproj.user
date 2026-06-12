@@ -5,6 +5,9 @@
     <Compile Update="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="ModuleEditorControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="StatusForm.cs">
       <SubType>Form</SubType>
     </Compile>

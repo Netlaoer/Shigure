@@ -30,12 +30,12 @@ public sealed class ModuleDefinition
         };
     }
 
-    public static ModuleDefinition CreateDefault()
+    public static ModuleDefinition CreateDefault(string name = "新模块")
     {
         return new ModuleDefinition
         {
-            Id = ModuleStore.CreateModuleId("新模块"),
-            Name = "新模块",
+            Id = ModuleStore.CreateModuleId(name),
+            Name = name,
             Enabled = true,
             Rules =
             [
@@ -282,6 +282,16 @@ public sealed class ModuleStore
         Normalize(module);
         var oldPath = module.FilePath;
         var path = BuildModulePath(module);
+        lock (_gate)
+        {
+            if (_modules.Any(existing =>
+                !string.Equals(existing.Id, module.Id, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(existing.Name, module.Name, StringComparison.CurrentCultureIgnoreCase)))
+            {
+                throw new InvalidOperationException($"模块名称“{module.Name}”已存在。");
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(oldPath)
             && IsInsideModuleDirectory(oldPath)
             && !string.Equals(Path.GetFullPath(oldPath), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase)
@@ -326,6 +336,21 @@ public sealed class ModuleStore
         return $"{SanitizeFileName(name)}-{DateTimeOffset.Now:yyyyMMddHHmmssfff}";
     }
 
+    public string CreateNextModuleName()
+    {
+        lock (_gate)
+        {
+            for (var index = 1; ; index++)
+            {
+                var name = $"新模块{index.ToString(CultureInfo.InvariantCulture)}";
+                if (!_modules.Any(module => string.Equals(module.Name, name, StringComparison.CurrentCultureIgnoreCase)))
+                {
+                    return name;
+                }
+            }
+        }
+    }
+
     private static IEnumerable<ModuleDefinition> SortModules(IEnumerable<ModuleDefinition> modules)
     {
         return modules
@@ -339,25 +364,8 @@ public sealed class ModuleStore
 
     private string BuildModulePath(ModuleDefinition module)
     {
-        var match = module.Match;
-        var directory = Path.Combine(
-            ModuleDirectory,
-            MatchPart(match.ClassId),
-            MatchPart(match.SpecId),
-            MatchPart(match.PartyType),
-            MatchPart(match.HeroTalent));
         var fileName = $"{SanitizeFileName(module.Name)}-{SanitizeFileName(module.Id)}.json";
-        return Path.Combine(directory, fileName);
-    }
-
-    private static string MatchPart(int? value)
-    {
-        return value?.ToString(CultureInfo.InvariantCulture) ?? "any";
-    }
-
-    private static string MatchPart(string? value)
-    {
-        return ModuleMatch.NormalizePartyTypeValue(value) ?? "any";
+        return Path.Combine(ModuleDirectory, fileName);
     }
 
     private static void Normalize(ModuleDefinition module)

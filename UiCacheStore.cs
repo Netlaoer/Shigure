@@ -57,6 +57,7 @@ internal static class UiCacheStore
 internal sealed class UiCacheState
 {
     public WindowLocation? MainWindowLocation { get; set; }
+    public WindowBounds? MainWindowBounds { get; set; }
     public WindowBounds? SettingsWindowBounds { get; set; }
     public string? ToggleKey { get; set; }
 }

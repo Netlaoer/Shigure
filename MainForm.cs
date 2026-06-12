@@ -4,6 +4,8 @@ namespace Shigure;
 
 public sealed class MainForm : Form, IMessageFilter
 {
+    private const int ResizeGripSize = 8;
+
     private Button _toggleKeyButton = null!;
     private ComboBox _modeComboBox = null!;
     private Button _settingsButton = null!;
@@ -12,6 +14,7 @@ public sealed class MainForm : Form, IMessageFilter
 
     private Button _enableButton = null!;
 
+    private Label _titleLabel = null!;
     private Label _runtimeStatusLabel = null!;
 
     private readonly StatusForm _statusForm;
@@ -72,6 +75,32 @@ public sealed class MainForm : Form, IMessageFilter
         base.OnFormClosing(e);
     }
 
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (IsHandleCreated)
+        {
+            UiTheme.ApplyRoundedCorners(this);
+        }
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        const int WmNcHitTest = 0x0084;
+        if (m.Msg == WmNcHitTest)
+        {
+            base.WndProc(ref m);
+            if (m.Result == NativeMethods.HtClient)
+            {
+                m.Result = HitTestResizeGrip(PointToClient(Cursor.Position));
+            }
+
+            return;
+        }
+
+        base.WndProc(ref m);
+    }
+
     private void InitializeComponent()
     {
         SuspendLayout();
@@ -82,6 +111,7 @@ public sealed class MainForm : Form, IMessageFilter
         FormBorderStyle = FormBorderStyle.None;
         TopMost = true;
         ClientSize = new Size(680, 64);
+        MinimumSize = new Size(420, 56);
         BackColor = Color.FromArgb(18, 21, 26);
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
@@ -116,7 +146,7 @@ public sealed class MainForm : Form, IMessageFilter
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        var title = new Label
+        _titleLabel = new Label
         {
             Text = "Shigure",
             AutoSize = true,
@@ -128,7 +158,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _runtimeStatusLabel = new Label
         {
-            Text = "● 已停止",
+            Text = string.Empty,
             AutoSize = false,
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
@@ -136,7 +166,7 @@ public sealed class MainForm : Form, IMessageFilter
         };
 
         EnableDrag(bar);
-        EnableDrag(title);
+        EnableDrag(_titleLabel);
         EnableDrag(_runtimeStatusLabel);
 
         var buttons = new FlowLayoutPanel
@@ -164,7 +194,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         buttons.Controls.AddRange(new Control[] { _enableButton, _settingsButton, closeButton });
 
-        bar.Controls.Add(title, 0, 0);
+        bar.Controls.Add(_titleLabel, 0, 0);
         bar.Controls.Add(_runtimeStatusLabel, 1, 0);
         bar.Controls.Add(buttons, 2, 0);
         return bar;
@@ -208,11 +238,14 @@ public sealed class MainForm : Form, IMessageFilter
             Margin = new Padding(0, 0, 10, 8)
         };
 
-        _toggleKeyButton = UiTheme.CreateButton("触发键: XBUTTON2", UiTheme.Field, UiTheme.Text);
+        const int settingControlWidth = 168;
+
+        _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.Field, UiTheme.Text);
         _toggleKeyButton.AutoSize = false;
+        _toggleKeyButton.Width = settingControlWidth;
         _toggleKeyButton.Height = 30;
         _toggleKeyButton.Padding = new Padding(6, 1, 6, 1);
-        _toggleKeyButton.Dock = DockStyle.Fill;
+        _toggleKeyButton.Anchor = AnchorStyles.Left;
         _toggleKeyButton.Margin = new Padding(0, 0, 0, 8);
         _toggleKeyButton.Click += (_, _) => BeginCaptureToggleKey();
         settingsGrid.Controls.Add(CreateSettingLabel("触发键"), 0, 0);
@@ -222,7 +255,8 @@ public sealed class MainForm : Form, IMessageFilter
         UiTheme.StyleComboBox(_modeComboBox);
         _modeComboBox.Items.AddRange(new object[] { "开关", "单击", "按住" });
         _modeComboBox.SelectedIndex = 0;
-        _modeComboBox.Dock = DockStyle.Fill;
+        _modeComboBox.Width = settingControlWidth;
+        _modeComboBox.Anchor = AnchorStyles.Left;
         _modeComboBox.Margin = new Padding(0, 0, 0, 8);
         settingsGrid.Controls.Add(CreateSettingLabel("发送模式"), 0, 1);
         settingsGrid.Controls.Add(_modeComboBox, 1, 1);
@@ -239,7 +273,7 @@ public sealed class MainForm : Form, IMessageFilter
             : _initialOptions.ToggleKey.Trim();
         initialToggleKey = string.IsNullOrWhiteSpace(initialToggleKey) ? "XBUTTON2" : initialToggleKey;
         _toggleKeyName = IsUnsupportedToggleKey(initialToggleKey) ? "XBUTTON2" : initialToggleKey;
-        _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+        SetToggleKeyButtonText();
         _modeComboBox.SelectedIndex = _initialOptions.Mode switch
         {
             SendMode.Click => 1,
@@ -324,8 +358,7 @@ public sealed class MainForm : Form, IMessageFilter
             PostToUi(() =>
             {
                 AppendLog($"运行异常: {ex.Message}");
-                _runtimeStatusLabel.Text = "● 异常";
-                _runtimeStatusLabel.ForeColor = UiTheme.Danger;
+                _titleLabel.ForeColor = UiTheme.Danger;
             });
         }
         finally
@@ -470,8 +503,8 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void UpdateLogicStatusLabel(bool enabled)
     {
-        _runtimeStatusLabel.Text = enabled ? "● 开启中" : "● 已关闭";
-        _runtimeStatusLabel.ForeColor = enabled ? UiTheme.Accent : UiTheme.Muted;
+        _runtimeStatusLabel.Text = string.Empty;
+        _titleLabel.ForeColor = enabled ? UiTheme.Accent : UiTheme.Text;
     }
 
     private void PostToUi(Action action)
@@ -532,7 +565,7 @@ public sealed class MainForm : Form, IMessageFilter
         if (key is Keys.Escape)
         {
             _isCapturingToggleKey = false;
-            _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+            SetToggleKeyButtonText();
             AppendLog("已取消按键录入");
             return true;
         }
@@ -558,7 +591,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _isCapturingToggleKey = false;
         _toggleKeyName = keyName;
-        _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+        SetToggleKeyButtonText();
         SaveUiCache();
         AppendLog($"已录入触发键: {_toggleKeyName}");
         HandleSettingCommitted(this, EventArgs.Empty);
@@ -600,7 +633,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _isCapturingToggleKey = false;
         _toggleKeyName = keyName;
-        _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+        SetToggleKeyButtonText();
         SaveUiCache();
         AppendLog($"已录入触发键: {_toggleKeyName}");
         HandleSettingCommitted(this, EventArgs.Empty);
@@ -609,7 +642,20 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void ApplyCachedWindowState()
     {
-        if (_uiCache.MainWindowLocation is { } mainLocation)
+        if (_uiCache.MainWindowBounds is { } mainBounds)
+        {
+            var restoredBounds = new Rectangle(
+                mainBounds.X,
+                mainBounds.Y,
+                Math.Max(MinimumSize.Width, mainBounds.Width),
+                Math.Max(MinimumSize.Height, mainBounds.Height));
+            if (UiCacheStore.IsBoundsVisible(restoredBounds))
+            {
+                StartPosition = FormStartPosition.Manual;
+                Bounds = restoredBounds;
+            }
+        }
+        else if (_uiCache.MainWindowLocation is { } mainLocation)
         {
             var restoredBounds = new Rectangle(mainLocation.X, mainLocation.Y, Width, Height);
             if (UiCacheStore.IsBoundsVisible(restoredBounds))
@@ -624,6 +670,13 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void SaveUiCache()
     {
+        _uiCache.MainWindowBounds = new WindowBounds
+        {
+            X = Left,
+            Y = Top,
+            Width = Width,
+            Height = Height
+        };
         _uiCache.MainWindowLocation = new WindowLocation
         {
             X = Left,
@@ -644,7 +697,7 @@ public sealed class MainForm : Form, IMessageFilter
         await Task.Delay(1000);
         if (!IsDisposed)
         {
-            PostToUi(() => _toggleKeyButton.Text = $"触发键: {_toggleKeyName}");
+            PostToUi(SetToggleKeyButtonText);
         }
     }
 
@@ -656,7 +709,62 @@ public sealed class MainForm : Form, IMessageFilter
         }
 
         _isCapturingToggleKey = false;
-        _toggleKeyButton.Text = $"触发键: {_toggleKeyName}";
+        SetToggleKeyButtonText();
+    }
+
+    private void SetToggleKeyButtonText()
+    {
+        _toggleKeyButton.Text = _toggleKeyName;
+    }
+
+    private nint HitTestResizeGrip(Point clientPoint)
+    {
+        var left = clientPoint.X <= ResizeGripSize;
+        var right = clientPoint.X >= ClientSize.Width - ResizeGripSize;
+        var top = clientPoint.Y <= ResizeGripSize;
+        var bottom = clientPoint.Y >= ClientSize.Height - ResizeGripSize;
+
+        if (top && left)
+        {
+            return NativeMethods.HtTopLeft;
+        }
+
+        if (top && right)
+        {
+            return NativeMethods.HtTopRight;
+        }
+
+        if (bottom && left)
+        {
+            return NativeMethods.HtBottomLeft;
+        }
+
+        if (bottom && right)
+        {
+            return NativeMethods.HtBottomRight;
+        }
+
+        if (left)
+        {
+            return NativeMethods.HtLeft;
+        }
+
+        if (right)
+        {
+            return NativeMethods.HtRight;
+        }
+
+        if (top)
+        {
+            return NativeMethods.HtTop;
+        }
+
+        if (bottom)
+        {
+            return NativeMethods.HtBottom;
+        }
+
+        return NativeMethods.HtClient;
     }
 
     private static string? TryMapKeyToHotkey(Keys key)

@@ -7,7 +7,16 @@ internal static class NativeMethods
     public const uint WmKeyDown = 0x0100;
     public const uint WmKeyUp = 0x0101;
     public const uint WmNcLButtonDown = 0x00A1;
+    public const nint HtClient = 1;
     public const nint HtCaption = 2;
+    public const nint HtLeft = 10;
+    public const nint HtRight = 11;
+    public const nint HtTop = 12;
+    public const nint HtTopLeft = 13;
+    public const nint HtTopRight = 14;
+    public const nint HtBottom = 15;
+    public const nint HtBottomLeft = 16;
+    public const nint HtBottomRight = 17;
     public const nint HwndNotTopmost = -2;
     public const uint SwpNomove = 0x0002;
     public const uint SwpNoSize = 0x0001;
@@ -87,4 +96,3 @@ internal static class NativeMethods
         return (GetAsyncKeyState(vk) & unchecked((short)0x8000)) != 0;
     }
 }
-

@@ -1,14 +1,20 @@
 {
-  "Id": "default-one-key-assist",
-  "Name": "默认一键辅助",
+  "Id": "新模块1-20260612100954681",
+  "Name": "新模块1",
   "Enabled": true,
-  "Match": {},
+  "Match": {
+    "ClassId": 5,
+    "SpecId": 1,
+    "PartyType": "46",
+    "HeroTalent": 1
+  },
   "Rules": [
     {
       "Enabled": true,
       "Condition": "一键辅助 == 10",
       "Unit": 0,
       "Spell": "一键辅助",
+      "Hotkey": "",
       "Step": "施放 一键辅助"
     }
   ]

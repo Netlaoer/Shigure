@@ -9,10 +9,10 @@ public sealed class ModuleEditorControl : UserControl
     private readonly ListBox _moduleList = new();
     private readonly TextBox _nameBox = new();
     private readonly CheckBox _enabledBox = new();
-    private readonly TextBox _classBox = new();
-    private readonly TextBox _specBox = new();
+    private readonly ComboBox _classBox = new();
+    private readonly ComboBox _specBox = new();
     private readonly ComboBox _partyTypeBox = new();
-    private readonly TextBox _heroTalentBox = new();
+    private readonly ComboBox _heroTalentBox = new();
     private readonly DataGridView _rulesGrid = new();
     private readonly Label _pathLabel = new();
     private List<ModuleDefinition> _modules = new();
@@ -24,6 +24,7 @@ public sealed class ModuleEditorControl : UserControl
         new("团队 (1-40)", "1-40"),
         new("队伍 (46)", "46")
     ];
+    private static readonly MatchOption[] ClassOptions = BuildClassOptions();
 
     public ModuleEditorControl(ModuleStore moduleStore, Action runtimeRestartRequested)
     {
@@ -166,6 +167,8 @@ public sealed class ModuleEditorControl : UserControl
 
     private Control BuildMatchRow()
     {
+        var matchLabels = new[] { "职业", "专精", "英雄天赋", "队伍类型" };
+
         var row = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -174,16 +177,27 @@ public sealed class ModuleEditorControl : UserControl
             RowCount = 2,
             Margin = new Padding(0)
         };
-        for (var i = 0; i < 4; i++)
+        foreach (var label in matchLabels)
         {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, MeasureLabelColumnWidth(label, Font)));
             row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
         }
 
-        AddMatchField(row, "职业", _classBox, 0);
-        AddMatchField(row, "专精", _specBox, 2);
-        AddMatchField(row, "队伍类型", _partyTypeBox, 4);
-        AddMatchField(row, "英雄天赋", _heroTalentBox, 6);
+        ResetClassOptions(_classBox);
+        ResetSpecOptions(_specBox, null);
+        ResetHeroTalentOptions(_heroTalentBox, null, null);
+        _classBox.SelectedIndexChanged += (_, _) =>
+        {
+            ResetSpecOptions(_specBox, ReadMatchCombo(_classBox));
+            ResetHeroTalentOptions(_heroTalentBox, ReadMatchCombo(_classBox), ReadMatchCombo(_specBox));
+        };
+        _specBox.SelectedIndexChanged += (_, _) =>
+            ResetHeroTalentOptions(_heroTalentBox, ReadMatchCombo(_classBox), ReadMatchCombo(_specBox));
+
+        AddMatchField(row, "职业:", _classBox, 0);
+        AddMatchField(row, "专精:", _specBox, 2);
+        AddMatchField(row, "英雄天赋:", _heroTalentBox, 4);
+        AddMatchField(row, "队伍类型:", _partyTypeBox, 6);
         return row;
     }
 
@@ -214,33 +228,21 @@ public sealed class ModuleEditorControl : UserControl
         });
         _rulesGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            Name = "Condition",
-            HeaderText = "判断条件",
-            FillWeight = 180
+            Name = "Spell",
+            HeaderText = "技能",
+            FillWeight = 120
         });
         _rulesGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "Unit",
-            HeaderText = "单位",
+            HeaderText = "目标",
             FillWeight = 48
         });
         _rulesGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            Name = "Spell",
-            HeaderText = "技能",
-            FillWeight = 90
-        });
-        _rulesGrid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            Name = "Hotkey",
-            HeaderText = "按键",
-            FillWeight = 70
-        });
-        _rulesGrid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            Name = "Step",
-            HeaderText = "步骤文本",
-            FillWeight = 120
+            Name = "Condition",
+            HeaderText = "条件",
+            FillWeight = 180
         });
 
         return _rulesGrid;
@@ -260,7 +262,7 @@ public sealed class ModuleEditorControl : UserControl
 
         var hint = new Label
         {
-            Text = "条件示例: 生命值 < 50 && spells.圣疗术 == 0",
+            Text = "条件示例: 生命值 < 50 && spells.圣疗术 == 0；目标留空表示默认目标",
             Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
@@ -328,16 +330,16 @@ public sealed class ModuleEditorControl : UserControl
     {
         _nameBox.Text = module.Name;
         _enabledBox.Checked = module.Enabled;
-        _classBox.Text = FormatMatchValue(module.Match.ClassId);
-        _specBox.Text = FormatMatchValue(module.Match.SpecId);
+        SelectClass(module.Match.ClassId);
+        SelectSpec(module.Match.SpecId);
         SelectPartyType(module.Match.PartyType);
-        _heroTalentBox.Text = FormatMatchValue(module.Match.HeroTalent);
+        SelectHeroTalent(module.Match.HeroTalent);
         _pathLabel.Text = module.FilePath ?? "尚未保存";
         _rulesGrid.Rows.Clear();
 
         foreach (var rule in module.Rules)
         {
-            _rulesGrid.Rows.Add(rule.Enabled, rule.Condition, rule.Unit?.ToString() ?? string.Empty, rule.Spell, rule.Hotkey, rule.Step);
+            _rulesGrid.Rows.Add(rule.Enabled, rule.Spell, rule.Unit?.ToString() ?? string.Empty, rule.Condition);
         }
     }
 
@@ -346,18 +348,27 @@ public sealed class ModuleEditorControl : UserControl
         _selectedModule = null;
         _nameBox.Clear();
         _enabledBox.Checked = false;
-        _classBox.Clear();
-        _specBox.Clear();
+        SelectClass(null);
+        SelectSpec(null);
         SelectPartyType(null);
-        _heroTalentBox.Clear();
+        SelectHeroTalent(null);
         _pathLabel.Text = "无模块";
         _rulesGrid.Rows.Clear();
     }
 
     private void AddModule()
     {
-        var module = ModuleDefinition.CreateDefault();
-        _moduleStore.Save(module);
+        var module = ModuleDefinition.CreateDefault(_moduleStore.CreateNextModuleName());
+        try
+        {
+            _moduleStore.Save(module);
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message, "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         LoadModules();
         var index = _modules.FindIndex(existing => string.Equals(existing.Id, module.Id, StringComparison.OrdinalIgnoreCase));
         if (index >= 0)
@@ -380,7 +391,17 @@ public sealed class ModuleEditorControl : UserControl
             return;
         }
 
-        var saved = _moduleStore.Save(module);
+        ModuleDefinition saved;
+        try
+        {
+            saved = _moduleStore.Save(module);
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message, "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         LoadModules();
         var index = _modules.FindIndex(existing => string.Equals(existing.Id, saved.Id, StringComparison.OrdinalIgnoreCase));
         if (index >= 0)
@@ -420,40 +441,14 @@ public sealed class ModuleEditorControl : UserControl
         module.Enabled = _enabledBox.Checked;
         module.Match = new ModuleMatch
         {
-            ClassId = ParseMatchBox(_classBox, "职业"),
-            SpecId = ParseMatchBox(_specBox, "专精"),
+            ClassId = ReadMatchCombo(_classBox),
+            SpecId = ReadMatchCombo(_specBox),
             PartyType = ReadPartyTypeCombo(),
-            HeroTalent = ParseMatchBox(_heroTalentBox, "英雄天赋")
+            HeroTalent = ReadMatchCombo(_heroTalentBox)
         };
-
-        if (_lastParseFailed)
-        {
-            _lastParseFailed = false;
-            return false;
-        }
 
         module.Rules = ReadRules();
         return true;
-    }
-
-    private bool _lastParseFailed;
-
-    private int? ParseMatchBox(TextBox box, string label)
-    {
-        var text = box.Text.Trim();
-        if (string.IsNullOrWhiteSpace(text) || text == "*")
-        {
-            return null;
-        }
-
-        if (int.TryParse(text, out var value))
-        {
-            return value;
-        }
-
-        MessageBox.Show($"{label} 必须是数字，留空或 * 表示任意。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        _lastParseFailed = true;
-        return null;
     }
 
     private List<ModuleRule> ReadRules()
@@ -468,12 +463,9 @@ public sealed class ModuleEditorControl : UserControl
 
             var condition = CellText(row, "Condition");
             var spell = CellText(row, "Spell");
-            var hotkey = CellText(row, "Hotkey");
-            var step = CellText(row, "Step");
             if (string.IsNullOrWhiteSpace(condition)
                 && string.IsNullOrWhiteSpace(spell)
-                && string.IsNullOrWhiteSpace(hotkey)
-                && string.IsNullOrWhiteSpace(step))
+                && string.IsNullOrWhiteSpace(CellText(row, "Unit")))
             {
                 continue;
             }
@@ -484,8 +476,8 @@ public sealed class ModuleEditorControl : UserControl
                 Condition = condition,
                 Unit = ParseNullableInt(CellText(row, "Unit")),
                 Spell = spell,
-                Hotkey = hotkey,
-                Step = step
+                Hotkey = string.Empty,
+                Step = string.Empty
             });
         }
 
@@ -505,7 +497,6 @@ public sealed class ModuleEditorControl : UserControl
         row.Controls.Add(CreateLabel(label), column, 0);
         UiTheme.StyleComboBox(box);
         box.Dock = DockStyle.Fill;
-        ResetPartyTypeOptions(box);
         row.Controls.Add(box, column + 1, 0);
     }
 
@@ -519,6 +510,11 @@ public sealed class ModuleEditorControl : UserControl
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true
         };
+    }
+
+    private static int MeasureLabelColumnWidth(string text, Font font)
+    {
+        return TextRenderer.MeasureText(text, font).Width + 18;
     }
 
     private static void StyleTextBox(TextBox textBox)
@@ -538,6 +534,107 @@ public sealed class ModuleEditorControl : UserControl
     private static string FormatMatchValue(int? value)
     {
         return value?.ToString() ?? "*";
+    }
+
+    private void SelectClass(int? value)
+    {
+        var index = FindMatchOption(_classBox, value);
+        if (index < 0 && value is not null)
+        {
+            _classBox.Items.Add(new MatchOption($"职业{value} ({value})", value));
+            index = _classBox.Items.Count - 1;
+        }
+
+        _classBox.SelectedIndex = index >= 0 ? index : 0;
+        ResetSpecOptions(_specBox, ReadMatchCombo(_classBox));
+    }
+
+    private void SelectSpec(int? value)
+    {
+        var index = FindMatchOption(_specBox, value);
+        if (index < 0 && value is not null)
+        {
+            _specBox.Items.Add(new MatchOption($"专精{value} ({value})", value));
+            index = _specBox.Items.Count - 1;
+        }
+
+        _specBox.SelectedIndex = index >= 0 ? index : 0;
+        ResetHeroTalentOptions(_heroTalentBox, ReadMatchCombo(_classBox), ReadMatchCombo(_specBox));
+    }
+
+    private void SelectHeroTalent(int? value)
+    {
+        var index = FindMatchOption(_heroTalentBox, value);
+        if (index < 0 && value is not null)
+        {
+            _heroTalentBox.Items.Add(new MatchOption($"英雄天赋{value} ({value})", value));
+            index = _heroTalentBox.Items.Count - 1;
+        }
+
+        _heroTalentBox.SelectedIndex = index >= 0 ? index : 0;
+    }
+
+    private static int? ReadMatchCombo(ComboBox comboBox)
+    {
+        return comboBox.SelectedItem is MatchOption option ? option.Value : null;
+    }
+
+    private static void ResetClassOptions(ComboBox comboBox)
+    {
+        comboBox.Items.Clear();
+        comboBox.Items.AddRange(ClassOptions);
+        comboBox.SelectedIndex = 0;
+    }
+
+    private static void ResetSpecOptions(ComboBox comboBox, int? classId)
+    {
+        comboBox.Items.Clear();
+        comboBox.Items.Add(new MatchOption("任意 (*)", null));
+        if (classId is not null)
+        {
+            foreach (var spec in ClassNames.GetSpecs(classId.Value))
+            {
+                comboBox.Items.Add(new MatchOption($"{spec.Name} ({spec.Id})", spec.Id));
+            }
+        }
+
+        comboBox.SelectedIndex = 0;
+    }
+
+    private static void ResetHeroTalentOptions(ComboBox comboBox, int? classId, int? specId)
+    {
+        comboBox.Items.Clear();
+        comboBox.Items.Add(new MatchOption("任意 (*)", null));
+        if (classId is not null && specId is not null)
+        {
+            foreach (var heroTalent in ClassNames.GetHeroTalents(classId.Value, specId.Value))
+            {
+                comboBox.Items.Add(new MatchOption($"{heroTalent.Name} ({heroTalent.Id})", heroTalent.Id));
+            }
+        }
+
+        comboBox.SelectedIndex = 0;
+    }
+
+    private static int FindMatchOption(ComboBox comboBox, int? value)
+    {
+        for (var i = 0; i < comboBox.Items.Count; i++)
+        {
+            if (comboBox.Items[i] is MatchOption option && option.Value == value)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static MatchOption[] BuildClassOptions()
+    {
+        return ClassNames.GetClasses()
+            .Select(item => new MatchOption($"{item.Name} ({item.Id})", item.Id))
+            .Prepend(new MatchOption("任意 (*)", null))
+            .ToArray();
     }
 
     private void SelectPartyType(string? value)
@@ -614,6 +711,14 @@ public sealed class ModuleEditorControl : UserControl
     }
 
     private sealed record PartyTypeOption(string Text, string? Value)
+    {
+        public override string ToString()
+        {
+            return Text;
+        }
+    }
+
+    private sealed record MatchOption(string Text, int? Value)
     {
         public override string ToString()
         {
