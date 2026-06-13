@@ -11,6 +11,7 @@ public sealed record AppOptions(
     string WindowTitle,
     string ToggleKey,
     SendMode Mode,
+    string? ModuleId,
     TimeSpan LogicInterval,
     TimeSpan RenderInterval)
 {
@@ -19,6 +20,7 @@ public sealed record AppOptions(
         var windowTitle = "魔兽世界";
         var toggleKey = "XBUTTON2";
         var mode = SendMode.Switch;
+        string? moduleId = null;
         var logicInterval = TimeSpan.FromMilliseconds(100);
         var renderInterval = TimeSpan.FromMilliseconds(100);
 
@@ -40,6 +42,10 @@ public sealed record AppOptions(
                     mode = ParseMode(value);
                     i++;
                     break;
+                case "--module" when value is not null:
+                    moduleId = value;
+                    i++;
+                    break;
                 case "--logic-ms" when value is not null && int.TryParse(value, out var logicMs):
                     logicInterval = TimeSpan.FromMilliseconds(Math.Max(50, logicMs));
                     i++;
@@ -51,7 +57,7 @@ public sealed record AppOptions(
             }
         }
 
-        return new AppOptions(windowTitle, toggleKey, mode, logicInterval, renderInterval);
+        return new AppOptions(windowTitle, toggleKey, mode, moduleId, logicInterval, renderInterval);
     }
 
     private static SendMode ParseMode(string value)
@@ -64,4 +70,3 @@ public sealed record AppOptions(
         };
     }
 }
-

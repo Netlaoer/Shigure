@@ -18,8 +18,12 @@ internal static class UiTheme
 
     public static readonly Color Background = Color.FromArgb(13, 15, 18);
     public static readonly Color Surface = Color.FromArgb(22, 25, 31);
+    public static readonly Color SurfaceRaised = Color.FromArgb(27, 31, 38);
     public static readonly Color Field = Color.FromArgb(31, 35, 42);
     public static readonly Color Hover = Color.FromArgb(40, 45, 53);
+    public static readonly Color Pressed = Color.FromArgb(49, 56, 66);
+    public static readonly Color Border = Color.FromArgb(47, 54, 64);
+    public static readonly Color RowAlt = Color.FromArgb(25, 29, 35);
     public static readonly Color Text = Color.FromArgb(225, 229, 235);
     public static readonly Color Muted = Color.FromArgb(128, 136, 148);
     public static readonly Color Accent = Color.FromArgb(86, 205, 192);
@@ -159,10 +163,38 @@ internal static class UiTheme
             Padding = new Padding(10, 2, 10, 2),
             Margin = new Padding(6, 0, 0, 0),
             UseVisualStyleBackColor = false,
+            Cursor = Cursors.Hand,
             TabStop = false
         };
-        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.BorderColor = backColor == Accent ? Accent : Border;
+        button.FlatAppearance.MouseOverBackColor = backColor == Accent ? Color.FromArgb(103, 224, 211) : Hover;
+        button.FlatAppearance.MouseDownBackColor = backColor == Accent ? Color.FromArgb(70, 181, 170) : Pressed;
         return button;
+    }
+
+    public static void StyleTextBox(TextBox textBox)
+    {
+        textBox.BackColor = Field;
+        textBox.ForeColor = Text;
+        textBox.BorderStyle = BorderStyle.FixedSingle;
+    }
+
+    public static void StyleNumericUpDown(NumericUpDown numeric)
+    {
+        numeric.BackColor = Field;
+        numeric.ForeColor = Text;
+        numeric.BorderStyle = BorderStyle.FixedSingle;
+    }
+
+    public static void StyleCheckedListBox(CheckedListBox listBox)
+    {
+        listBox.BackColor = Field;
+        listBox.ForeColor = Text;
+        listBox.BorderStyle = BorderStyle.FixedSingle;
+        listBox.CheckOnClick = true;
+        listBox.IntegralHeight = false;
+        listBox.ItemHeight = 24;
     }
 
     public static void StyleComboBox(ComboBox comboBox)
@@ -172,7 +204,8 @@ internal static class UiTheme
         comboBox.BackColor = Field;
         comboBox.ForeColor = Text;
         comboBox.DrawMode = DrawMode.OwnerDrawFixed;
-        comboBox.ItemHeight = 26;
+        comboBox.ItemHeight = 28;
+        comboBox.DropDownHeight = 320;
 
         comboBox.DrawItem += (_, e) =>
         {
@@ -201,41 +234,189 @@ internal static class UiTheme
         };
     }
 
-    public static ListView CreateListView(Font font, params (string Text, int Width)[] columns)
+    public static void StyleListBox(ListBox listBox, Font font)
     {
-        var listView = new ListView
-        {
-            Dock = DockStyle.Fill,
-            View = View.Details,
-            FullRowSelect = true,
-            GridLines = false,
-            HideSelection = false,
-            HeaderStyle = ColumnHeaderStyle.Nonclickable,
-            BackColor = Surface,
-            ForeColor = Text,
-            BorderStyle = BorderStyle.None,
-            OwnerDraw = true
-        };
+        listBox.BackColor = Surface;
+        listBox.ForeColor = Text;
+        listBox.BorderStyle = BorderStyle.None;
+        listBox.DrawMode = DrawMode.OwnerDrawFixed;
+        listBox.ItemHeight = 30;
+        listBox.IntegralHeight = false;
 
-        foreach (var (text, width) in columns)
+        listBox.DrawItem += (_, e) =>
         {
-            listView.Columns.Add(text, width);
-        }
+            if (e.Index < 0)
+            {
+                return;
+            }
+
+            var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            var backgroundColor = selected
+                ? Hover
+                : e.Index % 2 == 0
+                    ? listBox.BackColor
+                    : RowAlt;
+            using (var background = new SolidBrush(backgroundColor))
+            {
+                e.Graphics.FillRectangle(background, e.Bounds);
+            }
+
+            if (selected)
+            {
+                using var accent = new SolidBrush(Accent);
+                e.Graphics.FillRectangle(accent, e.Bounds.Left, e.Bounds.Top + 5, 3, e.Bounds.Height - 10);
+            }
+
+            var textBounds = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top, e.Bounds.Width - 14, e.Bounds.Height);
+            TextRenderer.DrawText(
+                e.Graphics,
+                listBox.Items[e.Index]?.ToString() ?? string.Empty,
+                font,
+                textBounds,
+                selected ? Text : Muted,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        };
+    }
+
+    public static void StyleListView(ListView listView, Font font)
+    {
+        listView.Dock = DockStyle.Fill;
+        listView.View = View.Details;
+        listView.FullRowSelect = true;
+        listView.GridLines = false;
+        listView.HideSelection = false;
+        listView.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+        listView.BackColor = Surface;
+        listView.ForeColor = Text;
+        listView.BorderStyle = BorderStyle.None;
+        listView.OwnerDraw = true;
+        listView.ShowItemToolTips = true;
+        listView.SmallImageList = new ImageList { ImageSize = new Size(1, 26) };
 
         listView.DrawColumnHeader += (_, e) =>
         {
             using var brush = new SolidBrush(Field);
             e.Graphics.FillRectangle(brush, e.Bounds);
+            using var border = new Pen(Border);
+            e.Graphics.DrawLine(border, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
             TextRenderer.DrawText(
                 e.Graphics,
-                e.Header?.Text,
+                e.Header?.Text ?? string.Empty,
                 font,
-                new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 6, e.Bounds.Height),
+                new Rectangle(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 10, e.Bounds.Height),
                 Muted,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         };
-        listView.DrawItem += (_, e) => e.DrawDefault = true;
-        listView.DrawSubItem += (_, e) => e.DrawDefault = true;
+        listView.DrawItem += (_, _) =>
+        {
+            // Sub-items draw the full row in Details view.
+        };
+        listView.DrawSubItem += (_, e) =>
+        {
+            if (e.Item is null)
+            {
+                return;
+            }
+
+            var selected = e.Item.Selected;
+            var rowBack = selected
+                ? Hover
+                : e.Item.Index % 2 == 0
+                    ? Surface
+                    : RowAlt;
+            using (var brush = new SolidBrush(rowBack))
+            {
+                e.Graphics.FillRectangle(brush, e.Bounds);
+            }
+
+            if (selected && e.ColumnIndex == 0)
+            {
+                using var accent = new SolidBrush(Accent);
+                e.Graphics.FillRectangle(accent, e.Bounds.Left, e.Bounds.Top + 4, 3, e.Bounds.Height - 8);
+            }
+
+            var textBounds = new Rectangle(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 10, e.Bounds.Height);
+            TextRenderer.DrawText(
+                e.Graphics,
+                e.SubItem?.Text ?? string.Empty,
+                font,
+                textBounds,
+                selected ? Text : e.ColumnIndex == 0 ? Muted : Text,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        };
+    }
+
+    public static void StyleDataGridView(DataGridView grid)
+    {
+        grid.Dock = DockStyle.Fill;
+        grid.Margin = new Padding(0);
+        grid.BackgroundColor = Surface;
+        grid.BorderStyle = BorderStyle.None;
+        grid.GridColor = Border;
+        grid.EnableHeadersVisualStyles = false;
+        grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+        grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+        grid.ColumnHeadersHeight = 32;
+        grid.ColumnHeadersDefaultCellStyle.BackColor = Field;
+        grid.ColumnHeadersDefaultCellStyle.ForeColor = Muted;
+        grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = Field;
+        grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = Muted;
+        grid.ColumnHeadersDefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
+        grid.DefaultCellStyle.BackColor = Surface;
+        grid.DefaultCellStyle.ForeColor = Text;
+        grid.DefaultCellStyle.SelectionBackColor = Hover;
+        grid.DefaultCellStyle.SelectionForeColor = Text;
+        grid.DefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
+        grid.AlternatingRowsDefaultCellStyle.BackColor = RowAlt;
+        grid.AlternatingRowsDefaultCellStyle.ForeColor = Text;
+        grid.RowTemplate.Height = 30;
+        grid.RowHeadersVisible = false;
+        grid.AllowUserToResizeRows = false;
+        grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+    }
+
+    public static void StyleTabControl(TabControl tabs, int itemWidth = 132)
+    {
+        tabs.BackColor = Surface;
+        tabs.ForeColor = Text;
+        tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+        tabs.ItemSize = new Size(itemWidth, 30);
+        tabs.SizeMode = TabSizeMode.Fixed;
+        tabs.Padding = new Point(12, 4);
+        tabs.DrawItem += (_, e) =>
+        {
+            var isSelected = e.Index == tabs.SelectedIndex;
+            var bounds = e.Bounds;
+            bounds.Inflate(-1, -1);
+
+            using var background = new SolidBrush(isSelected ? Field : Surface);
+            e.Graphics.FillRectangle(background, bounds);
+
+            if (isSelected)
+            {
+                using var accent = new SolidBrush(Accent);
+                e.Graphics.FillRectangle(accent, bounds.Left + 8, bounds.Bottom - 3, bounds.Width - 16, 2);
+            }
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                tabs.TabPages[e.Index].Text,
+                tabs.Font,
+                bounds,
+                isSelected ? Text : Muted,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        };
+    }
+
+    public static ListView CreateListView(Font font, params (string Text, int Width)[] columns)
+    {
+        var listView = new ListView();
+        StyleListView(listView, font);
+
+        foreach (var (text, width) in columns)
+        {
+            listView.Columns.Add(text, width);
+        }
 
         // 最后一列拉伸填满, 避免表头右侧露出系统默认的白色区域。
         void StretchLastColumn()

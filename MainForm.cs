@@ -8,9 +8,15 @@ public sealed class MainForm : Form, IMessageFilter
 
     private Button _toggleKeyButton = null!;
     private ComboBox _modeComboBox = null!;
+    private ComboBox _moduleComboBox = null!;
+    private Label _moduleFilterLabel = null!;
+    private Label _moduleCountLabel = null!;
     private Button _settingsButton = null!;
     private string _toggleKeyName = "XBUTTON2";
+    private string? _selectedModuleId;
     private bool _isCapturingToggleKey;
+    private bool _suppressModuleSelectionChanged;
+    private string? _lastModuleSelectorSignature;
 
     private Button _enableButton = null!;
 
@@ -26,6 +32,7 @@ public sealed class MainForm : Form, IMessageFilter
     private Task? _runtimeTask;
     private RenderSnapshot? _lastSnapshot;
     private string? _lastLoggedStep;
+    private string? _lastLoggedStepTarget;
     private string? _lastLoggedClass;
     private string? _lastLoggedModule;
     private bool? _lastLoggedEnabled;
@@ -185,7 +192,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _settingsButton = UiTheme.CreateButton("设置", UiTheme.Field, UiTheme.Text);
         ConfigureTopBarButton(_settingsButton);
-        _settingsButton.Click += (_, _) => _statusForm.ShowSettings(_lastSnapshot);
+        _settingsButton.Click += (_, _) => ShowSettingsView();
 
         var closeButton = UiTheme.CreateButton("✕", UiTheme.Field, UiTheme.Muted);
         ConfigureTopBarButton(closeButton);
@@ -206,7 +213,7 @@ public sealed class MainForm : Form, IMessageFilter
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            Padding = new Padding(4),
+            Padding = new Padding(0),
             ColumnCount = 1,
             Margin = new Padding(0),
             RowCount = 2
@@ -219,13 +226,15 @@ public sealed class MainForm : Form, IMessageFilter
         {
             Dock = DockStyle.Top,
             AutoSize = true,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 2,
-            RowCount = 2,
-            Margin = new Padding(0)
+            RowCount = 3,
+            Padding = new Padding(12, 10, 12, 4),
+            Margin = new Padding(0, 0, 0, 10)
         };
         settingsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
         settingsGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
         settingsGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
 
@@ -238,7 +247,7 @@ public sealed class MainForm : Form, IMessageFilter
             Margin = new Padding(0, 0, 10, 8)
         };
 
-        const int settingControlWidth = 168;
+        const int settingControlWidth = 190;
 
         _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.Field, UiTheme.Text);
         _toggleKeyButton.AutoSize = false;
@@ -261,7 +270,54 @@ public sealed class MainForm : Form, IMessageFilter
         settingsGrid.Controls.Add(CreateSettingLabel("发送模式"), 0, 1);
         settingsGrid.Controls.Add(_modeComboBox, 1, 1);
 
+        _moduleComboBox = new ComboBox();
+        UiTheme.StyleComboBox(_moduleComboBox);
+        _moduleComboBox.Width = 520;
+        _moduleComboBox.Anchor = AnchorStyles.Left;
+        _moduleComboBox.Margin = new Padding(0, 0, 0, 8);
+        settingsGrid.Controls.Add(CreateSettingLabel("模块选择"), 0, 2);
+        settingsGrid.Controls.Add(_moduleComboBox, 1, 2);
+
+        var moduleInfo = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            BackColor = UiTheme.SurfaceRaised,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(12, 10, 12, 10),
+            Margin = new Padding(0)
+        };
+        moduleInfo.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        moduleInfo.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var moduleInfoText = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            BackColor = UiTheme.SurfaceRaised,
+            Margin = new Padding(0)
+        };
+
+        _moduleFilterLabel = CreateInfoLabel("筛选: 等待游戏状态");
+        _moduleCountLabel = CreateInfoLabel("可选模块: 0");
+        moduleInfoText.Controls.Add(_moduleFilterLabel);
+        moduleInfoText.Controls.Add(_moduleCountLabel);
+
+        var refreshModulesButton = UiTheme.CreateButton("刷新模块", UiTheme.Field, UiTheme.Text);
+        refreshModulesButton.AutoSize = false;
+        refreshModulesButton.Size = new Size(96, 32);
+        refreshModulesButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        refreshModulesButton.Margin = new Padding(8, 0, 0, 0);
+        refreshModulesButton.Click += (_, _) => RefreshModuleSelector(_lastSnapshot, reloadModules: true);
+
+        moduleInfo.Controls.Add(moduleInfoText, 0, 0);
+        moduleInfo.Controls.Add(refreshModulesButton, 1, 0);
+
         panel.Controls.Add(settingsGrid, 0, 0);
+        panel.Controls.Add(moduleInfo, 0, 1);
         return panel;
     }
 
@@ -273,6 +329,9 @@ public sealed class MainForm : Form, IMessageFilter
             : _initialOptions.ToggleKey.Trim();
         initialToggleKey = string.IsNullOrWhiteSpace(initialToggleKey) ? "XBUTTON2" : initialToggleKey;
         _toggleKeyName = IsUnsupportedToggleKey(initialToggleKey) ? "XBUTTON2" : initialToggleKey;
+        _selectedModuleId = string.IsNullOrWhiteSpace(_uiCache.SelectedModuleId)
+            ? null
+            : _uiCache.SelectedModuleId.Trim();
         SetToggleKeyButtonText();
         _modeComboBox.SelectedIndex = _initialOptions.Mode switch
         {
@@ -280,24 +339,18 @@ public sealed class MainForm : Form, IMessageFilter
             SendMode.Hold => 2,
             _ => 0
         };
+        RefreshModuleSelector(_lastSnapshot, reloadModules: false);
     }
 
     private void WireSettingEvents()
     {
         _modeComboBox.SelectedIndexChanged += HandleSettingCommitted;
+        _moduleComboBox.SelectedIndexChanged += HandleModuleSelectionChanged;
     }
 
     private async void HandleSettingCommitted(object? sender, EventArgs e)
     {
-        var options = BuildOptions();
-        if (_runtime is not null && options == _runtime.Options)
-        {
-            return;
-        }
-
-        AppendLog("设置已变更, 重新启动运行");
-        await StopRuntimeAsync();
-        StartRuntime();
+        await RestartRuntimeAfterSettingChangeAsync();
     }
 
     private void StartRuntime()
@@ -336,6 +389,7 @@ public sealed class MainForm : Form, IMessageFilter
         }
 
         _lastLoggedStep = null;
+        _lastLoggedStepTarget = null;
         _lastLoggedClass = null;
         _lastLoggedModule = null;
         _lastLoggedEnabled = null;
@@ -403,6 +457,7 @@ public sealed class MainForm : Form, IMessageFilter
 
     private async void RestartRuntimeFromEditor()
     {
+        RefreshModuleSelector(_lastSnapshot, reloadModules: true);
         if (_runtime is null)
         {
             _moduleStore.Reload();
@@ -431,7 +486,7 @@ public sealed class MainForm : Form, IMessageFilter
             ? "XBUTTON2"
             : _toggleKeyName.Trim();
 
-        return _initialOptions with { ToggleKey = toggleKey, Mode = ReadMode() };
+        return _initialOptions with { ToggleKey = toggleKey, Mode = ReadMode(), ModuleId = _selectedModuleId };
     }
 
     private SendMode ReadMode()
@@ -456,8 +511,146 @@ public sealed class MainForm : Form, IMessageFilter
         UpdateLogicStatusLabel(snapshot.Enabled);
         _enableButton.Text = snapshot.Enabled ? "关闭" : "开启";
 
+        RefreshModuleSelector(snapshot, reloadModules: false);
         _statusForm.ApplySnapshot(snapshot);
         WriteSnapshotLog(snapshot);
+    }
+
+    private void RefreshModuleSelector(RenderSnapshot? snapshot, bool reloadModules)
+    {
+        if (_moduleComboBox is null)
+        {
+            return;
+        }
+
+        if (reloadModules)
+        {
+            _moduleStore.Reload();
+        }
+
+        var hasValidState = snapshot?.State?.GetBool("有效性") == true;
+        var (classId, specId, partyType, heroTalent, filterText) = GetModuleFilter(snapshot, hasValidState);
+        var modules = !hasValidState
+            ? _moduleStore.GetModules()
+            : _moduleStore.FindMatches(classId, specId, partyType, heroTalent);
+        var signature = BuildModuleSelectorSignature(
+            hasValidState,
+            classId,
+            specId,
+            partyType,
+            heroTalent,
+            modules);
+        if (!reloadModules && signature == _lastModuleSelectorSignature)
+        {
+            return;
+        }
+
+        _lastModuleSelectorSignature = signature;
+
+        _suppressModuleSelectionChanged = true;
+        try
+        {
+            _moduleComboBox.BeginUpdate();
+            try
+            {
+                _moduleComboBox.Items.Clear();
+                _moduleComboBox.Items.Add(ModuleSelectionOption.Auto);
+                foreach (var module in modules)
+                {
+                    _moduleComboBox.Items.Add(new ModuleSelectionOption(module.Id, ModuleDisplay.FormatListItem(module)));
+                }
+
+                var selectedIndex = 0;
+                var selectedModuleVisible = string.IsNullOrWhiteSpace(_selectedModuleId);
+                if (!string.IsNullOrWhiteSpace(_selectedModuleId))
+                {
+                    for (var i = 1; i < _moduleComboBox.Items.Count; i++)
+                    {
+                        if (_moduleComboBox.Items[i] is ModuleSelectionOption option
+                            && string.Equals(option.ModuleId, _selectedModuleId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            selectedIndex = i;
+                            selectedModuleVisible = true;
+                            break;
+                        }
+                    }
+                }
+
+                _moduleComboBox.SelectedIndex = selectedIndex;
+                _moduleCountLabel.Text = selectedModuleVisible
+                    ? $"可选模块: {modules.Count}"
+                    : $"可选模块: {modules.Count}，已选模块不符合当前筛选";
+            }
+            finally
+            {
+                _moduleComboBox.EndUpdate();
+            }
+        }
+        finally
+        {
+            _suppressModuleSelectionChanged = false;
+        }
+
+        _moduleFilterLabel.Text = filterText;
+    }
+
+    private string BuildModuleSelectorSignature(
+        bool hasValidState,
+        int? classId,
+        int? specId,
+        int? partyType,
+        int? heroTalent,
+        IReadOnlyList<ModuleDefinition> modules)
+    {
+        var moduleText = string.Join("|", modules.Select(module => $"{module.Id}:{module.Name}:{ModuleDisplay.FormatMatch(module.Match)}"));
+        return $"{hasValidState}:{classId}:{specId}:{partyType}:{heroTalent}:{_selectedModuleId}:{moduleText}";
+    }
+
+    private static (int? ClassId, int? SpecId, int? PartyType, int? HeroTalent, string Text) GetModuleFilter(
+        RenderSnapshot? snapshot,
+        bool hasValidState)
+    {
+        if (!hasValidState || snapshot?.State is null)
+        {
+            return (null, null, null, null, "筛选: 等待游戏状态，暂时显示全部模块");
+        }
+
+        var partyType = snapshot.State.GetInt("队伍类型");
+        var heroTalent = snapshot.State.GetInt("英雄天赋");
+        return (
+            snapshot.ClassId,
+            snapshot.SpecId,
+            partyType,
+            heroTalent,
+            $"筛选: {ModuleDisplay.FormatState(snapshot)}");
+    }
+
+    private async void HandleModuleSelectionChanged(object? sender, EventArgs e)
+    {
+        if (_suppressModuleSelectionChanged)
+        {
+            return;
+        }
+
+        _selectedModuleId = _moduleComboBox.SelectedItem is ModuleSelectionOption option
+            ? option.ModuleId
+            : null;
+        SaveUiCache();
+        AppendLog($"模块选择: {(_selectedModuleId is null ? "自动选择" : _moduleComboBox.Text)}");
+        await RestartRuntimeAfterSettingChangeAsync();
+    }
+
+    private async Task RestartRuntimeAfterSettingChangeAsync()
+    {
+        var options = BuildOptions();
+        if (_runtime is not null && options == _runtime.Options)
+        {
+            return;
+        }
+
+        AppendLog("设置已变更, 重新启动运行");
+        await StopRuntimeAsync();
+        StartRuntime();
     }
 
     private void WriteSnapshotLog(RenderSnapshot snapshot)
@@ -484,11 +677,28 @@ public sealed class MainForm : Form, IMessageFilter
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(snapshot.CurrentStep) && snapshot.CurrentStep != _lastLoggedStep)
+        if (!string.IsNullOrWhiteSpace(snapshot.CurrentStep))
         {
-            _lastLoggedStep = snapshot.CurrentStep;
-            AppendLog($"步骤: {snapshot.CurrentStep}");
+            var target = GetActionTarget(snapshot);
+            if (snapshot.CurrentStep != _lastLoggedStep || target != _lastLoggedStepTarget)
+            {
+                _lastLoggedStep = snapshot.CurrentStep;
+                _lastLoggedStepTarget = target;
+                var targetText = string.IsNullOrWhiteSpace(target) ? string.Empty : $"，目标: {target}";
+                AppendLog($"步骤: {snapshot.CurrentStep}{targetText}");
+            }
         }
+    }
+
+    private static string? GetActionTarget(RenderSnapshot snapshot)
+    {
+        if (!snapshot.UnitInfo.TryGetValue("动作单位", out var value))
+        {
+            return null;
+        }
+
+        var text = UiTheme.FormatValue(value);
+        return string.IsNullOrWhiteSpace(text) || text == "-" ? null : text;
     }
 
     private void SetRuntimeControls(bool running)
@@ -538,7 +748,7 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void BeginCaptureToggleKey()
     {
-        _statusForm.ShowSettings(_lastSnapshot);
+        ShowSettingsView();
 
         if (_isCapturingToggleKey)
         {
@@ -692,7 +902,14 @@ public sealed class MainForm : Form, IMessageFilter
         }
 
         _uiCache.ToggleKey = _toggleKeyName;
+        _uiCache.SelectedModuleId = _selectedModuleId;
         UiCacheStore.Save(_uiCache);
+    }
+
+    private void ShowSettingsView()
+    {
+        RefreshModuleSelector(_lastSnapshot, reloadModules: true);
+        _statusForm.ShowSettings(_lastSnapshot);
     }
 
     private async Task ResetCaptureButtonTextAsync()
@@ -816,6 +1033,17 @@ public sealed class MainForm : Form, IMessageFilter
         return key is "ALT" or "MENU" or "LMENU" or "RMENU";
     }
 
+    private static Label CreateInfoLabel(string text)
+    {
+        return new Label
+        {
+            Text = text,
+            AutoSize = true,
+            ForeColor = UiTheme.Muted,
+            Margin = new Padding(0, 0, 0, 4)
+        };
+    }
+
     private void EnableDrag(Control control)
     {
         control.MouseDown += (_, e) =>
@@ -833,6 +1061,16 @@ public sealed class MainForm : Form, IMessageFilter
         button.AutoSize = false;
         button.Size = new Size(88, 36);
         button.Padding = new Padding(4, 1, 4, 1);
+    }
+
+    private sealed record ModuleSelectionOption(string? ModuleId, string Text)
+    {
+        public static readonly ModuleSelectionOption Auto = new(null, "自动选择（最匹配）");
+
+        public override string ToString()
+        {
+            return Text;
+        }
     }
 
     private static Icon? LoadApplicationIcon()

@@ -14,6 +14,7 @@ public sealed class ModuleDefinition
     public ModuleMatch Match { get; set; } = new();
     public List<ModuleUnit> Units { get; set; } = new();
     public List<ModuleCountField> Counts { get; set; } = new();
+    public List<ModuleValueAdjustment> ValueAdjustments { get; set; } = new();
     public List<ModuleRule> Rules { get; set; } = new();
 
     [JsonIgnore]
@@ -30,6 +31,7 @@ public sealed class ModuleDefinition
             Match = Match.Clone(),
             Units = Units.Select(unit => unit.Clone()).ToList(),
             Counts = Counts.Select(count => count.Clone()).ToList(),
+            ValueAdjustments = ValueAdjustments.Select(adjustment => adjustment.Clone()).ToList(),
             Rules = Rules.Select(rule => rule.Clone()).ToList()
         };
     }
@@ -196,6 +198,25 @@ public sealed class ModuleRule
     }
 }
 
+public sealed class ModuleValueAdjustment
+{
+    public bool Enabled { get; set; } = true;
+    public string Condition { get; set; } = string.Empty;
+    public string Field { get; set; } = string.Empty;
+    public int Delta { get; set; }
+
+    public ModuleValueAdjustment Clone()
+    {
+        return new ModuleValueAdjustment
+        {
+            Enabled = Enabled,
+            Condition = Condition,
+            Field = Field,
+            Delta = Delta
+        };
+    }
+}
+
 public sealed class ModuleStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -275,12 +296,38 @@ public sealed class ModuleStore
     {
         lock (_gate)
         {
-            return _modules
-                .Where(module => module.Enabled && module.Match.Matches(classId, specId, partyType, heroTalent))
-                .OrderByDescending(module => module.Match.Specificity)
-                .ThenBy(module => module.Name, StringComparer.CurrentCultureIgnoreCase)
+            return SortMatches(_modules, classId, specId, partyType, heroTalent)
                 .FirstOrDefault()
                 ?.Clone();
+        }
+    }
+
+    public ModuleDefinition? FindSelectedOrBestMatch(string? selectedModuleId, int? classId, int? specId, int? partyType, int? heroTalent)
+    {
+        lock (_gate)
+        {
+            var matches = SortMatches(_modules, classId, specId, partyType, heroTalent).ToList();
+            if (!string.IsNullOrWhiteSpace(selectedModuleId))
+            {
+                var selected = matches.FirstOrDefault(module =>
+                    string.Equals(module.Id, selectedModuleId, StringComparison.OrdinalIgnoreCase));
+                if (selected is not null)
+                {
+                    return selected.Clone();
+                }
+            }
+
+            return matches.FirstOrDefault()?.Clone();
+        }
+    }
+
+    public IReadOnlyList<ModuleDefinition> FindMatches(int? classId, int? specId, int? partyType, int? heroTalent)
+    {
+        lock (_gate)
+        {
+            return SortMatches(_modules, classId, specId, partyType, heroTalent)
+                .Select(module => module.Clone())
+                .ToList();
         }
     }
 
@@ -367,11 +414,23 @@ public sealed class ModuleStore
     private static IEnumerable<ModuleDefinition> SortModules(IEnumerable<ModuleDefinition> modules)
     {
         return modules
-            .OrderByDescending(module => module.Enabled)
-            .ThenBy(module => module.Match.ClassId ?? int.MaxValue)
+            .OrderBy(module => module.Match.ClassId ?? int.MaxValue)
             .ThenBy(module => module.Match.SpecId ?? int.MaxValue)
             .ThenBy(module => PartyTypeSortKey(module.Match.PartyType))
             .ThenBy(module => module.Match.HeroTalent ?? int.MaxValue)
+            .ThenBy(module => module.Name, StringComparer.CurrentCultureIgnoreCase);
+    }
+
+    private static IEnumerable<ModuleDefinition> SortMatches(
+        IEnumerable<ModuleDefinition> modules,
+        int? classId,
+        int? specId,
+        int? partyType,
+        int? heroTalent)
+    {
+        return modules
+            .Where(module => module.Match.Matches(classId, specId, partyType, heroTalent))
+            .OrderByDescending(module => module.Match.Specificity)
             .ThenBy(module => module.Name, StringComparer.CurrentCultureIgnoreCase);
     }
 
@@ -402,8 +461,10 @@ public sealed class ModuleStore
         module.Match.PartyType = ModuleMatch.NormalizePartyTypeValue(module.Match.PartyType);
         module.Units ??= new List<ModuleUnit>();
         module.Counts ??= new List<ModuleCountField>();
+        module.ValueAdjustments ??= new List<ModuleValueAdjustment>();
         module.Units.RemoveAll(unit => string.IsNullOrWhiteSpace(unit.Name));
         module.Counts.RemoveAll(count => string.IsNullOrWhiteSpace(count.Name));
+        module.ValueAdjustments.RemoveAll(adjustment => string.IsNullOrWhiteSpace(adjustment.Field));
         foreach (var unit in module.Units)
         {
             unit.Name = unit.Name.Trim();
@@ -413,6 +474,12 @@ public sealed class ModuleStore
         foreach (var count in module.Counts)
         {
             count.Name = count.Name.Trim();
+        }
+
+        foreach (var adjustment in module.ValueAdjustments)
+        {
+            adjustment.Field = adjustment.Field.Trim();
+            adjustment.Condition = adjustment.Condition?.Trim() ?? string.Empty;
         }
 
         module.Rules ??= new List<ModuleRule>();
@@ -500,6 +567,15 @@ public static class ModuleLogic
                 continue;
             }
 
+            if (ModuleSpecialActions.IsPauseSpell(rule.Spell))
+            {
+                info["命中条件"] = string.IsNullOrWhiteSpace(rule.Condition) ? "始终" : rule.Condition;
+                info["动作技能"] = ModuleSpecialActions.PauseSpell;
+                info["动作按键"] = "-";
+                info["动作单位"] = "-";
+                return new LogicDecision(null, $"{module.Name}: 暂停", info, module.Name);
+            }
+
             var resolvedUnit = rule.Unit;
             if (!string.IsNullOrWhiteSpace(rule.UnitName))
             {
@@ -513,12 +589,22 @@ public static class ModuleLogic
                 resolvedUnit = int.TryParse(slot, out var slotUnit) ? slotUnit : 0;
             }
 
+            var actionSpell = rule.Spell;
+            if (ModuleSpecialActions.IsFailedSpell(actionSpell))
+            {
+                actionSpell = ModuleSpecialActions.GetFailedSpell(state);
+                if (string.IsNullOrWhiteSpace(actionSpell))
+                {
+                    continue;
+                }
+            }
+
             var hotkey = string.IsNullOrWhiteSpace(rule.Hotkey)
-                ? string.IsNullOrWhiteSpace(rule.Spell) ? null : keymap.GetHotkey(resolvedUnit, rule.Spell)
+                ? string.IsNullOrWhiteSpace(actionSpell) ? null : keymap.GetHotkey(resolvedUnit, actionSpell)
                 : rule.Hotkey.Trim();
-            var step = BuildStep(module, rule, hotkey);
+            var step = BuildStep(module, rule, hotkey, actionSpell);
             info["命中条件"] = string.IsNullOrWhiteSpace(rule.Condition) ? "始终" : rule.Condition;
-            info["动作技能"] = string.IsNullOrWhiteSpace(rule.Spell) ? "-" : rule.Spell;
+            info["动作技能"] = string.IsNullOrWhiteSpace(actionSpell) ? "-" : actionSpell;
             info["动作按键"] = string.IsNullOrWhiteSpace(hotkey) ? "-" : hotkey;
             info["动作单位"] = string.IsNullOrWhiteSpace(rule.UnitName)
                 ? resolvedUnit.GetValueOrDefault()
@@ -533,9 +619,24 @@ public static class ModuleLogic
     // 把模块定义的动态单位/数量各解析一次, 写入当前帧 state.Values 供条件求值与目标解析使用。
     public static Dictionary<string, string?> ResolveDynamicFields(ModuleDefinition module, GameState state)
     {
+        if (IsDynamicFieldsResolved(module, state)
+            && state.Values.TryGetValue("$units", out var existingUnitsObj)
+            && existingUnitsObj is Dictionary<string, string?> existingUnits)
+        {
+            return existingUnits;
+        }
+
         var unitSlots = ResolveUnits(module, state);
         ResolveCounts(module, state);
+        ApplyValueAdjustments(module, state);
+        state.Values["$dynamicModuleId"] = module.Id;
         return unitSlots;
+    }
+
+    private static bool IsDynamicFieldsResolved(ModuleDefinition module, GameState state)
+    {
+        return state.Values.TryGetValue("$dynamicModuleId", out var value)
+            && string.Equals(value?.ToString(), module.Id, StringComparison.OrdinalIgnoreCase);
     }
 
     private static Dictionary<string, string?> ResolveUnits(ModuleDefinition module, GameState state)
@@ -582,6 +683,57 @@ public static class ModuleLogic
         state.Values["$counts"] = counts;
     }
 
+    private static void ApplyValueAdjustments(ModuleDefinition module, GameState state)
+    {
+        foreach (var adjustment in module.ValueAdjustments.Where(adjustment => adjustment.Enabled))
+        {
+            if (string.IsNullOrWhiteSpace(adjustment.Field) || adjustment.Delta == 0)
+            {
+                continue;
+            }
+
+            if (!ModuleConditionEvaluator.TryEvaluate(adjustment.Condition, state, out var matched, out _)
+                || !matched)
+            {
+                continue;
+            }
+
+            ApplyValueDelta(state, adjustment.Field, adjustment.Delta);
+        }
+    }
+
+    private static void ApplyValueDelta(GameState state, string field, int delta)
+    {
+        var key = field.Trim();
+        if (key.Length == 0)
+        {
+            return;
+        }
+
+        if (state.Values.TryGetValue("$counts", out var countsObj)
+            && countsObj is Dictionary<string, int> counts
+            && counts.TryGetValue(key, out var countValue))
+        {
+            counts[key] = countValue + delta;
+            return;
+        }
+
+        if (state.Values.TryGetValue("$unithealth", out var healthObj)
+            && healthObj is Dictionary<string, object?> unitHealth
+            && unitHealth.ContainsKey(key))
+        {
+            unitHealth[key] = AddDelta(unitHealth[key], delta);
+            return;
+        }
+
+        state.Values[key] = AddDelta(state.Values.TryGetValue(key, out var value) ? value : null, delta);
+    }
+
+    private static int AddDelta(object? value, int delta)
+    {
+        return TryToInt(value, out var number) ? number + delta : delta;
+    }
+
     private static Dictionary<string, object?> CreateInfo(ModuleDefinition module, GameState state)
     {
         return new Dictionary<string, object?>
@@ -595,7 +747,36 @@ public static class ModuleLogic
         };
     }
 
-    private static string BuildStep(ModuleDefinition module, ModuleRule rule, string? hotkey)
+    private static bool TryToInt(object? value, out int number)
+    {
+        switch (value)
+        {
+            case int i:
+                number = i;
+                return true;
+            case long l:
+                number = (int)l;
+                return true;
+            case double d:
+                number = (int)d;
+                return true;
+            case decimal m:
+                number = (int)m;
+                return true;
+            case bool b:
+                number = b ? 1 : 0;
+                return true;
+            case string s when int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+                || int.TryParse(s, NumberStyles.Integer, CultureInfo.CurrentCulture, out parsed):
+                number = parsed;
+                return true;
+            default:
+                number = 0;
+                return false;
+        }
+    }
+
+    private static string BuildStep(ModuleDefinition module, ModuleRule rule, string? hotkey, string? actionSpell)
     {
         if (!string.IsNullOrWhiteSpace(rule.Step))
         {
@@ -604,9 +785,15 @@ public static class ModuleLogic
 
         if (!string.IsNullOrWhiteSpace(rule.Spell))
         {
+            if (ModuleSpecialActions.IsPauseSpell(rule.Spell))
+            {
+                return $"{module.Name}: 暂停";
+            }
+
+            var spell = string.IsNullOrWhiteSpace(actionSpell) ? rule.Spell.Trim() : actionSpell.Trim();
             return string.IsNullOrWhiteSpace(hotkey)
-                ? $"{module.Name}: 未找到按键 {rule.Spell.Trim()}"
-                : $"{module.Name}: 施放 {rule.Spell.Trim()}";
+                ? $"{module.Name}: 未找到按键 {spell}"
+                : $"{module.Name}: 施放 {spell}";
         }
 
         return string.IsNullOrWhiteSpace(hotkey)
@@ -617,6 +804,10 @@ public static class ModuleLogic
 
 public static class ModuleConditionEvaluator
 {
+    private static readonly Regex InRegex = new(
+        @"^\s*(?<field>.+?)\s+(?<op>not\s+in|in)\s*\((?<value>.*?)\)\s*$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private static readonly Regex ComparisonRegex = new(
         @"^\s*(?<field>.+?)\s*(?<op>==|!=|>=|<=|>|<)\s*(?<value>.+?)\s*$",
         RegexOptions.Compiled);
@@ -671,6 +862,15 @@ public static class ModuleConditionEvaluator
             return true;
         }
 
+        var inMatch = InRegex.Match(trimmed);
+        if (inMatch.Success)
+        {
+            var inLeft = ResolveValue(state, inMatch.Groups["field"].Value.Trim());
+            var inOp = NormalizeOperator(inMatch.Groups["op"].Value);
+            var values = ParseListLiterals(inMatch.Groups["value"].Value);
+            return TryCompareIn(inLeft, inOp, values, out matched, out error);
+        }
+
         var comparison = ComparisonRegex.Match(trimmed);
         if (!comparison.Success)
         {
@@ -703,6 +903,11 @@ public static class ModuleConditionEvaluator
         if (key.StartsWith("spell.", StringComparison.OrdinalIgnoreCase))
         {
             return state.Spells.TryGetValue(key["spell.".Length..], out var value) ? value : null;
+        }
+
+        if (ModuleSpecialActions.IsFailedSpell(key))
+        {
+            return ModuleSpecialActions.GetFailedSpell(state);
         }
 
         if (key.StartsWith("group.", StringComparison.OrdinalIgnoreCase))
@@ -813,6 +1018,82 @@ public static class ModuleConditionEvaluator
         // 关系比较(> < >= <=)遇到非数字/缺失值(如未解析的动态单位字段)时不报错, 视为不命中, 继续判断下一条规则。
         matched = false;
         return true;
+    }
+
+    private static bool TryCompareIn(object? left, string op, IReadOnlyList<object?> values, out bool matched, out string? error)
+    {
+        matched = false;
+        error = null;
+
+        foreach (var value in values)
+        {
+            if (!TryCompare(left, "==", value, out var equals, out error))
+            {
+                return false;
+            }
+
+            if (equals)
+            {
+                matched = op == "in";
+                return true;
+            }
+        }
+
+        matched = op == "not in";
+        return true;
+    }
+
+    private static IReadOnlyList<object?> ParseListLiterals(string value)
+    {
+        var values = new List<object?>();
+        foreach (var item in SplitList(value))
+        {
+            var trimmed = item.Trim();
+            if (trimmed.Length > 0)
+            {
+                values.Add(ParseLiteral(trimmed));
+            }
+        }
+
+        return values;
+    }
+
+    private static IEnumerable<string> SplitList(string value)
+    {
+        var start = 0;
+        var quote = '\0';
+        for (var i = 0; i < value.Length; i++)
+        {
+            var ch = value[i];
+            if (quote != '\0')
+            {
+                if (ch == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            if (ch is '"' or '\'')
+            {
+                quote = ch;
+                continue;
+            }
+
+            if (ch == ',')
+            {
+                yield return value[start..i];
+                start = i + 1;
+            }
+        }
+
+        yield return value[start..];
+    }
+
+    private static string NormalizeOperator(string op)
+    {
+        return Regex.Replace(op.Trim().ToLowerInvariant(), @"\s+", " ");
     }
 
     private static bool IsTruthy(object? value)

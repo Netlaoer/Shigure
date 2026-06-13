@@ -48,8 +48,8 @@ public sealed class StatusForm : Form
 
         Text = "Shigure - 设置";
         StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(640, 540);
-        Size = new Size(820, 560);
+        MinimumSize = new Size(760, 560);
+        Size = new Size(920, 640);
         BackColor = UiTheme.Background;
         ForeColor = UiTheme.Text;
         ShowInTaskbar = false;
@@ -60,57 +60,22 @@ public sealed class StatusForm : Form
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Background,
-            Padding = new Padding(12),
+            Padding = new Padding(14),
             RowCount = 2,
             ColumnCount = 1
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         Controls.Add(root);
 
-        _settingsHost = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            Margin = new Padding(0)
-        };
-
-        _moduleHost = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            Margin = new Padding(0)
-        };
-
-        _aboutHost = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            Margin = new Padding(0)
-        };
+        _settingsHost = CreatePageHost();
+        _moduleHost = CreatePageHost();
+        _aboutHost = CreatePageHost();
 
         _stateList = UiTheme.CreateListView(Font, ("#", 40), ("名称", 150), ("值", 130));
         _dynamicUnitList = UiTheme.CreateListView(Font, ("类型", 68), ("名称", 120), ("值", 160));
         _spellList = UiTheme.CreateListView(Font, ("#", 40), ("技能", 150), ("状态", 110));
 
-        var statusSplit = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 3,
-            RowCount = 1,
-            Margin = new Padding(0)
-        };
-        statusSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
-        statusSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
-        statusSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
-        statusSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _stateList.Margin = new Padding(0, 0, 5, 0);
-        _dynamicUnitList.Margin = new Padding(5, 0, 5, 0);
-        _spellList.Margin = new Padding(5, 0, 0, 0);
-        statusSplit.Controls.Add(_stateList, 0, 0);
-        statusSplit.Controls.Add(_dynamicUnitList, 1, 0);
-        statusSplit.Controls.Add(_spellList, 2, 0);
         _partyList = UiTheme.CreateListView(Font, ("单位", 110), ("摘要", 700));
         _unitInfoList = UiTheme.CreateListView(Font, ("名称", 200), ("值", 480));
         _logTextBox = new TextBox
@@ -138,16 +103,16 @@ public sealed class StatusForm : Form
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            Padding = new Padding(10),
+            Padding = new Padding(12),
             Margin = new Padding(0)
         };
 
         AddNavItem(nav, "通用", _settingsHost);
         AddNavItem(nav, "模块", _moduleHost);
-        AddNavItem(nav, "状态", statusSplit);
-        AddNavItem(nav, "队伍", _partyList);
-        AddNavItem(nav, "逻辑", _unitInfoList);
-        AddNavItem(nav, "日志", _logTextBox);
+        AddNavItem(nav, "状态", BuildStatusPage());
+        AddNavItem(nav, "队伍", BuildSection("队伍", _partyList, "当前队伍单位与扫描到的字段摘要"));
+        AddNavItem(nav, "逻辑", BuildSection("逻辑", _unitInfoList, "运行时推荐目标与调试值"));
+        AddNavItem(nav, "日志", BuildSection("日志", _logTextBox, "运行、模块匹配与施放记录"));
         AddNavItem(nav, "关于", _aboutHost);
         _aboutHost.Controls.Add(BuildAboutPanel());
 
@@ -156,6 +121,78 @@ public sealed class StatusForm : Form
 
         ResumeLayout(false);
         SelectView(0);
+    }
+
+    private static Panel CreatePageHost()
+    {
+        return new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Margin = new Padding(0)
+        };
+    }
+
+    private Control BuildStatusPage()
+    {
+        var statusSplit = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0)
+        };
+        statusSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+        statusSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+        statusSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+        statusSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        statusSplit.Controls.Add(BuildSection("状态", _stateList, "基础字段与当前模块", isLast: false), 0, 0);
+        statusSplit.Controls.Add(BuildSection("动态单位", _dynamicUnitList, "模块运行时计算值", isLast: false), 1, 0);
+        statusSplit.Controls.Add(BuildSection("技能", _spellList, "冷却与可用状态", isLast: true), 2, 0);
+        return statusSplit;
+    }
+
+    private Control BuildSection(string title, Control content, string subtitle, bool isLast = true)
+    {
+        var section = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.SurfaceRaised,
+            ColumnCount = 1,
+            RowCount = 3,
+            Padding = new Padding(10),
+            Margin = new Padding(0, 0, isLast ? 0 : 8, 0)
+        };
+        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+        section.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        section.Controls.Add(new Label
+        {
+            Text = title,
+            Dock = DockStyle.Fill,
+            ForeColor = UiTheme.Text,
+            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Margin = new Padding(0)
+        }, 0, 0);
+        section.Controls.Add(new Label
+        {
+            Text = subtitle,
+            Dock = DockStyle.Fill,
+            ForeColor = UiTheme.Muted,
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Margin = new Padding(0)
+        }, 0, 1);
+
+        content.Dock = DockStyle.Fill;
+        content.Margin = new Padding(0, 8, 0, 0);
+        section.Controls.Add(content, 0, 2);
+        return section;
     }
 
     public void AttachSettingsPanel(Control panel)
@@ -215,17 +252,20 @@ public sealed class StatusForm : Form
         {
             Text = text,
             AutoSize = false,
-            Size = new Size(92, 30),
+            Size = new Size(88, 32),
             TextAlign = ContentAlignment.MiddleCenter,
             FlatStyle = FlatStyle.Flat,
             BackColor = UiTheme.Background,
             ForeColor = UiTheme.Muted,
-            Margin = new Padding(0, 0, 6, 0),
+            Margin = new Padding(0, 0, 7, 0),
             Padding = new Padding(0),
+            Cursor = Cursors.Hand,
             TabStop = false
         };
-        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.BorderColor = UiTheme.Border;
         button.FlatAppearance.MouseOverBackColor = UiTheme.Hover;
+        button.FlatAppearance.MouseDownBackColor = UiTheme.Pressed;
 
         var index = _navItems.Count;
         button.Click += (_, _) => SelectView(index);
@@ -239,8 +279,9 @@ public sealed class StatusForm : Form
         {
             var (button, view) = _navItems[i];
             var selected = i == index;
-            button.BackColor = selected ? UiTheme.Surface : UiTheme.Background;
-            button.ForeColor = selected ? UiTheme.Accent : UiTheme.Muted;
+            button.BackColor = selected ? UiTheme.Field : UiTheme.Background;
+            button.ForeColor = selected ? UiTheme.Text : UiTheme.Muted;
+            button.FlatAppearance.BorderColor = selected ? UiTheme.Accent : UiTheme.Border;
             if (selected)
             {
                 view.BringToFront();
@@ -253,10 +294,10 @@ public sealed class StatusForm : Form
         var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(4)
+            Padding = new Padding(12)
         };
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -266,8 +307,8 @@ public sealed class StatusForm : Form
             Text = "Shigure",
             AutoSize = true,
             ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 16F, FontStyle.Bold),
-            Margin = new Padding(0, 0, 0, 12)
+            Font = new Font(Font.FontFamily, 18F, FontStyle.Bold),
+            Margin = new Padding(0, 0, 0, 18)
         };
         panel.Controls.Add(title, 0, 0);
 
@@ -276,9 +317,10 @@ public sealed class StatusForm : Form
         {
             AutoSize = true,
             Dock = DockStyle.Top,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 2,
-            RowCount = 0
+            RowCount = 0,
+            Padding = new Padding(0)
         };
         details.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
         details.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -519,6 +561,13 @@ public sealed class StatusForm : Form
     {
         listView.BeginUpdate();
         listView.Items.Clear();
+        foreach (var item in items)
+        {
+            item.ToolTipText = string.Join(
+                "  ",
+                item.SubItems.Cast<ListViewItem.ListViewSubItem>().Select(subItem => subItem.Text));
+        }
+
         listView.Items.AddRange(items.ToArray());
         listView.EndUpdate();
     }

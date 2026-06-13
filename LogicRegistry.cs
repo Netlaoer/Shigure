@@ -17,11 +17,13 @@ public sealed class LogicRegistry
     private readonly IClassLogic _defaultLogic;
     private readonly KeymapService _keymap;
     private readonly ModuleStore _moduleStore;
+    private readonly string? _selectedModuleId;
 
-    public LogicRegistry(KeymapService keymap, ModuleStore moduleStore)
+    public LogicRegistry(KeymapService keymap, ModuleStore moduleStore, string? selectedModuleId)
     {
         _keymap = keymap;
         _moduleStore = moduleStore;
+        _selectedModuleId = string.IsNullOrWhiteSpace(selectedModuleId) ? null : selectedModuleId.Trim();
         _defaultLogic = new DefaultClassLogic(keymap);
     }
 
@@ -55,7 +57,8 @@ public sealed class LogicRegistry
 
     private ModuleDefinition? FindModule(int? classId, int? specId, GameState state)
     {
-        return _moduleStore.FindBestMatch(
+        return _moduleStore.FindSelectedOrBestMatch(
+            _selectedModuleId,
             classId,
             specId,
             state.GetInt("队伍类型"),

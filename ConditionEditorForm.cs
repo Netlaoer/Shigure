@@ -16,6 +16,10 @@ public sealed record ConditionTerm(bool OrWithPrevious, string Field, string Op,
 /// </summary>
 public static class ConditionExpression
 {
+    private static readonly Regex InRegex = new(
+        @"^\s*(?<field>.+?)\s+(?<op>not\s+in|in)\s*\((?<value>.*?)\)\s*$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private static readonly Regex ComparisonRegex = new(
         @"^\s*(?<field>.+?)\s*(?<op>==|!=|>=|<=|>|<)\s*(?<value>.+?)\s*$",
         RegexOptions.Compiled);
@@ -52,7 +56,9 @@ public static class ConditionExpression
         var builder = new StringBuilder();
         foreach (var term in terms)
         {
-            if (string.IsNullOrWhiteSpace(term.Field) || string.IsNullOrWhiteSpace(term.Value))
+            var op = NormalizeOperator(term.Op);
+            var value = IsInOperator(op) ? NormalizeInValue(term.Value) : term.Value.Trim();
+            if (string.IsNullOrWhiteSpace(term.Field) || string.IsNullOrWhiteSpace(value))
             {
                 continue;
             }
@@ -62,7 +68,15 @@ public static class ConditionExpression
                 builder.Append(term.OrWithPrevious ? " || " : " && ");
             }
 
-            builder.Append(term.Field).Append(' ').Append(term.Op).Append(' ').Append(term.Value);
+            builder.Append(term.Field).Append(' ').Append(op).Append(' ');
+            if (IsInOperator(op))
+            {
+                builder.Append('(').Append(value).Append(')');
+            }
+            else
+            {
+                builder.Append(value);
+            }
         }
 
         return builder.ToString();
@@ -70,6 +84,16 @@ public static class ConditionExpression
 
     private static ConditionTerm ParseTerm(string term, bool orWithPrevious)
     {
+        var inMatch = InRegex.Match(term);
+        if (inMatch.Success)
+        {
+            return new ConditionTerm(
+                orWithPrevious,
+                inMatch.Groups["field"].Value.Trim(),
+                NormalizeOperator(inMatch.Groups["op"].Value),
+                NormalizeInValue(inMatch.Groups["value"].Value));
+        }
+
         var comparison = ComparisonRegex.Match(term);
         if (comparison.Success)
         {
@@ -84,6 +108,27 @@ public static class ConditionExpression
         return term.StartsWith('!')
             ? new ConditionTerm(orWithPrevious, term[1..].Trim(), "==", "false")
             : new ConditionTerm(orWithPrevious, term, "==", "true");
+    }
+
+    public static bool IsInOperator(string? op)
+    {
+        return NormalizeOperator(op) is "in" or "not in";
+    }
+
+    public static string NormalizeOperator(string? op)
+    {
+        return Regex.Replace(op?.Trim().ToLowerInvariant() ?? string.Empty, @"\s+", " ");
+    }
+
+    public static string NormalizeInValue(string? value)
+    {
+        var text = value?.Trim() ?? string.Empty;
+        if (text.StartsWith('(') && text.EndsWith(')') && text.Length >= 2)
+        {
+            text = text[1..^1].Trim();
+        }
+
+        return text;
     }
 }
 
@@ -101,8 +146,9 @@ public sealed class ConditionEditorForm : Form
     private const int DeleteWidth = 36;
     private const int RowTotalWidth = ConnectorWidth + CategoryWidth + FieldWidth + OpWidth + ValueWidth + DeleteWidth;
 
-    private static readonly string[] AllOperators = ["==", "!=", ">", ">=", "<", "<="];
-    private static readonly string[] EqualityOperators = ["==", "!="];
+    private static readonly string[] AllOperators = ["==", "!=", ">", ">=", "<", "<=", "in", "not in"];
+    private static readonly string[] TextOperators = ["==", "!=", "in", "not in"];
+    private static readonly string[] BoolOperators = ["==", "!="];
     private static readonly CategoryItem[] CategoryItems =
     [
         new("状态", ConditionFieldCategory.State),
@@ -141,7 +187,7 @@ public sealed class ConditionEditorForm : Form
     {
         Text = "编辑条件";
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
-        BackColor = UiTheme.Surface;
+        BackColor = UiTheme.Background;
         ForeColor = UiTheme.Text;
         ClientSize = new Size(RowTotalWidth + 50, 460);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -153,7 +199,7 @@ public sealed class ConditionEditorForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Padding = new Padding(12, 10, 12, 10),
             ColumnCount = 1,
             RowCount = 4
@@ -167,11 +213,12 @@ public sealed class ConditionEditorForm : Form
         root.Controls.Add(BuildHeaderRow(), 0, 0);
 
         _rowsPanel.Dock = DockStyle.Fill;
-        _rowsPanel.BackColor = UiTheme.Surface;
+        _rowsPanel.BackColor = UiTheme.SurfaceRaised;
         _rowsPanel.FlowDirection = FlowDirection.TopDown;
         _rowsPanel.WrapContents = false;
         _rowsPanel.AutoScroll = true;
-        _rowsPanel.Margin = new Padding(0);
+        _rowsPanel.Margin = new Padding(0, 4, 0, 6);
+        _rowsPanel.Padding = new Padding(8, 6, 8, 6);
         root.Controls.Add(_rowsPanel, 0, 1);
 
         _previewLabel.Dock = DockStyle.Fill;
@@ -190,7 +237,7 @@ public sealed class ConditionEditorForm : Form
         {
             Width = RowTotalWidth,
             Height = 24,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Margin = new Padding(0),
             ColumnCount = 6,
             RowCount = 1
@@ -216,7 +263,7 @@ public sealed class ConditionEditorForm : Form
         var row = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Margin = new Padding(0),
             ColumnCount = 2,
             RowCount = 1
@@ -229,7 +276,7 @@ public sealed class ConditionEditorForm : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Margin = new Padding(0)
         };
         var addButton = UiTheme.CreateButton("添加条件", UiTheme.Field, UiTheme.Text);
@@ -250,7 +297,7 @@ public sealed class ConditionEditorForm : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Margin = new Padding(0)
         };
 
@@ -284,8 +331,8 @@ public sealed class ConditionEditorForm : Form
         {
             Width = RowTotalWidth,
             Height = 34,
-            BackColor = UiTheme.Surface,
-            Margin = new Padding(0, 2, 0, 2),
+            BackColor = UiTheme.SurfaceRaised,
+            Margin = new Padding(0, 1, 0, 5),
             ColumnCount = 6,
             RowCount = 1
         };
@@ -322,7 +369,7 @@ public sealed class ConditionEditorForm : Form
         var valueHost = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0, 2, 8, 2)
         };
 
@@ -358,7 +405,11 @@ public sealed class ConditionEditorForm : Form
             OnFieldChanged(row);
             UpdatePreview();
         };
-        opBox.SelectedIndexChanged += (_, _) => UpdatePreview();
+        opBox.SelectedIndexChanged += (_, _) =>
+        {
+            OnOperatorChanged(row);
+            UpdatePreview();
+        };
         deleteButton.Click += (_, _) => RemoveRow(row);
 
         _rows.Add(row);
@@ -463,13 +514,16 @@ public sealed class ConditionEditorForm : Form
     private static void PopulateOps(ConditionRow row, string? desiredOp)
     {
         var field = row.SelectedField;
-        var ops = field is { IsCustom: false, Type: ConditionFieldType.Bool or ConditionFieldType.String }
-            ? EqualityOperators
-            : AllOperators;
+        var ops = field is { IsCustom: false, Type: ConditionFieldType.Bool }
+            ? BoolOperators
+            : field is { IsCustom: false, Type: ConditionFieldType.String }
+                ? TextOperators
+                : AllOperators;
 
         row.OpBox.Items.Clear();
         row.OpBox.Items.AddRange(ops);
-        var index = desiredOp is null ? -1 : Array.IndexOf(ops, desiredOp);
+        var normalizedOp = ConditionExpression.NormalizeOperator(desiredOp);
+        var index = normalizedOp.Length == 0 ? -1 : Array.IndexOf(ops, normalizedOp);
         row.OpBox.SelectedIndex = index >= 0 ? index : 0;
     }
 
@@ -483,6 +537,7 @@ public sealed class ConditionEditorForm : Form
         row.ValueHost.Controls.Clear();
 
         var field = row.SelectedField;
+        var usesListValue = ConditionExpression.IsInOperator(row.OpBox.SelectedItem?.ToString());
         Control control;
         if (field is { IsCustom: false, Type: ConditionFieldType.Bool })
         {
@@ -493,7 +548,8 @@ public sealed class ConditionEditorForm : Form
             combo.SelectedIndexChanged += (_, _) => UpdatePreview();
             control = combo;
         }
-        else if (field is { IsCustom: false, Type: ConditionFieldType.Int }
+        else if (!usesListValue
+            && field is { IsCustom: false, Type: ConditionFieldType.Int }
             && (TryParseIntegerText(rawValue, out var number) || !preserveRaw))
         {
             // 解析失败时 number 为 0, 仅在 preserveRaw=false 的字段切换场景下走到这里。
@@ -501,11 +557,9 @@ public sealed class ConditionEditorForm : Form
             {
                 Minimum = -1000000,
                 Maximum = 1000000,
-                Value = number,
-                BackColor = UiTheme.Field,
-                ForeColor = UiTheme.Text,
-                BorderStyle = BorderStyle.FixedSingle
+                Value = number
             };
+            UiTheme.StyleNumericUpDown(numeric);
             numeric.ValueChanged += (_, _) => UpdatePreview();
             numeric.TextChanged += (_, _) => UpdatePreview();
             control = numeric;
@@ -515,11 +569,14 @@ public sealed class ConditionEditorForm : Form
             // 字符串字段、自定义字段或无法转成数字的旧值用文本框兜底。
             var box = new TextBox
             {
-                Text = rawValue ?? string.Empty,
-                BackColor = UiTheme.Field,
-                ForeColor = UiTheme.Text,
-                BorderStyle = BorderStyle.FixedSingle
+                Text = usesListValue ? ConditionExpression.NormalizeInValue(rawValue) : rawValue ?? string.Empty
             };
+            UiTheme.StyleTextBox(box);
+            if (usesListValue)
+            {
+                box.PlaceholderText = "例如: 12, 13";
+            }
+
             box.TextChanged += (_, _) => UpdatePreview();
             control = box;
         }
@@ -535,6 +592,12 @@ public sealed class ConditionEditorForm : Form
         var currentValue = ReadRowValue(row);
         PopulateOps(row, currentOp);
         CreateValueControl(row, currentValue, preserveRaw: false);
+    }
+
+    private void OnOperatorChanged(ConditionRow row)
+    {
+        var currentValue = ReadRowValue(row);
+        CreateValueControl(row, currentValue, preserveRaw: true);
     }
 
     private List<ConditionTerm> CollectTerms()
@@ -567,7 +630,9 @@ public sealed class ConditionEditorForm : Form
         {
             NumericUpDown numeric => ReadNumericText(numeric),
             ComboBox combo => combo.SelectedIndex == 1 ? "false" : "true",
-            TextBox box => box.Text.Trim(),
+            TextBox box => ConditionExpression.IsInOperator(row.OpBox.SelectedItem?.ToString())
+                ? ConditionExpression.NormalizeInValue(box.Text)
+                : box.Text.Trim(),
             _ => string.Empty
         };
     }

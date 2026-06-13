@@ -107,7 +107,7 @@ public sealed class UnitEditorForm : Form
     {
         Text = "编辑单位";
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
-        BackColor = UiTheme.Surface;
+        BackColor = UiTheme.Background;
         ForeColor = UiTheme.Text;
         ClientSize = new Size(RowWidth + 36, 500);
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -119,7 +119,7 @@ public sealed class UnitEditorForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Padding = new Padding(14, 12, 14, 12),
             ColumnCount = 1,
             RowCount = 4
@@ -153,11 +153,12 @@ public sealed class UnitEditorForm : Form
         root.Controls.Add(BuildNameRow(), 0, 1);
 
         _paramPanel.Dock = DockStyle.Fill;
-        _paramPanel.BackColor = UiTheme.Surface;
+        _paramPanel.BackColor = UiTheme.SurfaceRaised;
         _paramPanel.FlowDirection = FlowDirection.TopDown;
         _paramPanel.WrapContents = false;
         _paramPanel.AutoScroll = true;
-        _paramPanel.Margin = new Padding(0, 8, 0, 0);
+        _paramPanel.Margin = new Padding(0, 8, 0, 6);
+        _paramPanel.Padding = new Padding(8, 6, 8, 6);
         BuildParamRows();
         root.Controls.Add(_paramPanel, 0, 2);
 
@@ -186,7 +187,7 @@ public sealed class UnitEditorForm : Form
 
         _reverseBox.Text = "取逆序最后一个匹配单位";
         _reverseBox.ForeColor = UiTheme.Text;
-        _reverseBox.BackColor = UiTheme.Surface;
+        _reverseBox.BackColor = UiTheme.SurfaceRaised;
         _reverseBox.AutoSize = false;
         _reverseBox.TextAlign = ContentAlignment.MiddleLeft;
 
@@ -202,12 +203,7 @@ public sealed class UnitEditorForm : Form
             _auraBox.SelectedIndex = 0;
         }
 
-        _aurasBox.BackColor = UiTheme.Field;
-        _aurasBox.ForeColor = UiTheme.Text;
-        _aurasBox.BorderStyle = BorderStyle.FixedSingle;
-        _aurasBox.CheckOnClick = true;
-        _aurasBox.IntegralHeight = false;
-        _aurasBox.ItemHeight = 22;
+        UiTheme.StyleCheckedListBox(_aurasBox);
         foreach (var aura in _auraFields)
         {
             _aurasBox.Items.Add(aura);
@@ -242,7 +238,7 @@ public sealed class UnitEditorForm : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             WrapContents = false,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.Background,
             Margin = new Padding(0)
         };
 
@@ -761,8 +757,8 @@ public sealed class UnitEditorForm : Form
         {
             Width = RowWidth,
             Height = height,
-            BackColor = UiTheme.Surface,
-            Margin = new Padding(0, 2, 0, 2)
+            BackColor = UiTheme.SurfaceRaised,
+            Margin = new Padding(0, 1, 0, 5)
         };
 
         var labelControl = new Label
@@ -785,7 +781,7 @@ public sealed class UnitEditorForm : Form
         var panel = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0)
         };
 
@@ -806,7 +802,7 @@ public sealed class UnitEditorForm : Form
         var panel = new Panel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0)
         };
 
@@ -830,17 +826,13 @@ public sealed class UnitEditorForm : Form
 
     private static TextBox StyleTextBox(TextBox box)
     {
-        box.BackColor = UiTheme.Field;
-        box.ForeColor = UiTheme.Text;
-        box.BorderStyle = BorderStyle.FixedSingle;
+        UiTheme.StyleTextBox(box);
         return box;
     }
 
     private static void StyleNumeric(NumericUpDown box)
     {
-        box.BackColor = UiTheme.Field;
-        box.ForeColor = UiTheme.Text;
-        box.BorderStyle = BorderStyle.FixedSingle;
+        UiTheme.StyleNumericUpDown(box);
     }
 
     private sealed record SelectorItem(string Text, UnitSelectorKind Kind)

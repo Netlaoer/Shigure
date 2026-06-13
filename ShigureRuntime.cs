@@ -32,7 +32,7 @@ public sealed class ShigureRuntime
         _scanner = new PixelScanner(options.WindowTitle);
         _stateBuilder = new StateBuilder(_config);
         _keySender = new KeySender(options.WindowTitle);
-        _logicRegistry = new LogicRegistry(_keymap, moduleStore);
+        _logicRegistry = new LogicRegistry(_keymap, moduleStore, options.ModuleId);
     }
 
     public event Action<RenderSnapshot>? SnapshotUpdated;

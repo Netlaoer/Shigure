@@ -117,4 +117,4 @@ C:\Users\bianw\OneDrive\VS Code\Shigure\artifacts\verify-about\Shigure.deps.json
 C:\Users\bianw\OneDrive\VS Code\Shigure\artifacts\verify-about\Shigure.runtimeconfig.json
 C:\Users\bianw\OneDrive\VS Code\Shigure\artifacts\verify-about\Shigure.dll
 C:\Users\bianw\OneDrive\VS Code\Shigure\artifacts\verify-about\Shigure.pdb
-C:\Users\bianw\OneDrive\VS Code\Shigure\bin\Debug\net10.0-windows\module\戒律.json
+C:\Users\bianw\OneDrive\VS Code\Shigure\bin\Debug\net10.0-windows\module\戒律-队伍神谕者.json

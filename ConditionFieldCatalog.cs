@@ -90,6 +90,8 @@ public sealed class ConditionFieldCatalog
             }
         }
 
+        AddField(fields, seen, ModuleSpecialActions.FailedSpell, ModuleSpecialActions.FailedSpell, ConditionFieldType.String, ConditionFieldCategory.State);
+
         return fields;
     }
 

@@ -61,6 +61,25 @@ public sealed class KeymapCatalog
         return entries.UnitsBySpell.TryGetValue(spell, out var units) ? units : [];
     }
 
+    public IReadOnlyList<int> GetUnitsForSpells(int? classId, IEnumerable<string> spells)
+    {
+        var entries = GetEntries(classId);
+        var units = new SortedSet<int>();
+        foreach (var spell in spells)
+        {
+            if (!string.IsNullOrWhiteSpace(spell)
+                && entries.UnitsBySpell.TryGetValue(spell, out var spellUnits))
+            {
+                foreach (var unit in spellUnits)
+                {
+                    units.Add(unit);
+                }
+            }
+        }
+
+        return units.ToList();
+    }
+
     private KeymapEntries GetEntries(int? classId)
     {
         var path = ResolveKeymapPath(classId);
