@@ -5,8 +5,7 @@ namespace Shigure;
 public sealed class MainForm : Form, IMessageFilter
 {
     private const int ResizeGripSize = 8;
-    private const string HeaderIconPath = "Assets\\arasaka-icon-transparent.png";
-
+    private const string HeaderIconResourceName = "Shigure.Assets.arasaka-icon-transparent.png";
     private Button _toggleKeyButton = null!;
     private ComboBox _modeComboBox = null!;
     private ComboBox _moduleComboBox = null!;
@@ -113,7 +112,7 @@ public sealed class MainForm : Form, IMessageFilter
     {
         SuspendLayout();
 
-        Text = "Shigure";
+        Text = GetWindowTitle();
 
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.None;
@@ -239,10 +238,10 @@ public sealed class MainForm : Form, IMessageFilter
             Anchor = AnchorStyles.Left
         };
 
-        var path = Path.Combine(AppPaths.BaseDirectory, HeaderIconPath);
-        if (File.Exists(path))
+        using var stream = typeof(MainForm).Assembly.GetManifestResourceStream(HeaderIconResourceName);
+        if (stream is not null)
         {
-            using var image = Image.FromFile(path);
+            using var image = Image.FromStream(stream);
             box.Image = new Bitmap(image);
         }
 
@@ -1102,6 +1101,12 @@ public sealed class MainForm : Form, IMessageFilter
             ForeColor = UiTheme.Muted,
             Margin = new Padding(0, 0, 0, 4)
         };
+    }
+
+    private static string GetWindowTitle()
+    {
+        var randomizedName = Environment.GetEnvironmentVariable(AppPaths.RandomizedDisplayNameEnvironmentKey);
+        return string.IsNullOrWhiteSpace(randomizedName) ? "Shigure" : randomizedName;
     }
 
     private void EnableDrag(Control control)

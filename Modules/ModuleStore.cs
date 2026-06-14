@@ -559,19 +559,6 @@ public static class ModuleLogic
         var unitSlots = ResolveDynamicFields(module, state);
         var failedSpells = keymap.GetCurrentFailedSpells();
         var oneKeySpells = keymap.GetCurrentOneKeySpells();
-        var oneKeySpell = ModuleSpecialActions.GetOneKeySpell(state, oneKeySpells);
-        if (!string.IsNullOrWhiteSpace(oneKeySpell))
-        {
-            var hotkey = keymap.GetHotkey(0, oneKeySpell);
-            info["命中条件"] = $"一键辅助 == {state.GetInt("一键辅助")}";
-            info["动作技能"] = oneKeySpell;
-            info["动作按键"] = string.IsNullOrWhiteSpace(hotkey) ? "-" : hotkey;
-            info["动作单位"] = 0;
-            var step = string.IsNullOrWhiteSpace(hotkey)
-                ? $"{module.Name}: 未找到按键 {oneKeySpell}"
-                : $"{module.Name}: 施放 {oneKeySpell}";
-            return new LogicDecision(hotkey, step, info, module.Name);
-        }
 
         foreach (var rule in module.Rules.Where(rule => rule.Enabled))
         {

@@ -14,44 +14,46 @@ internal static class RandomizedExecutableLauncher
     private static readonly byte[] RandomSuffixMarkerBytes = System.Text.Encoding.UTF8.GetBytes(RandomSuffixMarker);
     private static readonly char[] FileNameChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".ToCharArray();
 
-    public static bool TryRelaunch(string[] args)
+    public static RandomizedRelaunchResult TryRelaunch(string[] args)
     {
         if (Environment.GetEnvironmentVariable(RelaunchedEnvironmentKey) == "1")
         {
-            return false;
+            return RandomizedRelaunchResult.AlreadyRelaunched;
         }
 
         var currentExecutable = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(currentExecutable) || !File.Exists(currentExecutable))
         {
-            return false;
+            return RandomizedRelaunchResult.Failed;
         }
 
         var extension = Path.GetExtension(currentExecutable);
         if (!string.Equals(extension, ".exe", StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return RandomizedRelaunchResult.Failed;
         }
 
         try
         {
-            CleanupOldTemporaryDirectories(currentExecutable);
+            CleanupTemporaryRoot(currentExecutable);
             var randomizedExecutable = CreateRandomizedExecutable(currentExecutable);
+            var randomizedDirectory = Path.GetDirectoryName(randomizedExecutable);
             var startInfo = new ProcessStartInfo(randomizedExecutable)
             {
                 UseShellExecute = false,
-                WorkingDirectory = Path.GetDirectoryName(randomizedExecutable) ?? Environment.CurrentDirectory
+                WorkingDirectory = randomizedDirectory ?? Environment.CurrentDirectory
             };
             startInfo.Environment[RelaunchedEnvironmentKey] = "1";
             startInfo.Environment[AppPaths.OriginalBaseDirectoryEnvironmentKey] = Path.GetDirectoryName(currentExecutable) ?? AppContext.BaseDirectory;
-
+            startInfo.Environment[AppPaths.RandomizedDisplayNameEnvironmentKey] = Path.GetFileNameWithoutExtension(randomizedExecutable);
             foreach (var arg in args)
             {
                 startInfo.ArgumentList.Add(arg);
             }
 
-            Process.Start(startInfo);
-            return true;
+            return Process.Start(startInfo) is null
+                ? RandomizedRelaunchResult.Failed
+                : RandomizedRelaunchResult.Started;
         }
         catch (Exception ex)
         {
@@ -60,16 +62,30 @@ internal static class RandomizedExecutableLauncher
                 "Shigure",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
-            return false;
+            return RandomizedRelaunchResult.Failed;
         }
     }
 
-    private static void CleanupOldTemporaryDirectories(string sourcePath)
+    private static void CleanupTemporaryRoot(string sourcePath)
     {
         var tempRoot = GetTemporaryRoot(sourcePath);
         if (!Directory.Exists(tempRoot))
         {
             return;
+        }
+
+        try
+        {
+            Directory.Delete(tempRoot, recursive: true);
+            return;
+        }
+        catch (IOException)
+        {
+            // A previous randomized run may still be active; clean what is safe below.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // A previous randomized run may still be active; clean what is safe below.
         }
 
         foreach (var directory in Directory.EnumerateDirectories(tempRoot))
@@ -230,4 +246,11 @@ internal static class RandomizedExecutableLauncher
         writer.Write(RandomSuffixMarker);
         writer.Write(randomBytes);
     }
+}
+
+internal enum RandomizedRelaunchResult
+{
+    Started,
+    AlreadyRelaunched,
+    Failed
 }

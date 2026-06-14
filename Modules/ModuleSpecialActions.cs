@@ -5,7 +5,7 @@ namespace Shigure;
 internal static class ModuleSpecialActions
 {
     public const string PauseSpell = "暂停";
-    public const string FailedSpell = "失败法术";
+    public const string FailedSpell = "插入法术";
     public const string OneKeySpell = "一键法术";
 
     public static bool IsPauseSpell(string? spell)

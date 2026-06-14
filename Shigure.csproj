@@ -8,13 +8,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Shigure</AssemblyName>
     <RootNamespace>Shigure</RootNamespace>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
     <ApplicationIcon>Assets\arasaka-icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="Assets\*.ico" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Assets\*.svg" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Assets\*.ico" />
+    <EmbeddedResource Include="Assets\*.png" />
+    <EmbeddedResource Include="Assets\*.svg" />
     <None Include="config.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="keymap\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="module\**\*.json" CopyToOutputDirectory="PreserveNewest" />

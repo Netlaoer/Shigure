@@ -11,7 +11,15 @@
   "Rules": [
     {
       "Enabled": true,
-      "Condition": "一键辅助 > 0",
+      "Condition": "",
+      "Unit": 0,
+      "Spell": "插入法术",
+      "Hotkey": "",
+      "Step": ""
+    },
+    {
+      "Enabled": true,
+      "Condition": "一键辅助 > 0 && 战斗 == true",
       "Unit": 0,
       "Spell": "一键法术",
       "Hotkey": "",

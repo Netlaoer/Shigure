@@ -3,6 +3,7 @@ namespace Shigure;
 internal static class AppPaths
 {
     public const string OriginalBaseDirectoryEnvironmentKey = "SHIGURE_ORIGINAL_BASE_DIRECTORY";
+    public const string RandomizedDisplayNameEnvironmentKey = "SHIGURE_RANDOMIZED_DISPLAY_NAME";
 
     public static string BaseDirectory
     {

@@ -172,9 +172,9 @@
     },
     {
       "Enabled": true,
-      "Condition": "失败法术 != \"\"",
+      "Condition": "插入法术 != \"\"",
       "Unit": 0,
-      "Spell": "失败法术",
+      "Spell": "插入法术",
       "Hotkey": "",
       "Step": ""
     },

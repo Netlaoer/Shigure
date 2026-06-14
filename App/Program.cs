@@ -15,12 +15,19 @@ internal static class Program
             return;
         }
 
-        if (RandomizedExecutableLauncher.TryRelaunch(args))
+        ApplicationConfiguration.Initialize();
+
+        var relaunchResult = RandomizedExecutableLauncher.TryRelaunch(args);
+        if (relaunchResult == RandomizedRelaunchResult.Started)
         {
             return;
         }
 
-        ApplicationConfiguration.Initialize();
+        if (relaunchResult == RandomizedRelaunchResult.Failed)
+        {
+            return;
+        }
+
         Application.Run(new MainForm(AppOptions.FromArgs(args)));
     }
 }

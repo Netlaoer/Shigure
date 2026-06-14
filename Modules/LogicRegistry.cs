@@ -77,23 +77,6 @@ public sealed class DefaultClassLogic : IClassLogic
 
     public LogicDecision Run(GameState state, string? specName)
     {
-        var oneKeySpell = ModuleSpecialActions.GetOneKeySpell(state, _keymap.GetCurrentOneKeySpells());
-        if (!string.IsNullOrWhiteSpace(oneKeySpell))
-        {
-            var hotkey = _keymap.GetHotkey(0, oneKeySpell);
-            var info = new Dictionary<string, object?>
-            {
-                ["命中条件"] = $"一键辅助 == {state.GetInt("一键辅助")}",
-                ["动作技能"] = oneKeySpell,
-                ["动作按键"] = string.IsNullOrWhiteSpace(hotkey) ? "-" : hotkey,
-                ["动作单位"] = 0
-            };
-            var step = string.IsNullOrWhiteSpace(hotkey)
-                ? $"未找到按键 {oneKeySpell}"
-                : $"施放 {oneKeySpell}";
-            return new LogicDecision(hotkey, step, info);
-        }
-
         var oneKeyAssist = state.GetInt("一键辅助");
         if (oneKeyAssist == 10)
         {
