@@ -647,10 +647,25 @@ public sealed class ModuleEditorControl : UserControl
             Resizable = DataGridViewTriState.False,
             ReadOnly = true
         });
-        _rulesGrid.Columns["Drag"]!.DisplayIndex = 0;
+        _rulesGrid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            Name = "RuleNumber",
+            HeaderText = "编号",
+            Width = 48,
+            MinimumWidth = 48,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            Resizable = DataGridViewTriState.False,
+            ReadOnly = true,
+            SortMode = DataGridViewColumnSortMode.NotSortable
+        });
+        _rulesGrid.Columns["RuleNumber"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        _rulesGrid.Columns["RuleNumber"]!.DefaultCellStyle.ForeColor = UiTheme.Muted;
+        _rulesGrid.Columns["RuleNumber"]!.DisplayIndex = 0;
+        _rulesGrid.Columns["Drag"]!.DisplayIndex = 1;
 
         _rulesGrid.AllowDrop = true;
         _rulesGrid.CellClick += OnRulesGridCellClick;
+        _rulesGrid.CellFormatting += OnRulesGridCellFormatting;
         _rulesGrid.CellPainting += OnRulesGridCellPainting;
         _rulesGrid.CellMouseEnter += OnRulesGridCellMouseEnter;
         _rulesGrid.CellMouseLeave += OnRulesGridCellMouseLeave;
@@ -1299,6 +1314,22 @@ public sealed class ModuleEditorControl : UserControl
         {
             OpenConditionEditor(e.RowIndex);
         }
+    }
+
+    private void OnRulesGridCellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex < 0)
+        {
+            return;
+        }
+
+        if (_rulesGrid.Columns[e.ColumnIndex].Name != "RuleNumber")
+        {
+            return;
+        }
+
+        e.Value = _rulesGrid.Rows[e.RowIndex].IsNewRow ? string.Empty : (e.RowIndex + 1).ToString();
+        e.FormattingApplied = true;
     }
 
     private void OnRulesGridCellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
