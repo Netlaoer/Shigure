@@ -200,9 +200,9 @@ public sealed class ModuleEditorControl : UserControl
 
         var pages = new[]
         {
-            BuildRulesPanel(showTitle: false),
-            BuildUnitsPanel(showTitle: false),
-            BuildAdjustmentsPanel(showTitle: false),
+            BuildRulesPanel(),
+            BuildUnitsPanel(),
+            BuildAdjustmentsPanel(),
         };
         foreach (var page in pages)
         {
@@ -298,116 +298,62 @@ public sealed class ModuleEditorControl : UserControl
         return root;
     }
 
-    private Control BuildAdjustmentsPanel(bool showTitle = true)
+    private Control BuildAdjustmentsPanel()
     {
         var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
-            RowCount = showTitle ? 5 : 4,
+            RowCount = 4,
             Padding = new Padding(10),
-            Margin = showTitle ? new Padding(0, 2, 0, 4) : new Padding(0)
+            Margin = new Padding(0)
         };
-
-        if (showTitle)
-        {
-            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-            panel.Controls.Add(new Label
-            {
-                Text = "动态数值编辑器",
-                Dock = DockStyle.Fill,
-                ForeColor = UiTheme.Muted,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoEllipsis = true
-            }, 0, 0);
-        }
 
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
-        var offset = showTitle ? 1 : 0;
-        panel.Controls.Add(CreateSectionLabel("条件动态数值"), 0, offset);
-        panel.Controls.Add(BuildAdjustmentsGrid(), 0, offset + 1);
-        panel.Controls.Add(CreateSectionLabel("公式动态数值"), 0, offset + 2);
-        panel.Controls.Add(BuildFormulaAdjustmentsGrid(), 0, offset + 3);
+        panel.Controls.Add(CreateSectionLabel("条件动态数值"), 0, 0);
+        panel.Controls.Add(BuildAdjustmentsGrid(), 0, 1);
+        panel.Controls.Add(CreateSectionLabel("公式动态数值"), 0, 2);
+        panel.Controls.Add(BuildFormulaAdjustmentsGrid(), 0, 3);
 
         return panel;
     }
 
-    private Control BuildRulesPanel(bool showTitle = true)
+    private Control BuildRulesPanel()
     {
         var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
-            RowCount = showTitle ? 2 : 1,
+            RowCount = 1,
             Padding = new Padding(10),
-            Margin = showTitle ? new Padding(0, 2, 0, 0) : new Padding(0)
+            Margin = new Padding(0)
         };
 
-        if (showTitle)
-        {
-            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            panel.Controls.Add(new Label
-            {
-                Text = "逻辑编辑器",
-                Dock = DockStyle.Fill,
-                ForeColor = UiTheme.Muted,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoEllipsis = true
-            }, 0, 0);
-            panel.Controls.Add(BuildRulesGrid(), 0, 1);
-        }
-        else
-        {
-            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            panel.Controls.Add(BuildRulesGrid(), 0, 0);
-        }
-
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.Controls.Add(BuildRulesGrid(), 0, 0);
         return panel;
     }
 
-    private Control BuildUnitsPanel(bool showTitle = true)
+    private Control BuildUnitsPanel()
     {
         var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 2,
-            RowCount = showTitle ? 2 : 1,
+            RowCount = 1,
             Padding = new Padding(10),
-            Margin = showTitle ? new Padding(0, 2, 0, 4) : new Padding(0)
+            Margin = new Padding(0)
         };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
-
-        var contentRow = 0;
-        if (showTitle)
-        {
-            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-            var title = new Label
-            {
-                Text = "动态单位 / 单位数量",
-                Dock = DockStyle.Fill,
-                ForeColor = UiTheme.Muted,
-                TextAlign = ContentAlignment.MiddleLeft,
-                AutoEllipsis = true
-            };
-            panel.Controls.Add(title, 0, 0);
-            panel.SetColumnSpan(title, 2);
-            contentRow = 1;
-        }
-        else
-        {
-            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        }
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         foreach (var column in new[] { ("名称", 210), ("类型", 80), ("摘要", 160) })
         {
@@ -440,7 +386,7 @@ public sealed class ModuleEditorControl : UserControl
         listHost.Controls.Add(_unitsEmptyHint);
         listHost.Controls.Add(_unitsList);
         _unitsEmptyHint.BringToFront();
-        panel.Controls.Add(listHost, 0, contentRow);
+        panel.Controls.Add(listHost, 0, 0);
 
         var buttons = new FlowLayoutPanel
         {
@@ -465,7 +411,7 @@ public sealed class ModuleEditorControl : UserControl
         buttons.Controls.Add(addButton);
         buttons.Controls.Add(editButton);
         buttons.Controls.Add(deleteButton);
-        panel.Controls.Add(buttons, 1, contentRow);
+        panel.Controls.Add(buttons, 1, 0);
 
         return panel;
     }
@@ -487,7 +433,7 @@ public sealed class ModuleEditorControl : UserControl
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
 
         row.Controls.Add(CreateLabel("名称"), 0, 0);
-        StyleTextBox(_nameBox);
+        UiTheme.StyleTextBox(_nameBox);
         _nameBox.Dock = DockStyle.Fill;
         row.Controls.Add(_nameBox, 1, 0);
 
@@ -580,22 +526,7 @@ public sealed class ModuleEditorControl : UserControl
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             ReadOnly = true
         });
-        _adjustmentsGrid.Columns.Add(new DataGridViewButtonColumn
-        {
-            Name = "Delete",
-            HeaderText = string.Empty,
-            Text = "×",
-            ToolTipText = "删除",
-            UseColumnTextForButtonValue = true,
-            Width = 32,
-            MinimumWidth = 32,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
-            Resizable = DataGridViewTriState.False,
-            FlatStyle = FlatStyle.Flat
-        });
-
-        _adjustmentsGrid.Columns["Delete"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        _adjustmentsGrid.Columns["Delete"]!.DefaultCellStyle.ForeColor = UiTheme.Danger;
+        AddDeleteColumn(_adjustmentsGrid);
         _adjustmentsGrid.CellClick += OnAdjustmentsGridCellClick;
         _adjustmentsGrid.CellPainting += OnAdjustmentsGridCellPainting;
         _adjustmentsGrid.CellValidating += OnAdjustmentsGridCellValidating;
@@ -643,22 +574,7 @@ public sealed class ModuleEditorControl : UserControl
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             ReadOnly = true
         });
-        _formulaAdjustmentsGrid.Columns.Add(new DataGridViewButtonColumn
-        {
-            Name = "Delete",
-            HeaderText = string.Empty,
-            Text = "×",
-            ToolTipText = "删除",
-            UseColumnTextForButtonValue = true,
-            Width = 32,
-            MinimumWidth = 32,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
-            Resizable = DataGridViewTriState.False,
-            FlatStyle = FlatStyle.Flat
-        });
-
-        _formulaAdjustmentsGrid.Columns["Delete"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        _formulaAdjustmentsGrid.Columns["Delete"]!.DefaultCellStyle.ForeColor = UiTheme.Danger;
+        AddDeleteColumn(_formulaAdjustmentsGrid);
         _formulaAdjustmentsGrid.CellClick += OnFormulaAdjustmentsGridCellClick;
         _formulaAdjustmentsGrid.CellPainting += OnFormulaAdjustmentsGridCellPainting;
         _formulaAdjustmentsGrid.CellEndEdit += OnFormulaAdjustmentsGridCellEndEdit;
@@ -780,6 +696,27 @@ public sealed class ModuleEditorControl : UserControl
         column.DefaultCellStyle.ForeColor = foreColor ?? UiTheme.Muted;
         column.DefaultCellStyle.SelectionForeColor = foreColor ?? UiTheme.Text;
         _rulesGrid.Columns.Add(column);
+    }
+
+    // 两个动态数值表共用的红色 "×" 删除列。
+    private static void AddDeleteColumn(DataGridView grid)
+    {
+        grid.Columns.Add(new DataGridViewButtonColumn
+        {
+            Name = "Delete",
+            HeaderText = string.Empty,
+            Text = "×",
+            ToolTipText = "删除",
+            UseColumnTextForButtonValue = true,
+            Width = 32,
+            MinimumWidth = 32,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            Resizable = DataGridViewTriState.False,
+            FlatStyle = FlatStyle.Flat
+        });
+
+        grid.Columns["Delete"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        grid.Columns["Delete"]!.DefaultCellStyle.ForeColor = UiTheme.Danger;
     }
 
     /// <summary>
@@ -2481,14 +2418,6 @@ public sealed class ModuleEditorControl : UserControl
         return rules;
     }
 
-    private static void AddMatchField(TableLayoutPanel row, string label, TextBox box, int column)
-    {
-        row.Controls.Add(CreateLabel(label), column, 0);
-        StyleTextBox(box);
-        box.Dock = DockStyle.Fill;
-        row.Controls.Add(box, column + 1, 0);
-    }
-
     private static void AddMatchField(TableLayoutPanel row, string label, ComboBox box, int column)
     {
         row.Controls.Add(CreateLabel(label), column, 0);
@@ -2570,11 +2499,6 @@ public sealed class ModuleEditorControl : UserControl
         {
             _suppressUnitsColumnResize = false;
         }
-    }
-
-    private static void StyleTextBox(TextBox textBox)
-    {
-        UiTheme.StyleTextBox(textBox);
     }
 
     private void SelectClass(int? value)

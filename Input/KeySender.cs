@@ -86,12 +86,9 @@ public sealed class KeySender
             return false;
         }
 
-        var modVks = mods
-            .Select(GetVk)
-            .Where(v => v is not null)
-            .Select(v => v!.Value)
-            .Distinct()
-            .ToList();
+        // ParseHotkey 只产出去重后的 CTRL/ALT/SHIFT, 三者都在 Vk 表里且映射到互异 VK,
+        // 故 GetVk 不会为 null、结果天然去重。
+        var modVks = mods.Select(m => GetVk(m)!.Value).ToList();
 
         foreach (var vk in modVks)
         {

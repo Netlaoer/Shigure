@@ -379,39 +379,6 @@ internal static class UiTheme
         grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
     }
 
-    public static void StyleTabControl(TabControl tabs, int itemWidth = 132)
-    {
-        tabs.BackColor = Surface;
-        tabs.ForeColor = Text;
-        tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
-        tabs.ItemSize = new Size(itemWidth, 30);
-        tabs.SizeMode = TabSizeMode.Fixed;
-        tabs.Padding = new Point(12, 4);
-        tabs.DrawItem += (_, e) =>
-        {
-            var isSelected = e.Index == tabs.SelectedIndex;
-            var bounds = e.Bounds;
-            bounds.Inflate(-1, -1);
-
-            using var background = new SolidBrush(isSelected ? Field : Surface);
-            e.Graphics.FillRectangle(background, bounds);
-
-            if (isSelected)
-            {
-                using var accent = new SolidBrush(Accent);
-                e.Graphics.FillRectangle(accent, bounds.Left + 8, bounds.Bottom - 3, bounds.Width - 16, 2);
-            }
-
-            TextRenderer.DrawText(
-                e.Graphics,
-                tabs.TabPages[e.Index].Text,
-                tabs.Font,
-                bounds,
-                isSelected ? Text : Muted,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-        };
-    }
-
     public static ListView CreateListView(Font font, params (string Text, int Width)[] columns)
     {
         var listView = new ListView();

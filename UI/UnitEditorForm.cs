@@ -202,7 +202,7 @@ public sealed class UnitEditorForm : Form
         _thresholdBox.Minimum = 1;
         _thresholdBox.Maximum = int.MaxValue;
         _thresholdBox.Value = 100;
-        StyleNumeric(_thresholdBox);
+        UiTheme.StyleNumericUpDown(_thresholdBox);
 
         UiTheme.StyleComboBox(_thresholdModeBox);
         _thresholdModeBox.DropDownWidth = 160;
@@ -263,7 +263,7 @@ public sealed class UnitEditorForm : Form
         _auraCountBox.Minimum = 0;
         _auraCountBox.Maximum = 100;
         _auraCountBox.Value = 1;
-        StyleNumeric(_auraCountBox);
+        UiTheme.StyleNumericUpDown(_auraCountBox);
 
         UiTheme.StyleComboBox(_dispelTypeBox);
         _dispelTypeBox.DropDownWidth = 180;
@@ -1062,14 +1062,14 @@ public sealed class UnitEditorForm : Form
         };
 
         var nameLabel = new Label { Text = "名称", ForeColor = UiTheme.Muted, TextAlign = ContentAlignment.MiddleLeft, Bounds = new Rectangle(0, 5, 72, 28), AutoEllipsis = true };
-        StyleTextBox(_nameBox);
+        UiTheme.StyleTextBox(_nameBox);
         _nameBox.Bounds = new Rectangle(80, 5, 230, 28);
         _healthNameLabel.Text = "值名称";
         _healthNameLabel.ForeColor = UiTheme.Muted;
         _healthNameLabel.TextAlign = ContentAlignment.MiddleLeft;
         _healthNameLabel.Bounds = new Rectangle(330, 5, 130, 28);
         _healthNameLabel.AutoEllipsis = true;
-        StyleTextBox(_healthNameBox);
+        UiTheme.StyleTextBox(_healthNameBox);
         _healthNameBox.Bounds = new Rectangle(466, 5, RowWidth - 466, 28);
         _toolTip.SetToolTip(_healthNameBox, "可选：把该单位生命值暴露为同名数值条件字段（如 最低血量 < 50）");
         _toolTip.SetToolTip(_healthNameLabel, "可选：把该单位生命值暴露为同名数值条件字段（如 最低血量 < 50）");
@@ -1079,17 +1079,6 @@ public sealed class UnitEditorForm : Form
         panel.Controls.Add(_healthNameBox);
         panel.Controls.Add(_healthNameLabel);
         return panel;
-    }
-
-    private static TextBox StyleTextBox(TextBox box)
-    {
-        UiTheme.StyleTextBox(box);
-        return box;
-    }
-
-    private static void StyleNumeric(NumericUpDown box)
-    {
-        UiTheme.StyleNumericUpDown(box);
     }
 
     private sealed record SelectorItem(string Text, UnitSelectorKind Kind)

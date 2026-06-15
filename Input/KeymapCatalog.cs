@@ -104,22 +104,30 @@ public sealed class KeymapCatalog
 
     private string? ResolveKeymapPath(int? classId)
     {
-        var keymapName = _config?.GetKeymapName(classId) ?? "keymap.json";
-        if (keymapName.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-        {
-            keymapName = Path.ChangeExtension(keymapName, ".json");
-        }
-
-        var path = Path.IsPathRooted(keymapName)
-            ? keymapName
-            : Path.Combine(_baseDirectory, "keymap", keymapName);
-
-        if (!File.Exists(path))
-        {
-            path = Path.Combine(_baseDirectory, "keymap", "keymap.json");
-        }
-
+        var path = ResolveKeymapFilePath(_baseDirectory, _config?.GetKeymapName(classId));
         return File.Exists(path) ? path : null;
+    }
+
+    /// <summary>
+    /// keymap 文件路径解析, 由 KeymapCatalog 与 KeymapService 共用以保证行为一致:
+    /// .yml 改写为 .json; 绝对路径直接使用, 否则相对 baseDirectory/keymap; 找不到回退 keymap/keymap.json。
+    /// 返回的是候选路径(可能仍不存在), 由调用方自行判断 File.Exists。
+    /// </summary>
+    internal static string ResolveKeymapFilePath(string baseDirectory, string? keymapName)
+    {
+        var name = keymapName ?? "keymap.json";
+        if (name.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+        {
+            name = Path.ChangeExtension(name, ".json");
+        }
+
+        var path = Path.IsPathRooted(name)
+            ? name
+            : Path.Combine(baseDirectory, "keymap", name);
+
+        return File.Exists(path)
+            ? path
+            : Path.Combine(baseDirectory, "keymap", "keymap.json");
     }
 
     private static KeymapEntries ParseKeymap(string path)

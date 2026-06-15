@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 
 namespace Shigure;
 
@@ -60,11 +61,12 @@ public sealed class PixelScanner
     {
         var rowData = new Dictionary<int, int>();
         using var top = Capture(baseX, baseY, width, 1);
+        var pixels = ReadPixels(top);
 
         var startX = -1;
         for (var x = 0; x < Math.Min(PixelsPerRow, width); x++)
         {
-            var color = top.GetPixel(x, 0);
+            var color = Color.FromArgb(pixels[x]);
             if (IsGreenMarker(color))
             {
                 startX = x;
@@ -79,7 +81,7 @@ public sealed class PixelScanner
 
         for (var x = startX; x < width; x++)
         {
-            var color = top.GetPixel(x, 0);
+            var color = Color.FromArgb(pixels[x]);
             if (color.R == 0 && color.G is >= 1 and <= PixelsPerRow)
             {
                 rowData[color.G] = color.B;
@@ -101,10 +103,11 @@ public sealed class PixelScanner
     {
         var barData = new Dictionary<int, int>();
         using var left = Capture(baseX, baseY, 1, height);
+        var leftPixels = ReadPixels(left);
         int? markerY = null;
         for (var y = 0; y < height; y++)
         {
-            if (IsRedMarker(left.GetPixel(0, y)))
+            if (IsRedMarker(Color.FromArgb(leftPixels[y])))
             {
                 markerY = y;
                 break;
@@ -117,13 +120,14 @@ public sealed class PixelScanner
         }
 
         using var markerRow = Capture(baseX, baseY + markerY.Value, width, 1);
+        var rowPixels = ReadPixels(markerRow);
         var segIndex = 0;
         var x = 0;
         var pendingRed = false;
 
         while (x < width)
         {
-            var color = markerRow.GetPixel(x, 0);
+            var color = Color.FromArgb(rowPixels[x]);
             if (IsGrayEndMarker(color))
             {
                 break;
@@ -133,7 +137,7 @@ public sealed class PixelScanner
             {
                 pendingRed = false;
                 segIndex++;
-                var (value, nextX) = ConsumeValueFrom(markerRow, x + 1, alreadySawWhite: false);
+                var (value, nextX) = ConsumeValueFrom(rowPixels, x + 1, alreadySawWhite: false);
                 barData[segIndex] = Math.Max(0, value - 1);
                 x = nextX;
                 continue;
@@ -148,12 +152,12 @@ public sealed class PixelScanner
 
             if (IsWhite(color))
             {
-                var prevWhite = x > 0 && IsWhite(markerRow.GetPixel(x - 1, 0));
+                var prevWhite = x > 0 && IsWhite(Color.FromArgb(rowPixels[x - 1]));
                 if (!prevWhite)
                 {
                     pendingRed = false;
                     segIndex++;
-                    var (value, nextX) = ConsumeValueFrom(markerRow, x + 1, alreadySawWhite: true);
+                    var (value, nextX) = ConsumeValueFrom(rowPixels, x + 1, alreadySawWhite: true);
                     barData[segIndex] = Math.Max(0, value - 1);
                     x = nextX;
                     continue;
@@ -166,16 +170,16 @@ public sealed class PixelScanner
         return barData;
     }
 
-    private static (int Value, int NextX) ConsumeValueFrom(Bitmap row, int fromX, bool alreadySawWhite)
+    private static (int Value, int NextX) ConsumeValueFrom(int[] row, int fromX, bool alreadySawWhite)
     {
         var sx = fromX;
         var needWhite = !alreadySawWhite;
-        while (sx < row.Width)
+        while (sx < row.Length)
         {
-            var color = row.GetPixel(sx, 0);
+            var color = Color.FromArgb(row[sx]);
             if (IsGrayEndMarker(color))
             {
-                return (0, row.Width);
+                return (0, row.Length);
             }
 
             if (IsRedMarker(color))
@@ -203,7 +207,7 @@ public sealed class PixelScanner
             return (color.G, sx + 1);
         }
 
-        return (0, row.Width);
+        return (0, row.Length);
     }
 
     private static Bitmap Capture(int x, int y, int width, int height)
@@ -212,6 +216,26 @@ public sealed class PixelScanner
         using var graphics = Graphics.FromImage(bitmap);
         graphics.CopyFromScreen(x, y, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
         return bitmap;
+    }
+
+    // 32bpp 位图 stride 恒为 width*4(无填充), 一次 LockBits + Marshal.Copy 读完整张为 0xAARRGGBB,
+    // 取代逐像素 GetPixel(每次都会 Lock/UnlockBits)。Color.FromArgb 还原后 R/G/B 与原先一致。
+    private static int[] ReadPixels(Bitmap bitmap)
+    {
+        var data = bitmap.LockBits(
+            new Rectangle(0, 0, bitmap.Width, bitmap.Height),
+            ImageLockMode.ReadOnly,
+            PixelFormat.Format32bppArgb);
+        try
+        {
+            var pixels = new int[bitmap.Width * bitmap.Height];
+            Marshal.Copy(data.Scan0, pixels, 0, pixels.Length);
+            return pixels;
+        }
+        finally
+        {
+            bitmap.UnlockBits(data);
+        }
     }
 
     private static bool IsRedMarker(Color color) => color.R == 1 && color.G == 0 && color.B == 0;

@@ -294,16 +294,6 @@ public sealed class ModuleStore
         }
     }
 
-    public ModuleDefinition? FindBestMatch(int? classId, int? specId, int? partyType, int? heroTalent)
-    {
-        lock (_gate)
-        {
-            return SortMatches(_modules, classId, specId, partyType, heroTalent)
-                .FirstOrDefault()
-                ?.Clone();
-        }
-    }
-
     public ModuleDefinition? FindSelectedOrBestMatch(string? selectedModuleId, int? classId, int? specId, int? partyType, int? heroTalent)
     {
         lock (_gate)
@@ -851,11 +841,6 @@ public static class ModuleLogic
         state.Values[key] = AddDelta(state.Values.TryGetValue(key, out var value) ? value : null, delta);
     }
 
-    private static int ToInt(object? value)
-    {
-        return TryToInt(value, out var number) ? number : 0;
-    }
-
     private static int AddDelta(object? value, int delta)
     {
         return TryToInt(value, out var number) ? number + delta : delta;
@@ -912,11 +897,6 @@ public static class ModuleLogic
 
         if (!string.IsNullOrWhiteSpace(rule.Spell))
         {
-            if (ModuleSpecialActions.IsPauseSpell(rule.Spell))
-            {
-                return $"{module.Name}: 暂停";
-            }
-
             var spell = string.IsNullOrWhiteSpace(actionSpell) ? rule.Spell.Trim() : actionSpell.Trim();
             return string.IsNullOrWhiteSpace(hotkey)
                 ? $"{module.Name}: 未找到按键 {spell}"

@@ -65,7 +65,7 @@ config/ keymap/ module/   运行时 JSON 数据(构建时复制到输出, 见 .c
 
 ## UI 约定
 
-- **暗色主题集中在 [UI/UiTheme.cs](UI/UiTheme.cs)**：新控件一律复用它（`CreateButton`/`StyleComboBox`/`StyleTextBox`/`StyleDataGridView`/`StyleListView`/`StyleTabControl` 与颜色常量 `Background/Surface/Field/Hover/Border/Text/Muted/Accent/Danger`），不要写裸色值或系统默认样式。
+- **暗色主题集中在 [UI/UiTheme.cs](UI/UiTheme.cs)**：新控件一律复用它（`CreateButton`/`StyleComboBox`/`StyleTextBox`/`StyleDataGridView`/`StyleListView` 与颜色常量 `Background/Surface/Field/Hover/Border/Text/Muted/Accent/Danger`），不要写裸色值或系统默认样式。
 - 编辑器：[UI/ModuleEditorControl.cs](UI/ModuleEditorControl.cs)（模块主编辑器：侧栏列表 + 规则表 + 动态单位列表 + 两个动态数值表，自定义标签栏切换三页）、弹窗 [UI/ConditionEditorForm.cs](UI/ConditionEditorForm.cs)（可视化条件，含 `ConditionExpression` 文本⇆比较项互转）、[UI/UnitEditorForm.cs](UI/UnitEditorForm.cs)、[UI/FormulaEditorForm.cs](UI/FormulaEditorForm.cs)。新弹窗按现有模式同时设 `AcceptButton`/`CancelButton`。
 - **规则表 `_rulesGrid` 的列陷阱**：`FillEditor`/`OpenConditionEditor` 用**位置参数** `Rows.Add(enabled, spell, "", condition)`，按列集合索引前 4 列填值。所以新增列（如拖拽手柄 `Drag`）要**加到集合末尾**、再用 `DisplayIndex` 调显示位置，避免打乱前四列；单元格访问一律按列名（`Cells["Spell"]`）。
 - 规则重排：`▲▼` 单步（`MoveRule`）+ 手柄列拖拽（`MoveRuleByDrag`，读全表→重排→写回，复用 `ReadRuleRow`/`WriteRuleRow`）。三个 grid 都 `AllowUserToDeleteRows=false`，删除只走 `×` 列。

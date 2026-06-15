@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Shigure;
 
 public sealed class ShigureRuntime
@@ -22,7 +20,6 @@ public sealed class ShigureRuntime
     private IReadOnlyDictionary<string, object?> _unitInfo = new Dictionary<string, object?>();
     private bool _enabled;
     private bool _clickPending;
-    private double _scanMs;
 
     public ShigureRuntime(string baseDirectory, AppOptions options, ModuleStore moduleStore)
     {
@@ -44,14 +41,6 @@ public sealed class ShigureRuntime
         _enabled = enabled;
         _clickPending = false;
         _currentStep = enabled ? "手动开启" : "手动关闭";
-        PublishSnapshot();
-    }
-
-    public void TriggerOnce()
-    {
-        _enabled = true;
-        _clickPending = true;
-        _currentStep = "单次触发";
         PublishSnapshot();
     }
 
@@ -145,10 +134,7 @@ public sealed class ShigureRuntime
 
     private void TickLogic()
     {
-        var sw = Stopwatch.StartNew();
         var scan = _scanner.ScanScreenData();
-        sw.Stop();
-        _scanMs = sw.Elapsed.TotalMilliseconds;
 
         if (scan.RowData is null)
         {
@@ -224,8 +210,7 @@ public sealed class ShigureRuntime
             _state,
             _currentStep,
             _unitInfo,
-            BuildDynamicValues(_state),
-            _scanMs));
+            BuildDynamicValues(_state)));
     }
 
     private static IReadOnlyList<DynamicValueSnapshot> BuildDynamicValues(GameState? state)

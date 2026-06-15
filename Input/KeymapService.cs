@@ -26,21 +26,7 @@ public sealed class KeymapService
         _currentClassId = classId;
         _hotkeys.Clear();
 
-        var keymapName = _config.GetKeymapName(classId) ?? "keymap.json";
-        if (keymapName.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-        {
-            keymapName = Path.ChangeExtension(keymapName, ".json");
-        }
-
-        var path = Path.IsPathRooted(keymapName)
-            ? keymapName
-            : Path.Combine(_baseDirectory, "keymap", keymapName);
-
-        if (!File.Exists(path))
-        {
-            path = Path.Combine(_baseDirectory, "keymap", "keymap.json");
-        }
-
+        var path = KeymapCatalog.ResolveKeymapFilePath(_baseDirectory, _config.GetKeymapName(classId));
         if (!File.Exists(path))
         {
             return;
