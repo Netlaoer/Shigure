@@ -16,14 +16,14 @@ internal static class UiTheme
     public const int CardCornerRadius = 10;
     public const int ControlCornerRadius = 8;
 
-    /// <summary>配置/宏/模块页固定内容宽（与通用设置卡片一致）。</summary>
-    public const int EditorPageWidth = 1200;
-    /// <summary>模块列表侧栏固定宽。</summary>
+    /// <summary>配置/宏/模块页固定内容宽（1200 × 1.5）。</summary>
+    public const int EditorPageWidth = 1800;
+    /// <summary>模块列表侧栏固定宽（不加宽）。</summary>
     public const int ModuleSidebarWidth = 280;
     /// <summary>模块编辑区固定宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
     public const int ModuleEditorWidth = EditorPageWidth - ModuleSidebarWidth - PageGap;
-    /// <summary>EX/BW 事件页卡片宽（EditorPageWidth × 1.3）。</summary>
-    public const int EventPageWidth = EditorPageWidth + EditorPageWidth * 3 / 10;
+    /// <summary>EX/BW 事件页卡片宽（通用 1200 × 1.3，与编辑页宽度解耦）。</summary>
+    public const int EventPageWidth = 1200 + 1200 * 3 / 10;
     /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>
     public const int ClassSpecIconSize = 40;
     /// <summary>职业/专精图标格逻辑边长（iconSize + 16）。</summary>
