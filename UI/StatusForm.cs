@@ -41,11 +41,12 @@ public sealed class StatusForm : Form
     private const int BossNumberCardWidth = 400;
     private const int AboutScaleIconSize = 18;
     private const int ResizeGripSize = 8;
-    private const int ChromeButtonSize = 32;
     /// <summary>单行顶栏高度（图标 + 导航 + 窗口按钮）。</summary>
     private const int TopBarHeight = 44;
-    /// <summary>导航行左侧独立品牌图标边长（贴近导航文字按钮高度）。</summary>
-    private const int NavBrandIconSize = 28;
+    /// <summary>导航行左侧独立品牌图标边长（与导航文字垂直对齐）。</summary>
+    private const int NavBrandIconSize = 32;
+    /// <summary>Windows 风格标题栏按钮宽。</summary>
+    private const int ChromeButtonWidth = 46;
 
     private const string AboutDisclaimerText =
         """
@@ -598,14 +599,15 @@ public sealed class StatusForm : Form
 
     private Control BuildNavigationShell(out FlowLayoutPanel nav)
     {
-        // 单行顶栏：品牌图标 | 文字导航 | 版本 + 最小化/最大化/关闭。
+        // 单行顶栏：品牌图标 | 文字导航 | 最小化/最大化/关闭（无版本号）。
         var shell = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Background,
             ColumnCount = 3,
             RowCount = 1,
-            Padding = new Padding(12, 6, 8, 6),
+            // 右侧贴边，便于 Windows 风格矩形标题按钮顶满高度。
+            Padding = new Padding(12, 0, 0, 0),
             Margin = new Padding(0)
         };
         shell.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -626,8 +628,8 @@ public sealed class StatusForm : Form
             MaximumSize = new Size(NavBrandIconSize, NavBrandIconSize),
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = Color.Transparent,
-            Margin = new Padding(2, 2, 14, 2),
-            Anchor = AnchorStyles.Left,
+            Margin = new Padding(2, 0, 14, 0),
+            Anchor = AnchorStyles.None,
             TabStop = false,
             AccessibleName = "Shigure"
         };
@@ -642,7 +644,8 @@ public sealed class StatusForm : Form
             AutoScroll = true,
             BackColor = UiTheme.Background,
             Margin = new Padding(0),
-            Padding = new Padding(0, 0, 0, 0)
+            // 导航按钮高 32，顶栏 44，上下各 6 使文字与图标垂直居中。
+            Padding = new Padding(0, 6, 0, 6)
         };
         EnableDrag(nav);
 
@@ -656,27 +659,15 @@ public sealed class StatusForm : Form
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        var versionLabel = new Label
-        {
-            Text = $"v{AppInfo.Version}",
-            AutoSize = true,
-            ForeColor = UiTheme.Muted,
-            TextAlign = ContentAlignment.MiddleRight,
-            Margin = new Padding(0, 8, 8, 0)
-        };
         var minimizeButton = CreateChromeButton("─", "最小化");
         minimizeButton.Click += (_, _) => WindowState = FormWindowState.Minimized;
         _maximizeButton = CreateChromeButton("□", "最大化");
         _maximizeButton.Click += (_, _) => ToggleMaximize();
-        var closeButton = CreateChromeButton("✕", "关闭");
-        closeButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(196, 43, 28);
-        closeButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(153, 27, 21);
+        var closeButton = CreateChromeButton("✕", "关闭", isClose: true);
         closeButton.Click += (_, _) => Close();
-        chromeActions.Controls.Add(versionLabel);
         chromeActions.Controls.Add(minimizeButton);
         chromeActions.Controls.Add(_maximizeButton);
         chromeActions.Controls.Add(closeButton);
-        EnableDrag(versionLabel);
 
         shell.Controls.Add(brandIcon, 0, 0);
         shell.Controls.Add(nav, 1, 0);
@@ -720,14 +711,38 @@ public sealed class StatusForm : Form
         return new Bitmap(image);
     }
 
-    private Button CreateChromeButton(string text, string tooltip)
+    private Button CreateChromeButton(string text, string tooltip, bool isClose = false)
     {
-        var button = UiTheme.CreateButton(text, UiTheme.Field, UiTheme.Muted);
-        button.AutoSize = false;
-        button.Size = new Size(ChromeButtonSize, ChromeButtonSize);
-        button.Margin = new Padding(2, 2, 0, 2);
-        button.Padding = new Padding(0);
-        button.Cursor = Cursors.Hand;
+        // Windows 风格：矩形命中区、无圆角胶囊底，默认与顶栏同色。
+        var button = new Button
+        {
+            Text = text,
+            AutoSize = false,
+            Size = new Size(ChromeButtonWidth, TopBarHeight),
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = UiTheme.Background,
+            ForeColor = UiTheme.Muted,
+            UseVisualStyleBackColor = false,
+            Cursor = Cursors.Hand,
+            TabStop = false,
+            Font = new Font("Segoe UI Symbol", 10F, FontStyle.Regular)
+        };
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.BorderColor = UiTheme.Background;
+        button.FlatAppearance.MouseOverBackColor = isClose
+            ? Color.FromArgb(196, 43, 28)
+            : UiTheme.Hover;
+        button.FlatAppearance.MouseDownBackColor = isClose
+            ? Color.FromArgb(153, 27, 21)
+            : UiTheme.Pressed;
+        if (isClose)
+        {
+            button.MouseEnter += (_, _) => button.ForeColor = Color.White;
+            button.MouseLeave += (_, _) => button.ForeColor = UiTheme.Muted;
+        }
+
         _toolTip.SetToolTip(button, tooltip);
         return button;
     }
