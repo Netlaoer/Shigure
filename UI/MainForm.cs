@@ -109,7 +109,6 @@ public sealed class MainForm : Form, IMessageFilter
     private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
     private readonly System.Windows.Forms.Timer _wowProcessMonitorTimer;
     private readonly System.Windows.Forms.Timer _gamepadCaptureTimer;
-    private BorderlessFormChrome.EdgeHitTransparentScope? _edgeHitScope;
     private RenderSnapshot? _lastSnapshot;
     private string? _lastLoggedStep;
     private string? _lastLoggedStepDetails;
@@ -185,8 +184,6 @@ public sealed class MainForm : Form, IMessageFilter
         _gamepadCaptureTimer.Tick += HandleGamepadCaptureTick;
         Application.AddMessageFilter(this);
         InitializeComponent();
-        BorderlessFormChrome.ApplyResizePadding(this);
-        _edgeHitScope = BorderlessFormChrome.InstallEdgeHitTransparent(this);
         TryApplyApplicationIcon();
         InitializeTrayIcon();
         _statusForm.AttachSettingsPanel(BuildSettingsPanel());
@@ -226,7 +223,6 @@ public sealed class MainForm : Form, IMessageFilter
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        BorderlessFormChrome.ApplyResizePadding(this);
         UiTheme.ApplyDarkTitleBar(this);
         UiTheme.ApplyTranslucentBackground(this);
         _usesDwmRoundedCorners = UiTheme.ApplyRoundedCorners(this);
@@ -480,8 +476,6 @@ public sealed class MainForm : Form, IMessageFilter
         _trayEnabledIcon?.Dispose();
         _roundedCornerResizeTimer.Dispose();
         _wowProcessMonitorTimer.Dispose();
-        _edgeHitScope?.Dispose();
-        _edgeHitScope = null;
         base.OnFormClosed(e);
     }
 
@@ -576,6 +570,7 @@ public sealed class MainForm : Form, IMessageFilter
 
     protected override void WndProc(ref Message m)
     {
+        // 主条矮客户区不能套 Form.Padding 热区（会裁切标题/按钮）；仅保留轻量边缘命中。
         if (m.Msg == BorderlessFormChrome.WmNcHitTest)
         {
             base.WndProc(ref m);
@@ -590,12 +585,6 @@ public sealed class MainForm : Form, IMessageFilter
         base.WndProc(ref m);
     }
 
-    protected override void OnDpiChanged(DpiChangedEventArgs e)
-    {
-        base.OnDpiChanged(e);
-        BorderlessFormChrome.ApplyResizePadding(this);
-    }
-
     private void InitializeComponent()
     {
         SuspendLayout();
@@ -605,6 +594,8 @@ public sealed class MainForm : Form, IMessageFilter
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.None;
         TopMost = true;
+        // 浮动条高度仅 ~64：禁止 Form.Padding 缩放热区，否则标题/按钮会被上下 Padding 裁切。
+        Padding = Padding.Empty;
         ClientSize = new Size(DefaultMainBarLongEdge, DefaultMainBarShortEdge);
         MinimumSize = new Size(MinimumMainBarLongEdge, MinimumMainBarShortEdge);
         BackColor = Color.FromArgb(18, 21, 26);
