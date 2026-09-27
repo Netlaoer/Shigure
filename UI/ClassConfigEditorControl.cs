@@ -1020,8 +1020,9 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        // 右侧物品冷却相对原 50% 再窄约 30% → 35%；让出的宽度给左侧技能冷却。
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
