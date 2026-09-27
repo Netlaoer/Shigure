@@ -147,71 +147,13 @@ internal static class UnitSummary
 
     public static string Describe(ModuleAverageHealthField field, Func<long, string?>? resolveAuraName = null)
     {
-        var parts = new List<string>();
-        if (field.HealthFilter != EnemyThresholdFilterKind.None)
-        {
-            parts.Add($"血量{ThresholdOperator(field.HealthFilter)}{DescribeThreshold(field.HealthThreshold, field.HealthThresholdField, 0)}");
-        }
-
-        if (field.AuraFilter != EnemyAuraFilterKind.None)
-        {
-            var ids = field.AuraSpellIds ?? [];
-            var aura = ids.Count > 0 ? FormatAura(ids[0], resolveAuraName) : "?";
-            var auras = ids.Count > 0
-                ? string.Join("/", ids.Select(id => FormatAura(id, resolveAuraName)))
-                : "?";
-            parts.Add(field.AuraFilter switch
-            {
-                EnemyAuraFilterKind.WithAura => $"带[{aura}]",
-                EnemyAuraFilterKind.WithoutAura => $"不带[{aura}]",
-                EnemyAuraFilterKind.HasAnyAura => $"拥有任一[{auras}]",
-                EnemyAuraFilterKind.HasAllAuras => $"拥有全部[{auras}]",
-                EnemyAuraFilterKind.MissingAnyAura => $"缺少任一[{auras}]",
-                EnemyAuraFilterKind.MissingAllAuras => $"缺少全部[{auras}]",
-                _ => string.Empty
-            });
-
-        }
-
-        if (field.Target == AverageHealthTargetKind.Allies && field.RoleFilter is not null)
-        {
-            parts.Add(field.RoleFilter == UnitRoleFilterKind.Include
-                ? $"职责={field.Role}"
-                : $"职责!={field.Role}");
-        }
-
-        if (field.Target == AverageHealthTargetKind.Enemies)
-        {
-            if (field.RangeFilter != EnemyThresholdFilterKind.None)
-            {
-                parts.Add($"距离{ThresholdOperator(field.RangeFilter)}{DescribeThreshold(field.RangeThreshold, field.RangeThresholdField, 0)}");
-            }
-
-            if (field.CombatFilter != EnemyCombatFilterKind.None)
-            {
-                parts.Add(field.CombatFilter == EnemyCombatFilterKind.InCombat ? "战斗中" : "不在战斗中");
-            }
-        }
-
-        var target = field.Target == AverageHealthTargetKind.Enemies ? "敌人" : "队友";
-        return parts.Count == 0
-            ? $"{target}平均血量"
-            : $"{string.Join("且", parts)} 的{target}平均血量";
+        var suffix = field.Target == AverageHealthTargetKind.Enemies ? "敌人平均血量" : "队友平均血量";
+        return DescribeCountGroups(field.FilterGroups, suffix, resolveAuraName);
     }
-
-    private static string ThresholdOperator(EnemyThresholdFilterKind filter)
-        => filter == EnemyThresholdFilterKind.Above ? ">" : "<";
 
     private static string FormatAura(long spellId, Func<long, string?>? resolveAuraName)
     {
         var name = resolveAuraName?.Invoke(spellId);
         return string.IsNullOrWhiteSpace(name) ? spellId.ToString() : $"{name} / {spellId}";
-    }
-
-    private static string DescribeThreshold(int? fixedValue, string? field, int defaultValue = 100)
-    {
-        return string.IsNullOrWhiteSpace(field)
-            ? (fixedValue ?? defaultValue).ToString()
-            : $"动态:{field.Trim()}";
     }
 }

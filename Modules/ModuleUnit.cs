@@ -80,57 +80,6 @@ public sealed class ModuleUnit
     }
 }
 
-/// <summary>敌人数量的阈值筛选方式(生命值 / 距离共用)。</summary>
-public enum EnemyThresholdFilterKind
-{
-    /// <summary>不筛选。</summary>
-    None,
-
-    /// <summary>大于阈值。</summary>
-    Above,
-
-    /// <summary>小于阈值。</summary>
-    Below
-}
-
-/// <summary>敌人数量的战斗状态筛选方式(对应插件的 UnitAffectingCombat)。</summary>
-public enum EnemyCombatFilterKind
-{
-    /// <summary>不筛选。</summary>
-    None,
-
-    /// <summary>战斗中。</summary>
-    InCombat,
-
-    /// <summary>不在战斗中。</summary>
-    NotInCombat
-}
-
-/// <summary>单位与数量字段的光环筛选方式。</summary>
-public enum EnemyAuraFilterKind
-{
-    /// <summary>不筛选。</summary>
-    None,
-
-    /// <summary>带指定光环。</summary>
-    WithAura,
-
-    /// <summary>不带指定光环。</summary>
-    WithoutAura,
-
-    /// <summary>至少带有所选任一光环；至少需要两个光环。</summary>
-    HasAnyAura,
-
-    /// <summary>同时带有所选全部光环；至少需要两个光环。</summary>
-    HasAllAuras,
-
-    /// <summary>至少缺少一个所选光环；至少需要两个光环。</summary>
-    MissingAnyAura,
-
-    /// <summary>所选光环全部不存在；至少需要两个光环。</summary>
-    MissingAllAuras
-}
-
 /// <summary>数量筛选条件组的匹配方式。</summary>
 public enum CountConditionGroupMode
 {
@@ -210,16 +159,6 @@ public sealed class ModuleCountConditionGroup
     }
 }
 
-/// <summary>最低生命值选择器使用的职责筛选方式。</summary>
-public enum UnitRoleFilterKind
-{
-    /// <summary>只包含指定职责。</summary>
-    Include,
-
-    /// <summary>排除指定职责。</summary>
-    Exclude
-}
-
 /// <summary>
 /// 模块内定义的命名敌人数量字段。统计姓名板(nameplates)中满足筛选条件的敌人数,
 /// 仅用于条件(如 近身敌人数 &gt;= 3), 不能作为目标。
@@ -247,29 +186,14 @@ public enum AverageHealthTargetKind
 }
 
 /// <summary>
-/// 模块内定义的命名平均血量字段。队友使用生命值 / 光环 / 职责筛选，
-/// 敌人使用生命值 / 光环 / 距离 / 战斗筛选；无匹配单位时结果为 0。
+/// 模块内定义的命名平均血量字段。与数量字段共用条件组列表筛选候选，
+/// 再对剩余单位的生命值取平均；无匹配单位时结果为 0。旧卡片筛选字段不迁移。
 /// </summary>
 public sealed class ModuleAverageHealthField
 {
     public string Name { get; set; } = string.Empty;
     public AverageHealthTargetKind Target { get; set; } = AverageHealthTargetKind.Allies;
-
-    public EnemyThresholdFilterKind HealthFilter { get; set; } = EnemyThresholdFilterKind.None;
-    public int? HealthThreshold { get; set; }
-    public string? HealthThresholdField { get; set; }
-
-    public EnemyAuraFilterKind AuraFilter { get; set; } = EnemyAuraFilterKind.None;
-    public List<long>? AuraSpellIds { get; set; }
-
-    public UnitRoleFilterKind? RoleFilter { get; set; }
-    public int? Role { get; set; }
-
-    public EnemyThresholdFilterKind RangeFilter { get; set; } = EnemyThresholdFilterKind.None;
-    public int? RangeThreshold { get; set; }
-    public string? RangeThresholdField { get; set; }
-
-    public EnemyCombatFilterKind CombatFilter { get; set; } = EnemyCombatFilterKind.None;
+    public List<ModuleCountConditionGroup> FilterGroups { get; set; } = new();
 
     public ModuleAverageHealthField Clone()
     {
@@ -277,17 +201,7 @@ public sealed class ModuleAverageHealthField
         {
             Name = Name,
             Target = Target,
-            HealthFilter = HealthFilter,
-            HealthThreshold = HealthThreshold,
-            HealthThresholdField = HealthThresholdField,
-            AuraFilter = AuraFilter,
-            AuraSpellIds = AuraSpellIds is null ? null : new List<long>(AuraSpellIds),
-            RoleFilter = RoleFilter,
-            Role = Role,
-            RangeFilter = RangeFilter,
-            RangeThreshold = RangeThreshold,
-            RangeThresholdField = RangeThresholdField,
-            CombatFilter = CombatFilter
+            FilterGroups = FilterGroups.Select(group => group.Clone()).ToList()
         };
     }
 }

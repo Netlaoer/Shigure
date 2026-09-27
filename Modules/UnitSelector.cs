@@ -220,20 +220,24 @@ public static class UnitSelector
         return result;
     }
 
-    /// <summary>解析经过队友或敌人筛选后的平均生命值；无匹配单位时返回 0。</summary>
+    /// <summary>解析经过条件组筛选后的平均生命值；无匹配单位时返回 0。</summary>
     public static int Resolve(ModuleAverageHealthField field, GameState state)
     {
-        return field.Target == AverageHealthTargetKind.Enemies
+        var enemy = field.Target == AverageHealthTargetKind.Enemies;
+        if (!IsValidCountFilterConfiguration(field.FilterGroups, enemy))
+        {
+            return 0;
+        }
+
+        return enemy
             ? ResolveEnemyAverageHealth(field, state)
             : ResolveAllyAverageHealth(field, state);
     }
 
     private static int ResolveAllyAverageHealth(ModuleAverageHealthField field, GameState state)
     {
-        var healthThreshold = ResolveThreshold(field.HealthThreshold, field.HealthThresholdField, state, 0);
-        var auras = field.AuraSpellIds ?? [];
-        if (RequiresAura(field.AuraFilter)
-            && (auras.Count == 0 || auras.Any(id => !GroupContainsAuraField(state.Group, id))))
+        var referencedAuraIds = EnabledAuraSpellIds(field.FilterGroups);
+        if (referencedAuraIds.Any(id => !GroupContainsAuraField(state.Group, id)))
         {
             return 0;
         }
@@ -244,10 +248,8 @@ public static class UnitSelector
         {
             if (!state.Group.TryGetValue(i.ToString(), out var data)
                 || !RoleNotZero(data)
-                || !MatchesRoleFilter(data, field.RoleFilter, field.Role)
-                || !TryInt(GetField(data, "生命值"), out var health)
-                || !MatchesThreshold(field.HealthFilter, health, healthThreshold)
-                || !MatchesAuraFilter(data, field.AuraFilter, auras))
+                || !MatchesCountFilterGroups(data, state, field.FilterGroups)
+                || !TryInt(GetField(data, "生命值"), out var health))
             {
                 continue;
             }
@@ -261,14 +263,6 @@ public static class UnitSelector
 
     private static int ResolveEnemyAverageHealth(ModuleAverageHealthField field, GameState state)
     {
-        var healthThreshold = ResolveThreshold(field.HealthThreshold, field.HealthThresholdField, state, 0);
-        var rangeThreshold = ResolveThreshold(field.RangeThreshold, field.RangeThresholdField, state, 0);
-        var auras = field.AuraSpellIds ?? [];
-        if (RequiresAura(field.AuraFilter) && auras.Count == 0)
-        {
-            return 0;
-        }
-
         long total = 0;
         var count = 0;
         for (var i = 1; i <= NameplateStateLayout.SlotCount; i++)
@@ -277,11 +271,8 @@ public static class UnitSelector
                 || GetField(data, "存在") is bool present && !present
                 || !TryInt(GetField(data, "距离"), out var range)
                 || range <= 0
-                || !TryInt(GetField(data, "生命值"), out var health)
-                || !MatchesThreshold(field.HealthFilter, health, healthThreshold)
-                || !MatchesThreshold(field.RangeFilter, range, rangeThreshold)
-                || !MatchesAuraFilter(data, field.AuraFilter, auras)
-                || !MatchesCombatFilter(data, field.CombatFilter))
+                || !MatchesCountFilterGroups(data, state, field.FilterGroups)
+                || !TryInt(GetField(data, "生命值"), out var health))
             {
                 continue;
             }
@@ -298,6 +289,13 @@ public static class UnitSelector
             ? 0
             : (int)Math.Round((double)total / count, MidpointRounding.AwayFromZero);
 
+    private static IEnumerable<long> EnabledAuraSpellIds(IReadOnlyList<ModuleCountConditionGroup>? groups)
+        => (groups ?? [])
+            .SelectMany(group => group.Conditions ?? [])
+            .Where(condition => condition.Enabled && condition.Field == CountConditionFieldKind.Aura)
+            .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+            .Where(id => id > 0);
+
     /// <summary>统计职责 != 0 且满足 predicate 的单位数量。</summary>
     private static int CountUnits(
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, object?>> group,
@@ -313,18 +311,6 @@ public static class UnitSelector
         }
 
         return count;
-    }
-
-    private static int ResolveThreshold(
-        int? fixedValue,
-        string? fieldName,
-        GameState state,
-        int defaultValue = 0)
-    {
-        return !string.IsNullOrWhiteSpace(fieldName)
-            && ModuleConditionEvaluator.TryResolveInt(state, fieldName, out var dynamicValue)
-                ? dynamicValue
-                : fixedValue ?? defaultValue;
     }
 
     private static bool IsValidCountFilterConfiguration(
@@ -461,77 +447,8 @@ public static class UnitSelector
         return condition.Field == CountConditionFieldKind.Dispel;
     }
 
-    private static bool MatchesThreshold(EnemyThresholdFilterKind filter, int value, int threshold)
-    {
-        return filter switch
-        {
-            EnemyThresholdFilterKind.Above => value > threshold,
-            EnemyThresholdFilterKind.Below => value < threshold,
-            _ => true
-        };
-    }
-
-    private static bool MatchesAuraFilter(
-        IReadOnlyDictionary<string, object?> data,
-        EnemyAuraFilterKind filter,
-        IReadOnlyList<long> auraSpellIds)
-    {
-        return filter switch
-        {
-            EnemyAuraFilterKind.WithAura => HasAura(data, auraSpellIds[0]),
-            EnemyAuraFilterKind.WithoutAura => !HasAura(data, auraSpellIds[0]),
-            EnemyAuraFilterKind.HasAnyAura => auraSpellIds.Count >= 2 && HasAnyAura(data, auraSpellIds),
-            EnemyAuraFilterKind.HasAllAuras => auraSpellIds.Count >= 2 && HasAllAuras(data, auraSpellIds),
-            EnemyAuraFilterKind.MissingAnyAura => auraSpellIds.Count >= 2 && !HasAllAuras(data, auraSpellIds),
-            EnemyAuraFilterKind.MissingAllAuras => auraSpellIds.Count >= 2 && !HasAnyAura(data, auraSpellIds),
-            _ => true
-        };
-    }
-
     private static int GetAuraDuration(IReadOnlyDictionary<string, object?> data, long auraSpellId)
         => TryInt(GetField(data, SpellFieldKey.AuraMember(auraSpellId)), out var duration) ? duration : 0;
-
-    private static bool MatchesCombatFilter(
-        IReadOnlyDictionary<string, object?> data,
-        EnemyCombatFilterKind filter)
-    {
-        if (filter == EnemyCombatFilterKind.None)
-        {
-            return true;
-        }
-
-        // 姓名板未配置战斗格时该字段恒为 false, 「战斗中」筛选自然统计不到人。
-        var inCombat = GetField(data, "战斗") is bool flag && flag;
-        return filter == EnemyCombatFilterKind.InCombat ? inCombat : !inCombat;
-    }
-
-    private static bool RequiresAura(EnemyAuraFilterKind filter)
-        => filter is EnemyAuraFilterKind.WithAura
-            or EnemyAuraFilterKind.WithoutAura
-            or EnemyAuraFilterKind.HasAnyAura
-            or EnemyAuraFilterKind.HasAllAuras
-            or EnemyAuraFilterKind.MissingAnyAura
-            or EnemyAuraFilterKind.MissingAllAuras;
-
-    private static bool MatchesRoleFilter(
-        IReadOnlyDictionary<string, object?> data,
-        UnitRoleFilterKind? filter,
-        int? role)
-    {
-        if (filter is null)
-        {
-            return true;
-        }
-
-        if (role is null || !TryInt(GetField(data, "职责"), out var actualRole))
-        {
-            return false;
-        }
-
-        return filter == UnitRoleFilterKind.Include
-            ? actualRole == role.Value
-            : actualRole != role.Value;
-    }
 
     // 职责为 None/无法解析时视为不跳过(返回 true), 与 utils.py 的 _role_not_zero 一致。
     private static bool RoleNotZero(IReadOnlyDictionary<string, object?> data)
@@ -543,37 +460,6 @@ public static class UnitSelector
         }
 
         return !TryInt(role, out var r) || r != 0;
-    }
-
-    private static bool HasAura(IReadOnlyDictionary<string, object?> data, long auraSpellId)
-    {
-        return TryInt(GetField(data, SpellFieldKey.AuraMember(auraSpellId)), out var n) && n != 0;
-    }
-
-    private static bool HasAnyAura(IReadOnlyDictionary<string, object?> data, IEnumerable<long> auraSpellIds)
-    {
-        foreach (var spellId in auraSpellIds)
-        {
-            if (HasAura(data, spellId))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasAllAuras(IReadOnlyDictionary<string, object?> data, IEnumerable<long> auraSpellIds)
-    {
-        foreach (var spellId in auraSpellIds)
-        {
-            if (!HasAura(data, spellId))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static bool GroupContainsAuraField(

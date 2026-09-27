@@ -715,8 +715,8 @@ public sealed class ModuleStore
         foreach (var field in module.AverageHealthFields)
         {
             field.Name = field.Name.Trim();
-            field.HealthThresholdField = string.IsNullOrWhiteSpace(field.HealthThresholdField) ? null : field.HealthThresholdField.Trim();
-            field.RangeThresholdField = string.IsNullOrWhiteSpace(field.RangeThresholdField) ? null : field.RangeThresholdField.Trim();
+            field.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(field.FilterGroups);
         }
 
         foreach (var adjustment in module.ValueAdjustments)
@@ -1245,15 +1245,7 @@ public static class ModuleLogic
 
         foreach (var field in module.AverageHealthFields)
         {
-            if (!string.IsNullOrWhiteSpace(field.HealthThresholdField))
-            {
-                fields.Add(field.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(field.RangeThresholdField))
-            {
-                fields.Add(field.RangeThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, field.FilterGroups);
         }
 
         return fields;

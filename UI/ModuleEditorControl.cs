@@ -2130,7 +2130,13 @@ public sealed class ModuleEditorControl : UserControl
                 ToolTipText = $"{field.Name}\n{summary}"
             };
             var availableIds = enemyTarget ? availableNameplateAuraIds : availableAuraIds;
-            var missing = (field.AuraSpellIds ?? []).Where(id => !availableIds.Contains(id)).ToArray();
+            var referencedAuraIds = (field.FilterGroups ?? [])
+                .SelectMany(group => group.Conditions ?? [])
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Where(id => id > 0)
+                .Distinct();
+            var missing = referencedAuraIds.Where(id => !availableIds.Contains(id)).ToArray();
             if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
