@@ -62,8 +62,7 @@ internal sealed class CountFilterEditorControl : UserControl
         _allyAuras = allyAuras;
         _enemyAuras = enemyAuras;
         _thresholdFields = new HashSet<string>(thresholdFields, StringComparer.Ordinal);
-        Width = 800;
-        Height = 780;
+        Dock = DockStyle.Fill;
         Margin = new Padding(0);
         BackColor = Color.Transparent;
 
@@ -92,6 +91,7 @@ internal sealed class CountFilterEditorControl : UserControl
 
     private void FitGroupWidths()
     {
+        // FlowLayoutPanel 子项不会自动跟宿主拉宽，按内容区宽度同步条件组卡片。
         var width = _groupsPanel.ClientSize.Width - _groupsPanel.Padding.Horizontal - 1;
         if (width < 200)
         {
@@ -149,6 +149,7 @@ internal sealed class CountFilterEditorControl : UserControl
         {
             _loading = false;
             RenumberGroups();
+            FitGroupWidths();
             OnChanged();
         }
     }
@@ -184,6 +185,7 @@ internal sealed class CountFilterEditorControl : UserControl
         }
 
         RenumberGroups();
+        FitGroupWidths();
         OnChanged();
     }
 
@@ -275,55 +277,92 @@ internal sealed class CountFilterEditorControl : UserControl
         private readonly DataGridView _grid = new();
         private bool _updating;
 
-        public Panel Root { get; }
+        public TableLayoutPanel Root { get; }
 
         public GroupEditor(CountFilterEditorControl owner, CountConditionGroupMode mode)
         {
             _owner = owner;
-            Root = new Panel
+            Root = new TableLayoutPanel
             {
                 Width = 770,
                 Height = 350,
                 BackColor = UiTheme.SurfaceRaised,
                 Margin = new Padding(0, 0, 0, 8),
-                Padding = new Padding(8)
+                Padding = new Padding(8),
+                ColumnCount = 1,
+                RowCount = 3
             };
+            Root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            Root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            Root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            Root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
-            var header = new Panel { Dock = DockStyle.Top, Height = 42, BackColor = Color.Transparent };
-            _title.Bounds = new Rectangle(0, 4, 100, 34);
+            var header = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0),
+                ColumnCount = 3,
+                RowCount = 1
+            };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            _title.Dock = DockStyle.Fill;
             _title.ForeColor = UiTheme.Text;
             _title.TextAlign = ContentAlignment.MiddleLeft;
             _title.Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold);
-            header.Controls.Add(_title);
+            _title.Margin = new Padding(0);
+            header.Controls.Add(_title, 0, 0);
 
             UiTheme.StyleComboBox(_modeBox);
-            _modeBox.Bounds = new Rectangle(108, 4, 180, 34);
+            _modeBox.Dock = DockStyle.Fill;
+            _modeBox.Margin = new Padding(8, 4, 8, 4);
             _modeBox.Items.AddRange([
                 new GroupModeOption("全部满足", CountConditionGroupMode.All),
                 new GroupModeOption("任一满足", CountConditionGroupMode.Any)
             ]);
             _modeBox.SelectedIndex = mode == CountConditionGroupMode.Any ? 1 : 0;
             _modeBox.SelectedIndexChanged += (_, _) => _owner.OnChanged();
-            header.Controls.Add(_modeBox);
+            header.Controls.Add(_modeBox, 1, 0);
 
             var deleteGroupButton = UiTheme.CreateButton("删除组", UiTheme.ButtonKind.Danger);
             UiTheme.StyleActionButton(deleteGroupButton, 78);
-            deleteGroupButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            deleteGroupButton.Bounds = new Rectangle(Root.Width - 94, 4, 78, 34);
+            deleteGroupButton.Margin = new Padding(0, 4, 0, 4);
             deleteGroupButton.Click += (_, _) => _owner.DeleteGroup(this);
-            header.Controls.Add(deleteGroupButton);
-            Root.Controls.Add(header);
+            var deleteHost = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0)
+            };
+            deleteGroupButton.Size = new Size(78, 34);
+            deleteGroupButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            deleteHost.Controls.Add(deleteGroupButton);
+            deleteHost.Layout += (_, _) =>
+            {
+                deleteGroupButton.Location = new Point(
+                    Math.Max(0, deleteHost.ClientSize.Width - deleteGroupButton.Width),
+                    Math.Max(0, (deleteHost.ClientSize.Height - deleteGroupButton.Height) / 2));
+            };
+            header.Controls.Add(deleteHost, 2, 0);
+            Root.Controls.Add(header, 0, 0);
 
             ConfigureGrid();
-            _grid.Bounds = new Rectangle(8, 50, Root.Width - 16, 252);
-            _grid.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            Root.Controls.Add(_grid);
+            // StyleDataGridView 会 Dock=Fill；放在百分比行里随条件组卡片拉宽。
+            _grid.Dock = DockStyle.Fill;
+            _grid.Margin = new Padding(0, 4, 0, 4);
+            Root.Controls.Add(_grid, 0, 1);
+            UiTheme.EnableDebouncedFillColumns(_grid);
 
             var addButton = UiTheme.CreateButton("添加条件", UiTheme.ButtonKind.Secondary);
             UiTheme.StyleActionButton(addButton, 120);
-            addButton.Bounds = new Rectangle(8, 310, 120, 36);
+            addButton.Dock = DockStyle.Left;
+            addButton.Margin = new Padding(0);
             addButton.Click += (_, _) => AddCondition(null);
-            Root.Controls.Add(addButton);
+            Root.Controls.Add(addButton, 0, 2);
         }
 
         public void SetNumber(int number) => _title.Text = $"条件组 {number}";
@@ -444,8 +483,9 @@ internal sealed class CountFilterEditorControl : UserControl
                 Name = FieldColumn,
                 HeaderText = "字段",
                 Width = 340,
-                MinimumWidth = 340,
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                MinimumWidth = 220,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                FillWeight = 60,
                 DataSource = _owner.CreateFieldOptions(),
                 DisplayMember = nameof(FieldOption.Text),
                 ValueMember = nameof(FieldOption.Key),
@@ -472,8 +512,9 @@ internal sealed class CountFilterEditorControl : UserControl
                 Name = ValueColumn,
                 HeaderText = "值",
                 Width = 190,
-                MinimumWidth = 190,
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+                MinimumWidth = 120,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                FillWeight = 40,
                 SortMode = DataGridViewColumnSortMode.NotSortable
             });
             _grid.Columns.Add(new DataGridViewButtonColumn
@@ -628,9 +669,10 @@ internal sealed class CountFilterEditorControl : UserControl
         {
             ConfigureFixedColumn(NumberColumn, 42);
             ConfigureFixedColumn(EnabledColumn, 84);
-            ConfigureFixedColumn(FieldColumn, 340);
+            // 字段与值两列按剩余宽度均分，拉宽窗口时表格不再右侧留白。
+            ConfigureFillColumn(FieldColumn, 220);
             ConfigureFixedColumn(ComparisonColumn, 144);
-            ConfigureFillColumn(ValueColumn, 190);
+            ConfigureFillColumn(ValueColumn, 120);
             ConfigureFixedColumn(DeleteColumn, 84);
 
             _grid.ColumnHeadersHeight = Math.Max(38, _grid.Font.Height + 12);
@@ -656,7 +698,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 ?? throw new InvalidOperationException($"找不到数量筛选列：{name}");
             column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
             column.MinimumWidth = minimumWidth;
-            column.FillWeight = 100;
+            column.FillWeight = name == FieldColumn ? 60 : 40;
         }
 
         private void RenumberRows()
