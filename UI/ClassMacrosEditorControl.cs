@@ -89,7 +89,6 @@ public sealed class ClassMacrosEditorControl : UserControl
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
-            MinimumSize = new Size(UiTheme.EditorPageWidth, 0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));

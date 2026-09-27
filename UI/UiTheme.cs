@@ -448,10 +448,13 @@ internal static class UiTheme
         => Math.Max(1, (int)Math.Round(logicalPixels * control.DeviceDpi / 96F));
 
     /// <summary>
-    /// 编辑页宿主：最小宽为 contentWidth，更宽时随窗口铺开（左对齐，避免窄岛两侧留白）。
+    /// 编辑页宿主：宽度始终贴合客户区（可小于 contentWidth）；仅当子控件固有宽度超出时出现横向滚动。
+    /// contentWidth 保留为调用方设计参考宽，不再写成 MinimumSize / AutoScrollMinSize，避免最大化还原后卡住。
     /// </summary>
     public static Panel CreateFixedWidthPageHost(Control content, int contentWidth)
     {
+        _ = contentWidth;
+
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
@@ -462,56 +465,65 @@ internal static class UiTheme
 
         content.Dock = DockStyle.None;
         content.Location = Point.Empty;
-        content.MinimumSize = new Size(contentWidth, 0);
+        // 允许随窗口收缩；旧逻辑 MinimumSize=contentWidth 会在还原后把内容锁在 1800+ 并留下横条。
+        content.MinimumSize = Size.Empty;
         content.MaximumSize = Size.Empty;
 
         void SyncLayout()
         {
-            var hostWidth = scrollHost.ClientSize.Width;
-            var targetWidth = Math.Max(contentWidth, hostWidth);
-            var viewHeight = scrollHost.ClientSize.Height;
-            if (targetWidth > hostWidth && !scrollHost.HorizontalScroll.Visible)
+            if (scrollHost.IsDisposed || content.IsDisposed)
             {
-                viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
+                return;
             }
 
-            var height = Math.Max(200, viewHeight);
-            if (content.Width != targetWidth)
+            var hostWidth = Math.Max(0, scrollHost.ClientSize.Width);
+            var hostHeight = Math.Max(0, scrollHost.ClientSize.Height);
+            if (hostWidth <= 0 || hostHeight <= 0)
             {
-                content.Width = targetWidth;
+                return;
             }
 
-            if (content.Height != height)
+            var targetWidth = hostWidth;
+            var height = Math.Max(200, hostHeight);
+
+            if (content.Left != 0 || content.Top != 0
+                || content.Width != targetWidth
+                || content.Height != height)
             {
-                content.Height = height;
+                content.SetBounds(0, 0, targetWidth, height);
             }
 
-            if (content.Left != 0)
+            // 不强制 AutoScrollMinSize=设计宽；清空后由子控件实际边界决定是否需要滚动。
+            if (scrollHost.AutoScrollMinSize != Size.Empty)
             {
-                content.Left = 0;
+                scrollHost.AutoScrollMinSize = Size.Empty;
             }
 
-            if (content.Top != 0)
+            // 最大化→还原后 WinForms 偶发保留横向滚动度量：内容已贴合时强制复位。
+            if (content.Width <= hostWidth
+                && (scrollHost.HorizontalScroll.Visible || scrollHost.AutoScrollPosition.X != 0))
             {
-                content.Top = 0;
-            }
-
-            var minSize = new Size(contentWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
+                scrollHost.AutoScroll = false;
+                scrollHost.AutoScrollMinSize = Size.Empty;
+                scrollHost.AutoScroll = true;
             }
         }
 
-        scrollHost.Controls.Add(content);
-        scrollHost.Resize += (_, _) => SyncLayout();
-        scrollHost.HandleCreated += (_, _) =>
+        void ScheduleSync()
         {
-            if (scrollHost.IsHandleCreated)
+            if (!scrollHost.IsHandleCreated || scrollHost.IsDisposed)
             {
-                scrollHost.BeginInvoke(SyncLayout);
+                SyncLayout();
+                return;
             }
-        };
+
+            // 还原窗口时当帧 ClientSize 可能尚未稳定，延后到消息队列再同步。
+            scrollHost.BeginInvoke(SyncLayout);
+        }
+
+        scrollHost.Controls.Add(content);
+        scrollHost.Resize += (_, _) => ScheduleSync();
+        scrollHost.HandleCreated += (_, _) => ScheduleSync();
         SyncLayout();
         return scrollHost;
     }
@@ -1779,7 +1791,19 @@ internal static class UiTheme
             grid.HandleCreated += (_, _) => EnsureBound();
         }
 
-        grid.SizeChanged += (_, _) => ScheduleApply();
+        var lastClientWidth = 0;
+        grid.SizeChanged += (_, _) =>
+        {
+            var width = grid.ClientSize.Width;
+            // 窗口缩小/还原时立即收回 Fill 列，避免防抖期间列宽仍超出而挤出横向滚动条。
+            if (width > 0 && lastClientWidth > 0 && width < lastClientWidth)
+            {
+                ApplyFillWidths();
+            }
+
+            lastClientWidth = width;
+            ScheduleApply();
+        };
         grid.ColumnAdded += (_, _) =>
         {
             CaptureFillColumns();

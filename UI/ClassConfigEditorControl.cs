@@ -214,8 +214,7 @@ public sealed class ClassConfigEditorControl : UserControl
             BackColor = UiTheme.Surface,
             ColumnCount = 1,
             RowCount = 1,
-            Margin = new Padding(0),
-            MinimumSize = new Size(UiTheme.EditorPageWidth, 0)
+            Margin = new Padding(0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
