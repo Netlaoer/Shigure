@@ -40,10 +40,6 @@ public sealed class StatusForm : Form
     private const float AboutLogoOpacity = 0.55F;
     private const int BossNumberCardWidth = 400;
     private const int AboutScaleIconSize = 18;
-    /// <summary>边缘缩放热区（逻辑像素）。</summary>
-    private const int ResizeBorderThickness = 6;
-    /// <summary>四角缩放热区（逻辑像素）；需大于 Win11 DWM 圆角半径，否则角点落在裁切区无法命中。</summary>
-    private const int ResizeCornerThickness = 16;
     /// <summary>单行顶栏高度（图标 + 导航 + 窗口按钮）。</summary>
     private const int TopBarHeight = 44;
     /// <summary>导航行左侧独立品牌图标边长（与导航文字垂直对齐）。</summary>
@@ -331,6 +327,7 @@ public sealed class StatusForm : Form
     private Button _maximizeButton = null!;
     private bool _usesDwmRoundedCorners;
     private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
+    private BorderlessFormChrome.EdgeHitTransparentScope? _edgeHitScope;
 
     internal string SelectedPageKey => _selectedPage.ToString();
 
@@ -349,6 +346,8 @@ public sealed class StatusForm : Form
             }
         };
         InitializeComponent();
+        BorderlessFormChrome.ApplyResizePadding(this);
+        _edgeHitScope = BorderlessFormChrome.InstallEdgeHitTransparent(this);
         UiTheme.SetListViewSubItemIconResolver(_stateList, ResolveStatusListIcon);
         UiTheme.SetListViewRowAccentResolver(_stateList, ResolveStateListAccent);
         UiTheme.SetListViewSubItemIconResolver(_auraList, ResolveStatusListIcon);
@@ -364,6 +363,8 @@ public sealed class StatusForm : Form
             SpellIconCatalog.CatalogChanged -= OnSpellIconCatalogChanged;
             _roundedCornerResizeTimer.Dispose();
             _toolTip.Dispose();
+            _edgeHitScope?.Dispose();
+            _edgeHitScope = null;
         }
 
         base.Dispose(disposing);
@@ -374,12 +375,28 @@ public sealed class StatusForm : Form
         base.OnHandleCreated(e);
         UiTheme.ApplyDarkTitleBar(this);
         _usesDwmRoundedCorners = UiTheme.ApplyRoundedCorners(this);
+        BorderlessFormChrome.ApplyResizePadding(this);
+        SyncMaximizedBounds();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        BorderlessFormChrome.ApplyResizePadding(this);
+        SyncMaximizedBounds();
+    }
+
+    protected override void OnMove(EventArgs e)
+    {
+        base.OnMove(e);
+        SyncMaximizedBounds();
     }
 
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
         UpdateMaximizeButton();
+        SyncMaximizedBounds();
         if (!_usesDwmRoundedCorners && IsHandleCreated && WindowState == FormWindowState.Normal)
         {
             _roundedCornerResizeTimer.Stop();
@@ -389,24 +406,20 @@ public sealed class StatusForm : Form
 
     protected override void WndProc(ref Message m)
     {
-        const int WmNcHitTest = 0x0084;
-        if (m.Msg == WmNcHitTest)
+        if (m.Msg == BorderlessFormChrome.WmGetMinMaxInfo)
+        {
+            base.WndProc(ref m);
+            BorderlessFormChrome.TryHandleGetMinMaxInfo(this, ref m);
+            return;
+        }
+
+        if (m.Msg == BorderlessFormChrome.WmNcHitTest)
         {
             base.WndProc(ref m);
             // 最大化时不启用边缘缩放命中。
-            if (WindowState != FormWindowState.Normal)
+            if (WindowState == FormWindowState.Normal)
             {
-                return;
-            }
-
-            // 使用消息 LParam 屏幕坐标（勿用 Cursor.Position），保证与本次命中点一致。
-            var screenPoint = new Point(
-                unchecked((short)(long)m.LParam),
-                unchecked((short)((long)m.LParam >> 16)));
-            var resizeHit = HitTestResizeGrip(PointToClient(screenPoint));
-            if (resizeHit != NativeMethods.HtClient)
-            {
-                m.Result = resizeHit;
+                BorderlessFormChrome.TryHandleNcHitTest(this, ref m);
             }
 
             return;
@@ -418,6 +431,8 @@ public sealed class StatusForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
+        BorderlessFormChrome.ApplyResizePadding(this);
+        SyncMaximizedBounds();
         if (_hasKnownBounds)
         {
             return;
@@ -698,11 +713,28 @@ public sealed class StatusForm : Form
         return shell;
     }
 
+    private void SyncMaximizedBounds()
+    {
+        var working = BorderlessFormChrome.GetWorkingArea(this);
+        if (MaximizedBounds != working)
+        {
+            MaximizedBounds = working;
+        }
+    }
+
     private void ToggleMaximize()
     {
-        WindowState = WindowState == FormWindowState.Maximized
-            ? FormWindowState.Normal
-            : FormWindowState.Maximized;
+        SyncMaximizedBounds();
+        if (WindowState == FormWindowState.Maximized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
+        else
+        {
+            // 先同步工作区，再最大化，避免盖住任务栏；还原由系统记回 Maximize 前的 Normal bounds。
+            WindowState = FormWindowState.Maximized;
+        }
+
         UpdateMaximizeButton();
     }
 
@@ -778,66 +810,6 @@ public sealed class StatusForm : Form
                 NativeMethods.SendMessageW(Handle, NativeMethods.WmNcLButtonDown, NativeMethods.HtCaption, 0);
             }
         };
-    }
-
-    private nint HitTestResizeGrip(Point clientPoint)
-    {
-        var scale = DeviceDpi / 96f;
-        var border = Math.Max(ResizeBorderThickness, (int)Math.Round(ResizeBorderThickness * scale));
-        // 角区更大：DWM/回退 Region 圆角会裁掉最外一圈，8px 角热区几乎整块落在窗外。
-        var corner = Math.Max(ResizeCornerThickness, (int)Math.Round(ResizeCornerThickness * scale));
-
-        var onLeft = clientPoint.X <= border;
-        var onRight = clientPoint.X >= ClientSize.Width - border;
-        var onTop = clientPoint.Y <= border;
-        var onBottom = clientPoint.Y >= ClientSize.Height - border;
-
-        var inLeftCorner = clientPoint.X <= corner;
-        var inRightCorner = clientPoint.X >= ClientSize.Width - corner;
-        var inTopCorner = clientPoint.Y <= corner;
-        var inBottomCorner = clientPoint.Y >= ClientSize.Height - corner;
-
-        if (inTopCorner && inLeftCorner)
-        {
-            return NativeMethods.HtTopLeft;
-        }
-
-        if (inTopCorner && inRightCorner)
-        {
-            return NativeMethods.HtTopRight;
-        }
-
-        if (inBottomCorner && inLeftCorner)
-        {
-            return NativeMethods.HtBottomLeft;
-        }
-
-        if (inBottomCorner && inRightCorner)
-        {
-            return NativeMethods.HtBottomRight;
-        }
-
-        if (onLeft)
-        {
-            return NativeMethods.HtLeft;
-        }
-
-        if (onRight)
-        {
-            return NativeMethods.HtRight;
-        }
-
-        if (onTop)
-        {
-            return NativeMethods.HtTop;
-        }
-
-        if (onBottom)
-        {
-            return NativeMethods.HtBottom;
-        }
-
-        return NativeMethods.HtClient;
     }
 
     private static Panel CreatePageHost()

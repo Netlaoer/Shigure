@@ -16,8 +16,6 @@ public sealed class MainForm : Form, IMessageFilter
         Exit
     }
 
-    private const int ResizeBorderThickness = 6;
-    private const int ResizeCornerThickness = 16;
     private const int RoundedCornerResizeDebounceMs = 80;
     private const int WowProcessMonitorIntervalMs = 10_000;
     private const int GamepadCaptureIntervalMs = 50;
@@ -111,6 +109,7 @@ public sealed class MainForm : Form, IMessageFilter
     private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
     private readonly System.Windows.Forms.Timer _wowProcessMonitorTimer;
     private readonly System.Windows.Forms.Timer _gamepadCaptureTimer;
+    private BorderlessFormChrome.EdgeHitTransparentScope? _edgeHitScope;
     private RenderSnapshot? _lastSnapshot;
     private string? _lastLoggedStep;
     private string? _lastLoggedStepDetails;
@@ -186,6 +185,8 @@ public sealed class MainForm : Form, IMessageFilter
         _gamepadCaptureTimer.Tick += HandleGamepadCaptureTick;
         Application.AddMessageFilter(this);
         InitializeComponent();
+        BorderlessFormChrome.ApplyResizePadding(this);
+        _edgeHitScope = BorderlessFormChrome.InstallEdgeHitTransparent(this);
         TryApplyApplicationIcon();
         InitializeTrayIcon();
         _statusForm.AttachSettingsPanel(BuildSettingsPanel());
@@ -225,6 +226,7 @@ public sealed class MainForm : Form, IMessageFilter
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        BorderlessFormChrome.ApplyResizePadding(this);
         UiTheme.ApplyDarkTitleBar(this);
         UiTheme.ApplyTranslucentBackground(this);
         _usesDwmRoundedCorners = UiTheme.ApplyRoundedCorners(this);
@@ -478,6 +480,8 @@ public sealed class MainForm : Form, IMessageFilter
         _trayEnabledIcon?.Dispose();
         _roundedCornerResizeTimer.Dispose();
         _wowProcessMonitorTimer.Dispose();
+        _edgeHitScope?.Dispose();
+        _edgeHitScope = null;
         base.OnFormClosed(e);
     }
 
@@ -572,28 +576,24 @@ public sealed class MainForm : Form, IMessageFilter
 
     protected override void WndProc(ref Message m)
     {
-        const int WmNcHitTest = 0x0084;
-        if (m.Msg == WmNcHitTest)
+        if (m.Msg == BorderlessFormChrome.WmNcHitTest)
         {
             base.WndProc(ref m);
-            if (WindowState != FormWindowState.Normal)
+            if (WindowState == FormWindowState.Normal)
             {
-                return;
-            }
-
-            var screenPoint = new Point(
-                unchecked((short)(long)m.LParam),
-                unchecked((short)((long)m.LParam >> 16)));
-            var resizeHit = HitTestResizeGrip(PointToClient(screenPoint));
-            if (resizeHit != NativeMethods.HtClient)
-            {
-                m.Result = resizeHit;
+                BorderlessFormChrome.TryHandleNcHitTest(this, ref m);
             }
 
             return;
         }
 
         base.WndProc(ref m);
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        BorderlessFormChrome.ApplyResizePadding(this);
     }
 
     private void InitializeComponent()
@@ -3273,65 +3273,6 @@ public sealed class MainForm : Form, IMessageFilter
     private void SetToggleKeyButtonText()
     {
         _toggleKeyButton.Text = _toggleKeyName;
-    }
-
-    private nint HitTestResizeGrip(Point clientPoint)
-    {
-        var scale = DeviceDpi / 96f;
-        var border = Math.Max(ResizeBorderThickness, (int)Math.Round(ResizeBorderThickness * scale));
-        var corner = Math.Max(ResizeCornerThickness, (int)Math.Round(ResizeCornerThickness * scale));
-
-        var onLeft = clientPoint.X <= border;
-        var onRight = clientPoint.X >= ClientSize.Width - border;
-        var onTop = clientPoint.Y <= border;
-        var onBottom = clientPoint.Y >= ClientSize.Height - border;
-
-        var inLeftCorner = clientPoint.X <= corner;
-        var inRightCorner = clientPoint.X >= ClientSize.Width - corner;
-        var inTopCorner = clientPoint.Y <= corner;
-        var inBottomCorner = clientPoint.Y >= ClientSize.Height - corner;
-
-        if (inTopCorner && inLeftCorner)
-        {
-            return NativeMethods.HtTopLeft;
-        }
-
-        if (inTopCorner && inRightCorner)
-        {
-            return NativeMethods.HtTopRight;
-        }
-
-        if (inBottomCorner && inLeftCorner)
-        {
-            return NativeMethods.HtBottomLeft;
-        }
-
-        if (inBottomCorner && inRightCorner)
-        {
-            return NativeMethods.HtBottomRight;
-        }
-
-        if (onLeft)
-        {
-            return NativeMethods.HtLeft;
-        }
-
-        if (onRight)
-        {
-            return NativeMethods.HtRight;
-        }
-
-        if (onTop)
-        {
-            return NativeMethods.HtTop;
-        }
-
-        if (onBottom)
-        {
-            return NativeMethods.HtBottom;
-        }
-
-        return NativeMethods.HtClient;
     }
 
     private string? TryMapKeyToHotkey(Keys key)
