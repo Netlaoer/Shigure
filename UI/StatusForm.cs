@@ -47,6 +47,12 @@ public sealed class StatusForm : Form
     private const int NavBrandIconSize = 32;
     /// <summary>Windows 风格标题栏按钮宽。</summary>
     private const int ChromeButtonWidth = 46;
+    /// <summary>顶栏导航项文字左侧内边距（逻辑像素）。</summary>
+    private const int NavItemPadX = 8;
+    /// <summary>顶栏导航项右侧为未保存黄点预留的宽度（逻辑像素，始终预留）。</summary>
+    private const int NavItemDirtyReserve = 18;
+    /// <summary>顶栏导航项最小宽（逻辑像素）。</summary>
+    private const int NavItemMinWidth = 48;
 
     private const string AboutDisclaimerText =
         """
@@ -1237,12 +1243,11 @@ public sealed class StatusForm : Form
         _contentHost.Controls.Add(view);
 
         var buttonFont = new Font(Font.FontFamily, 9.5F, FontStyle.Regular);
-        var textWidth = TextRenderer.MeasureText(text, buttonFont).Width;
         var button = new SettingsNavButton
         {
             Text = text,
             AutoSize = false,
-            Size = new Size(Math.Max(40, textWidth + 18), 32),
+            Size = new Size(MeasureNavItemWidth(text, buttonFont), 32),
             Font = buttonFont,
             Margin = new Padding(0, 2, 12, 2),
             Cursor = Cursors.Hand,
@@ -1253,6 +1258,19 @@ public sealed class StatusForm : Form
         button.Click += (_, _) => SelectView(page);
         _navItems.Add((button, view, page));
         nav.Controls.Add(button);
+    }
+
+    /// <summary>
+    /// 顶栏导航项宽度：文字实测宽 + 左右内边距 + 未保存圆点预留（始终计入，避免变脏后「配...」截断）。
+    /// </summary>
+    private static int MeasureNavItemWidth(string text, Font font)
+    {
+        var textWidth = TextRenderer.MeasureText(
+            text,
+            font,
+            new Size(int.MaxValue, int.MaxValue),
+            TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding).Width;
+        return Math.Max(NavItemMinWidth, textWidth + NavItemPadX + NavItemDirtyReserve + NavItemPadX);
     }
 
     private void SelectView(SettingsPage page)
@@ -2984,11 +3002,13 @@ public sealed class StatusForm : Form
 
             graphics.SmoothingMode = oldSmoothingMode;
 
-            var dirtySpace = _isDirty ? (int)Math.Round(14 * scale) : (int)Math.Round(4 * scale);
+            // 始终为未保存圆点预留右侧空间，避免 IsDirty 时文字区收窄被 Truncate。
+            var leftPad = (int)Math.Round(NavItemPadX * scale);
+            var dirtyReserve = (int)Math.Round(NavItemDirtyReserve * scale);
             var textBounds = new Rectangle(
-                (int)Math.Round(6 * scale),
+                leftPad,
                 0,
-                Math.Max(0, Width - (int)Math.Round(6 * scale) - dirtySpace),
+                Math.Max(0, Width - leftPad - dirtyReserve),
                 Height);
             TextRenderer.DrawText(
                 graphics,
@@ -2996,15 +3016,19 @@ public sealed class StatusForm : Form
                 Font,
                 textBounds,
                 _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.VerticalCenter
+                | TextFormatFlags.SingleLine
+                | TextFormatFlags.NoPrefix);
 
             if (_isDirty)
             {
                 var dotSize = Math.Max(5, (int)Math.Round(6 * scale));
+                var dotLeft = Width - (int)Math.Round((NavItemDirtyReserve + NavItemPadX) / 2f * scale) - (dotSize / 2);
                 using var warning = new SolidBrush(UiTheme.Warning);
                 graphics.FillEllipse(
                     warning,
-                    Width - (int)Math.Round(10 * scale) - dotSize,
+                    Math.Max(0, dotLeft),
                     (Height - dotSize) / 2,
                     dotSize,
                     dotSize);
