@@ -1557,9 +1557,10 @@ public sealed class ClassConfigEditorControl : UserControl
         };
         _nameplatePixelSummary.ForeColor = UiTheme.Text;
         _nameplateFixedFieldSummary.ForeColor = UiTheme.Muted;
-        _nameplateFixedFieldSummary.Text = $"生命值 + 距离 + 战斗（固定 {NameplateStateLayout.FixedFieldCount} 格）";
+        _nameplateFixedFieldSummary.Text =
+            $"映射 {NameplateStateLayout.MappingFieldCount} + 生命值/距离/战斗（固定 {NameplateStateLayout.FixedFieldCount} 格/槽）";
 
-        // 姓名板卡片在原来加宽 50% 的基础上再宽 60%，避免「生命值 + 距离 + 战斗（固定 3 格）」被截断。
+        // 姓名板卡片加宽，避免映射与固定字段摘要被截断。
         const int cardWidth = GroupCardWidth * 3 / 2 * 8 / 5;
         fields.Controls.Add(CreateGroupCard("NAMEPLATES", _nameplateEnabledBox, cardWidth));
         fields.Controls.Add(CreateGroupCard("固定字段", _nameplateFixedFieldSummary, cardWidth));
@@ -1648,8 +1649,10 @@ public sealed class ClassConfigEditorControl : UserControl
                 fields++;
             }
         }
+
+        var total = NameplateStateLayout.TotalPixelCount(fields);
         _nameplatePixelSummary.Text = _nameplateEnabledBox.Checked
-            ? $"{NameplateStateLayout.SlotCount} × {fields} = {NameplateStateLayout.SlotCount * fields} 格"
+            ? $"映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount} × {fields} = {total} 格"
             : "未启用";
     }
 

@@ -12,6 +12,7 @@ public sealed class ShigureRuntime
     private readonly IRuntimeLogic _logic;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentQueue<RuntimeCommand> _pendingCommands = new();
+    private readonly NameplateTtdTracker _nameplateTtdTracker = new();
 
     private GameState? _state;
     private string? _className;
@@ -170,6 +171,7 @@ public sealed class ShigureRuntime
             _enabled = false;
             _clickPending = false;
             _logicPausedUntil = DateTimeOffset.MinValue;
+            _nameplateTtdTracker.Clear();
             _currentStep = "已停止";
             PublishSnapshot();
             _scanner.Dispose();
@@ -211,6 +213,7 @@ public sealed class ShigureRuntime
         if (scan.RowData is null)
         {
             _latestTargetWindowHandle = 0;
+            _nameplateTtdTracker.Clear();
             _state = null;
             _classId = null;
             _specId = null;
@@ -228,6 +231,7 @@ public sealed class ShigureRuntime
 
         _latestTargetWindowHandle = scan.TargetWindowHandle;
         _state = _stateBuilder.Build(scan.RowData, scan.BarData, scan.HealAbsorbData);
+        _nameplateTtdTracker.Apply(_state, _timeProvider.GetUtcNow());
         _classId = _state.GetInt("职业");
         _specId = _state.GetInt("专精");
         (_className, _specName) = ClassNames.GetClassAndSpecName(_classId, _specId);

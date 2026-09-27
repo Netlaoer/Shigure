@@ -267,6 +267,7 @@ public sealed class ConditionFieldCatalog
                 AddField(fields, seen, prefix + "生命值", $"姓名板{slot} / 生命值", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
                 AddField(fields, seen, prefix + "距离", $"姓名板{slot} / 距离", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
                 AddField(fields, seen, prefix + "战斗", $"姓名板{slot} / 战斗", ConditionFieldType.Bool, ConditionFieldCategory.State, "姓名板");
+                AddField(fields, seen, prefix + "TTD", $"姓名板{slot} / TTD", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
                 for (var auraIndex = 1; auraIndex <= auraCount; auraIndex++)
                 {
                     var name = $"光环{auraIndex}";
@@ -279,6 +280,18 @@ public sealed class ConditionFieldCatalog
 
                     AddField(fields, seen, prefix + $"光环{auraIndex}", $"姓名板{slot} / {name}", ConditionFieldType.Int, ConditionFieldCategory.Aura, "姓名板");
                 }
+            }
+
+            foreach (var alias in NameplateStateLayout.UnitTtdAliases)
+            {
+                AddField(
+                    fields,
+                    seen,
+                    alias.TtdField,
+                    alias.TtdField,
+                    ConditionFieldType.Int,
+                    ConditionFieldCategory.State,
+                    alias.Classification);
             }
         }
 

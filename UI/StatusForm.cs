@@ -1967,7 +1967,15 @@ public sealed class StatusForm : Form
             104), 0, 4);
         fields.Controls.Add(CreateCommonFieldCard(
             "姓名板",
-            ["nameplates.N.存在", "nameplates.N.生命值", "nameplates.N.距离", "nameplates.N.光环N"],
+            [
+                "姓名板目标/焦点/首领1–5",
+                "nameplates.N.存在",
+                "nameplates.N.生命值",
+                "nameplates.N.距离",
+                "nameplates.N.TTD",
+                "目标/焦点/首领TTD",
+                "nameplates.N.光环N"
+            ],
             104), 1, 4);
 
         void SyncScrollLayout()
@@ -2351,7 +2359,14 @@ public sealed class StatusForm : Form
     {
         var category = string.Equals(name, "匹配模块", StringComparison.Ordinal)
             ? "模块"
-            : ClassStateCatalog.GetCategoryDisplayName(ClassStateCatalog.ClassifyField(name));
+            : NameplateStateLayout.IsMappingField(name)
+                ? NameplateStateLayout.MappingClassification
+                : NameplateStateLayout.UnitTtdAliases.Any(alias =>
+                      string.Equals(alias.TtdField, name, StringComparison.Ordinal))
+                    ? NameplateStateLayout.UnitTtdAliases
+                        .First(alias => string.Equals(alias.TtdField, name, StringComparison.Ordinal))
+                        .Classification
+                    : ClassStateCatalog.GetCategoryDisplayName(ClassStateCatalog.ClassifyField(name));
         return new ListViewItem(new[] { index.ToString(), category, name, value })
         {
             Tag = category

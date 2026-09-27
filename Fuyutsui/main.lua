@@ -266,7 +266,8 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
     end
 
     if type(t.nameplates) == "table" then
-        -- 生命值/距离/战斗固定占用每个单位的前三格，光环从第四格开始。
+        -- 先 7 格单位映射，再生命值/距离/战斗固定占用每个单位前三格，光环从第四格开始。
+        local mappingCount = self.NameplateMappingFieldCount or 7
         blocks.nameplates = {
             start = index,
             healthPercent = 1,
@@ -290,7 +291,7 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
         blocks.nameplates.auraStart = blocks.nameplates.num + 1
         blocks.nameplates.num = blocks.nameplates.num + #blocks.nameplates.auras
         local maxPixels = self.MainPixelMaxCount or self.MainPixelCount
-        local nameplateEnd = index + self.NameplateSlotCount * blocks.nameplates.num
+        local nameplateEnd = index + mappingCount + self.NameplateSlotCount * blocks.nameplates.num
         if nameplateEnd - 1 > maxPixels then
             print("LoadPlayerBlocks: 姓名板像素超出主像素行 " .. maxPixels .. " 格上限，已停用姓名板")
             blocks.nameplates = nil

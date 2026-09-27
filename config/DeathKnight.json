@@ -853,6 +853,41 @@
         "displayType": "冷却"
       }
     },
+    "姓名板目标": {
+      "step": 95,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板焦点": {
+      "step": 96,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领1": {
+      "step": 97,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领2": {
+      "step": 98,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领3": {
+      "step": 99,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 100,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 101,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
       "start": 95,
       "healthPercent": 1,
@@ -865,7 +900,8 @@
           "spellId": 55078
         }
       ],
-      "num": 4
+      "num": 4,
+      "mappingCount": 7
     }
   },
   "2": {
@@ -1460,13 +1496,49 @@
         "displayType": "冷却"
       }
     },
+    "姓名板目标": {
+      "step": 81,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板焦点": {
+      "step": 82,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领1": {
+      "step": 83,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领2": {
+      "step": 84,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领3": {
+      "step": 85,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 86,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 87,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
       "start": 81,
       "healthPercent": 1,
       "range": 2,
       "combat": 3,
       "auraStart": 4,
-      "num": 3
+      "num": 3,
+      "mappingCount": 7
     }
   },
   "3": {
@@ -2122,6 +2194,41 @@
         "displayType": "冷却"
       }
     },
+    "姓名板目标": {
+      "step": 88,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板焦点": {
+      "step": 89,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领1": {
+      "step": 90,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领2": {
+      "step": 91,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领3": {
+      "step": 92,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 93,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 94,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
       "start": 88,
       "healthPercent": 1,
@@ -2134,7 +2241,8 @@
           "spellId": 191587
         }
       ],
-      "num": 4
+      "num": 4,
+      "mappingCount": 7
     }
   }
 }
