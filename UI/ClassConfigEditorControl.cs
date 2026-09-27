@@ -1104,15 +1104,15 @@ public sealed class ClassConfigEditorControl : UserControl
         spellCard.Controls.Add(spellHeader, 0, 0);
 
         ConfigureGrid(_spellsGrid, "class-config-spells");
-        _spellsGrid.Columns.Add(CreateSpellIconColumn());
-        // 仅「名称」作为 Fill 列吸收剩余宽度；其余 Absolute，避免防抖均分摊薄名称列。
+        // 冷却技能表：图标 ×0.8，法术 ID/最大充能/施法次数/强制已学/法术书中 ×0.9；名称仍为唯一 Fill。
+        _spellsGrid.Columns.Add(CreateSpellIconColumn(43));
         _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 120));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 108));
         _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 80));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 110));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 110));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 99));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 99));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 99));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 99));
         _spellsGrid.Columns.Add(CreateDeleteColumn());
         _spellsGrid.CellContentClick += HandleDeleteClick;
         _spellsGrid.CellValueChanged += (_, e) =>
@@ -1845,13 +1845,13 @@ public sealed class ClassConfigEditorControl : UserControl
             SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
-    private static DataGridViewImageColumn CreateSpellIconColumn()
+    private static DataGridViewImageColumn CreateSpellIconColumn(int width = 54)
         => new()
         {
             Name = "Icon",
             HeaderText = "图标",
-            Width = 54,
-            MinimumWidth = 54,
+            Width = width,
+            MinimumWidth = width,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ImageLayout = DataGridViewImageCellLayout.Zoom,
             ReadOnly = true,
