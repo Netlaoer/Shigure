@@ -2911,6 +2911,10 @@ public sealed class MainForm : Form, IMessageFilter
         _uiCache.UnitEditorWindowSize = latestCache.UnitEditorWindowSize;
         _uiCache.FormulaEditorWindowSize = latestCache.FormulaEditorWindowSize;
         _uiCache.RuleTextEditorWindowSize = latestCache.RuleTextEditorWindowSize;
+        _uiCache.ConditionEditorWindowLocation = latestCache.ConditionEditorWindowLocation;
+        _uiCache.UnitEditorWindowLocation = latestCache.UnitEditorWindowLocation;
+        _uiCache.FormulaEditorWindowLocation = latestCache.FormulaEditorWindowLocation;
+        _uiCache.RuleTextEditorWindowLocation = latestCache.RuleTextEditorWindowLocation;
 
         var currentBounds = CaptureMainWindowBounds();
         _uiCache.MainWindowBounds = currentBounds;

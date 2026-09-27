@@ -23,18 +23,28 @@ public sealed class FormulaEditorForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        UiTheme.RestoreCachedDialogHeight(this, UiCacheStore.Load().FormulaEditorWindowSize);
+        var cache = UiCacheStore.Load();
+        UiTheme.RestoreCachedDialogPlacement(
+            this,
+            cache.FormulaEditorWindowSize,
+            cache.FormulaEditorWindowLocation);
     }
 
     protected override void OnResizeEnd(EventArgs e)
     {
         base.OnResizeEnd(e);
-        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.FormulaEditorWindowSize = size);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.FormulaEditorWindowSize = size,
+            (c, location) => c.FormulaEditorWindowLocation = location);
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
-        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.FormulaEditorWindowSize = size);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.FormulaEditorWindowSize = size,
+            (c, location) => c.FormulaEditorWindowLocation = location);
         base.OnFormClosed(e);
     }
 

@@ -288,20 +288,30 @@ public sealed class ConditionEditorForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        UiTheme.RestoreCachedDialogHeight(this, UiCacheStore.Load().ConditionEditorWindowSize);
+        var cache = UiCacheStore.Load();
+        UiTheme.RestoreCachedDialogPlacement(
+            this,
+            cache.ConditionEditorWindowSize,
+            cache.ConditionEditorWindowLocation);
     }
 
     protected override void OnResizeEnd(EventArgs e)
     {
         base.OnResizeEnd(e);
-        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.ConditionEditorWindowSize = size);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.ConditionEditorWindowSize = size,
+            (c, location) => c.ConditionEditorWindowLocation = location);
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         SpellIconCatalog.CatalogChanged -= OnSpellIconCatalogChanged;
         CloseConditionComboDropDown();
-        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.ConditionEditorWindowSize = size);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.ConditionEditorWindowSize = size,
+            (c, location) => c.ConditionEditorWindowLocation = location);
         base.OnFormClosed(e);
     }
 

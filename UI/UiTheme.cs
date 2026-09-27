@@ -167,25 +167,55 @@ internal static class UiTheme
 
     /// <summary>仅恢复缓存高度，宽度保持锁定。</summary>
     public static void RestoreCachedDialogHeight(Form form, WindowSize? cached)
+        => RestoreCachedDialogPlacement(form, cached, location: null);
+
+    /// <summary>
+    /// 恢复弹窗高度与关闭时位置；无位置缓存时保持首次默认（如 CenterParent）。
+    /// </summary>
+    public static void RestoreCachedDialogPlacement(
+        Form form,
+        WindowSize? cachedSize,
+        WindowLocation? location)
     {
-        if (cached is null || cached.Height <= 0)
+        var workingArea = form.Owner is not null
+            ? Screen.FromControl(form.Owner).WorkingArea
+            : Screen.FromControl(form).WorkingArea;
+
+        if (cachedSize is { Height: > 0 })
+        {
+            var maximumHeight = Math.Max(form.MinimumSize.Height, workingArea.Height - 40);
+            form.Height = Math.Clamp(cachedSize.Height, form.MinimumSize.Height, maximumHeight);
+            if (form.MaximumSize.Width > 0)
+            {
+                form.Width = form.MaximumSize.Width;
+            }
+        }
+
+        if (location is null)
         {
             return;
         }
 
-        var workingArea = form.Owner is not null
-            ? Screen.FromControl(form.Owner).WorkingArea
-            : Screen.FromControl(form).WorkingArea;
-        var maximumHeight = Math.Max(form.MinimumSize.Height, workingArea.Height - 40);
-        form.Height = Math.Clamp(cached.Height, form.MinimumSize.Height, maximumHeight);
-        if (form.MaximumSize.Width > 0)
-        {
-            form.Width = form.MaximumSize.Width;
-        }
+        // 有关闭位置缓存时改为手动坐标，避免 CenterParent 覆盖。
+        form.StartPosition = FormStartPosition.Manual;
+        var width = Math.Max(form.Width, form.MinimumSize.Width);
+        var height = Math.Max(form.Height, form.MinimumSize.Height);
+        var maxX = Math.Max(workingArea.Left, workingArea.Right - width);
+        var maxY = Math.Max(workingArea.Top, workingArea.Bottom - Math.Min(height, 80));
+        form.Location = new Point(
+            Math.Clamp(location.X, workingArea.Left, maxX),
+            Math.Clamp(location.Y, workingArea.Top, maxY));
     }
 
     /// <summary>缓存弹窗外框尺寸（主要用于高度）。</summary>
     public static void SaveCachedDialogSize(Form form, Action<UiCacheState, WindowSize> assign)
+        => SaveCachedDialogPlacement(form, assign, locationAssign: null);
+
+    /// <summary>缓存弹窗高度与关闭位置。</summary>
+    public static void SaveCachedDialogPlacement(
+        Form form,
+        Action<UiCacheState, WindowSize> sizeAssign,
+        Action<UiCacheState, WindowLocation>? locationAssign)
     {
         if (form.WindowState != FormWindowState.Normal || form.Width <= 0 || form.Height <= 0)
         {
@@ -193,10 +223,15 @@ internal static class UiTheme
         }
 
         var cache = UiCacheStore.Load();
-        assign(cache, new WindowSize
+        sizeAssign(cache, new WindowSize
         {
             Width = form.Width,
             Height = form.Height
+        });
+        locationAssign?.Invoke(cache, new WindowLocation
+        {
+            X = form.Left,
+            Y = form.Top
         });
         UiCacheStore.Save(cache);
     }

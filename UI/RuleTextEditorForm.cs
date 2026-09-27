@@ -26,18 +26,28 @@ internal sealed class RuleTextEditorForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        UiTheme.RestoreCachedDialogHeight(this, UiCacheStore.Load().RuleTextEditorWindowSize);
+        var cache = UiCacheStore.Load();
+        UiTheme.RestoreCachedDialogPlacement(
+            this,
+            cache.RuleTextEditorWindowSize,
+            cache.RuleTextEditorWindowLocation);
     }
 
     protected override void OnResizeEnd(EventArgs e)
     {
         base.OnResizeEnd(e);
-        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.RuleTextEditorWindowSize = size);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.RuleTextEditorWindowSize = size,
+            (c, location) => c.RuleTextEditorWindowLocation = location);
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
-        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.RuleTextEditorWindowSize = size);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.RuleTextEditorWindowSize = size,
+            (c, location) => c.RuleTextEditorWindowLocation = location);
         base.OnFormClosed(e);
     }
 
