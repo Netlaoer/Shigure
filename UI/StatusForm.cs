@@ -40,7 +40,10 @@ public sealed class StatusForm : Form
     private const float AboutLogoOpacity = 0.55F;
     private const int BossNumberCardWidth = 400;
     private const int AboutScaleIconSize = 18;
-    private const int ResizeGripSize = 8;
+    /// <summary>边缘缩放热区（逻辑像素）。</summary>
+    private const int ResizeBorderThickness = 6;
+    /// <summary>四角缩放热区（逻辑像素）；需大于 Win11 DWM 圆角半径，否则角点落在裁切区无法命中。</summary>
+    private const int ResizeCornerThickness = 16;
     /// <summary>单行顶栏高度（图标 + 导航 + 窗口按钮）。</summary>
     private const int TopBarHeight = 44;
     /// <summary>导航行左侧独立品牌图标边长（与导航文字垂直对齐）。</summary>
@@ -391,9 +394,19 @@ public sealed class StatusForm : Form
         {
             base.WndProc(ref m);
             // 最大化时不启用边缘缩放命中。
-            if (m.Result == NativeMethods.HtClient && WindowState == FormWindowState.Normal)
+            if (WindowState != FormWindowState.Normal)
             {
-                m.Result = HitTestResizeGrip(PointToClient(Cursor.Position));
+                return;
+            }
+
+            // 使用消息 LParam 屏幕坐标（勿用 Cursor.Position），保证与本次命中点一致。
+            var screenPoint = new Point(
+                unchecked((short)(long)m.LParam),
+                unchecked((short)((long)m.LParam >> 16)));
+            var resizeHit = HitTestResizeGrip(PointToClient(screenPoint));
+            if (resizeHit != NativeMethods.HtClient)
+            {
+                m.Result = resizeHit;
             }
 
             return;
@@ -769,47 +782,57 @@ public sealed class StatusForm : Form
 
     private nint HitTestResizeGrip(Point clientPoint)
     {
-        var left = clientPoint.X <= ResizeGripSize;
-        var right = clientPoint.X >= ClientSize.Width - ResizeGripSize;
-        var top = clientPoint.Y <= ResizeGripSize;
-        var bottom = clientPoint.Y >= ClientSize.Height - ResizeGripSize;
+        var scale = DeviceDpi / 96f;
+        var border = Math.Max(ResizeBorderThickness, (int)Math.Round(ResizeBorderThickness * scale));
+        // 角区更大：DWM/回退 Region 圆角会裁掉最外一圈，8px 角热区几乎整块落在窗外。
+        var corner = Math.Max(ResizeCornerThickness, (int)Math.Round(ResizeCornerThickness * scale));
 
-        if (top && left)
+        var onLeft = clientPoint.X <= border;
+        var onRight = clientPoint.X >= ClientSize.Width - border;
+        var onTop = clientPoint.Y <= border;
+        var onBottom = clientPoint.Y >= ClientSize.Height - border;
+
+        var inLeftCorner = clientPoint.X <= corner;
+        var inRightCorner = clientPoint.X >= ClientSize.Width - corner;
+        var inTopCorner = clientPoint.Y <= corner;
+        var inBottomCorner = clientPoint.Y >= ClientSize.Height - corner;
+
+        if (inTopCorner && inLeftCorner)
         {
             return NativeMethods.HtTopLeft;
         }
 
-        if (top && right)
+        if (inTopCorner && inRightCorner)
         {
             return NativeMethods.HtTopRight;
         }
 
-        if (bottom && left)
+        if (inBottomCorner && inLeftCorner)
         {
             return NativeMethods.HtBottomLeft;
         }
 
-        if (bottom && right)
+        if (inBottomCorner && inRightCorner)
         {
             return NativeMethods.HtBottomRight;
         }
 
-        if (left)
+        if (onLeft)
         {
             return NativeMethods.HtLeft;
         }
 
-        if (right)
+        if (onRight)
         {
             return NativeMethods.HtRight;
         }
 
-        if (top)
+        if (onTop)
         {
             return NativeMethods.HtTop;
         }
 
-        if (bottom)
+        if (onBottom)
         {
             return NativeMethods.HtBottom;
         }

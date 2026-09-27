@@ -16,7 +16,8 @@ public sealed class MainForm : Form, IMessageFilter
         Exit
     }
 
-    private const int ResizeGripSize = 8;
+    private const int ResizeBorderThickness = 6;
+    private const int ResizeCornerThickness = 16;
     private const int RoundedCornerResizeDebounceMs = 80;
     private const int WowProcessMonitorIntervalMs = 10_000;
     private const int GamepadCaptureIntervalMs = 50;
@@ -575,9 +576,18 @@ public sealed class MainForm : Form, IMessageFilter
         if (m.Msg == WmNcHitTest)
         {
             base.WndProc(ref m);
-            if (m.Result == NativeMethods.HtClient)
+            if (WindowState != FormWindowState.Normal)
             {
-                m.Result = HitTestResizeGrip(PointToClient(Cursor.Position));
+                return;
+            }
+
+            var screenPoint = new Point(
+                unchecked((short)(long)m.LParam),
+                unchecked((short)((long)m.LParam >> 16)));
+            var resizeHit = HitTestResizeGrip(PointToClient(screenPoint));
+            if (resizeHit != NativeMethods.HtClient)
+            {
+                m.Result = resizeHit;
             }
 
             return;
@@ -3267,47 +3277,56 @@ public sealed class MainForm : Form, IMessageFilter
 
     private nint HitTestResizeGrip(Point clientPoint)
     {
-        var left = clientPoint.X <= ResizeGripSize;
-        var right = clientPoint.X >= ClientSize.Width - ResizeGripSize;
-        var top = clientPoint.Y <= ResizeGripSize;
-        var bottom = clientPoint.Y >= ClientSize.Height - ResizeGripSize;
+        var scale = DeviceDpi / 96f;
+        var border = Math.Max(ResizeBorderThickness, (int)Math.Round(ResizeBorderThickness * scale));
+        var corner = Math.Max(ResizeCornerThickness, (int)Math.Round(ResizeCornerThickness * scale));
 
-        if (top && left)
+        var onLeft = clientPoint.X <= border;
+        var onRight = clientPoint.X >= ClientSize.Width - border;
+        var onTop = clientPoint.Y <= border;
+        var onBottom = clientPoint.Y >= ClientSize.Height - border;
+
+        var inLeftCorner = clientPoint.X <= corner;
+        var inRightCorner = clientPoint.X >= ClientSize.Width - corner;
+        var inTopCorner = clientPoint.Y <= corner;
+        var inBottomCorner = clientPoint.Y >= ClientSize.Height - corner;
+
+        if (inTopCorner && inLeftCorner)
         {
             return NativeMethods.HtTopLeft;
         }
 
-        if (top && right)
+        if (inTopCorner && inRightCorner)
         {
             return NativeMethods.HtTopRight;
         }
 
-        if (bottom && left)
+        if (inBottomCorner && inLeftCorner)
         {
             return NativeMethods.HtBottomLeft;
         }
 
-        if (bottom && right)
+        if (inBottomCorner && inRightCorner)
         {
             return NativeMethods.HtBottomRight;
         }
 
-        if (left)
+        if (onLeft)
         {
             return NativeMethods.HtLeft;
         }
 
-        if (right)
+        if (onRight)
         {
             return NativeMethods.HtRight;
         }
 
-        if (top)
+        if (onTop)
         {
             return NativeMethods.HtTop;
         }
 
-        if (bottom)
+        if (onBottom)
         {
             return NativeMethods.HtBottom;
         }
