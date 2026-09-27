@@ -42,8 +42,10 @@ public sealed class StatusForm : Form
     private const int AboutScaleIconSize = 18;
     private const int ResizeGripSize = 8;
     private const int ChromeButtonSize = 32;
-    private const int TopChromeHeight = 40;
-    private const int TopNavHeight = 40;
+    /// <summary>单行顶栏高度（图标 + 导航 + 窗口按钮）。</summary>
+    private const int TopBarHeight = 44;
+    /// <summary>导航行左侧独立品牌图标边长（贴近导航文字按钮高度）。</summary>
+    private const int NavBrandIconSize = 28;
 
     private const string AboutDisclaimerText =
         """
@@ -314,6 +316,7 @@ public sealed class StatusForm : Form
     private Panel _macrosHost = null!;
     private Panel _moduleHost = null!;
     private Panel _aboutHost = null!;
+    private Button _maximizeButton = null!;
     private bool _usesDwmRoundedCorners;
     private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
 
@@ -364,6 +367,7 @@ public sealed class StatusForm : Form
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
+        UpdateMaximizeButton();
         if (!_usesDwmRoundedCorners && IsHandleCreated && WindowState == FormWindowState.Normal)
         {
             _roundedCornerResizeTimer.Stop();
@@ -377,7 +381,8 @@ public sealed class StatusForm : Form
         if (m.Msg == WmNcHitTest)
         {
             base.WndProc(ref m);
-            if (m.Result == NativeMethods.HtClient)
+            // 最大化时不启用边缘缩放命中。
+            if (m.Result == NativeMethods.HtClient && WindowState == FormWindowState.Normal)
             {
                 m.Result = HitTestResizeGrip(PointToClient(Cursor.Position));
             }
@@ -493,7 +498,7 @@ public sealed class StatusForm : Form
             Margin = new Padding(0)
         };
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, TopChromeHeight + TopNavHeight + 8));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, TopBarHeight + 8));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         Controls.Add(root);
 
@@ -593,17 +598,20 @@ public sealed class StatusForm : Form
 
     private Control BuildNavigationShell(out FlowLayoutPanel nav)
     {
+        // 单行顶栏：品牌图标 | 文字导航 | 版本 + 最小化/最大化/关闭。
         var shell = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Background,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(12, 6, 8, 0),
+            ColumnCount = 3,
+            RowCount = 1,
+            Padding = new Padding(12, 6, 8, 6),
             Margin = new Padding(0)
         };
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, TopChromeHeight));
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, TopNavHeight));
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         shell.Paint += (_, e) =>
         {
             using var divider = new Pen(UiTheme.Border);
@@ -611,24 +619,32 @@ public sealed class StatusForm : Form
             e.Graphics.DrawLine(divider, 0, y, shell.ClientSize.Width, y);
         };
 
-        var chrome = new TableLayoutPanel
+        var brandIcon = new PictureBox
         {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Background,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0)
-        };
-        chrome.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        chrome.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        chrome.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var dragSpacer = new Panel
-        {
-            Dock = DockStyle.Fill,
+            Size = new Size(NavBrandIconSize, NavBrandIconSize),
+            MinimumSize = new Size(NavBrandIconSize, NavBrandIconSize),
+            MaximumSize = new Size(NavBrandIconSize, NavBrandIconSize),
+            SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = Color.Transparent,
-            Margin = new Padding(0)
+            Margin = new Padding(2, 2, 14, 2),
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            AccessibleName = "Shigure"
         };
+        brandIcon.Image = LoadNavBrandIcon();
+        EnableDrag(brandIcon);
+
+        nav = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoScroll = true,
+            BackColor = UiTheme.Background,
+            Margin = new Padding(0),
+            Padding = new Padding(0, 0, 0, 0)
+        };
+        EnableDrag(nav);
 
         var chromeActions = new FlowLayoutPanel
         {
@@ -650,70 +666,50 @@ public sealed class StatusForm : Form
         };
         var minimizeButton = CreateChromeButton("─", "最小化");
         minimizeButton.Click += (_, _) => WindowState = FormWindowState.Minimized;
+        _maximizeButton = CreateChromeButton("□", "最大化");
+        _maximizeButton.Click += (_, _) => ToggleMaximize();
         var closeButton = CreateChromeButton("✕", "关闭");
         closeButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(196, 43, 28);
         closeButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(153, 27, 21);
         closeButton.Click += (_, _) => Close();
         chromeActions.Controls.Add(versionLabel);
         chromeActions.Controls.Add(minimizeButton);
+        chromeActions.Controls.Add(_maximizeButton);
         chromeActions.Controls.Add(closeButton);
-
-        chrome.Controls.Add(dragSpacer, 0, 0);
-        chrome.Controls.Add(chromeActions, 1, 0);
-        EnableDrag(chrome);
-        EnableDrag(dragSpacer);
         EnableDrag(versionLabel);
-        shell.Controls.Add(chrome, 0, 0);
 
-        // 导航行：左侧独立品牌图标 + 右侧文字导航（图标不在「通用」按钮内）。
-        var navRow = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Background,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0),
-            Padding = new Padding(0)
-        };
-        navRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        navRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        navRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var brandIcon = new PictureBox
-        {
-            Size = new Size(16, 16),
-            MinimumSize = new Size(16, 16),
-            MaximumSize = new Size(16, 16),
-            SizeMode = PictureBoxSizeMode.Zoom,
-            BackColor = Color.Transparent,
-            Margin = new Padding(2, 8, 16, 0),
-            Anchor = AnchorStyles.Left,
-            TabStop = false,
-            AccessibleName = "Shigure"
-        };
-        brandIcon.Image = LoadNavBrandIcon();
-        EnableDrag(brandIcon);
-
-        nav = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            AutoScroll = true,
-            BackColor = UiTheme.Background,
-            Margin = new Padding(0),
-            Padding = new Padding(0, 2, 0, 2)
-        };
-        EnableDrag(nav);
-        navRow.Controls.Add(brandIcon, 0, 0);
-        navRow.Controls.Add(nav, 1, 0);
-        shell.Controls.Add(navRow, 0, 1);
+        shell.Controls.Add(brandIcon, 0, 0);
+        shell.Controls.Add(nav, 1, 0);
+        shell.Controls.Add(chromeActions, 2, 0);
+        EnableDrag(shell);
+        UpdateMaximizeButton();
         return shell;
+    }
+
+    private void ToggleMaximize()
+    {
+        WindowState = WindowState == FormWindowState.Maximized
+            ? FormWindowState.Normal
+            : FormWindowState.Maximized;
+        UpdateMaximizeButton();
+    }
+
+    private void UpdateMaximizeButton()
+    {
+        if (_maximizeButton is null || _maximizeButton.IsDisposed)
+        {
+            return;
+        }
+
+        var maximized = WindowState == FormWindowState.Maximized;
+        _maximizeButton.Text = maximized ? "❐" : "□";
+        _toolTip.SetToolTip(_maximizeButton, maximized ? "还原" : "最大化");
     }
 
     private static Image? LoadNavBrandIcon()
     {
-        const string resourceName = "Shigure.Assets.arasaka-icon-16.png";
+        // 优先 32px 资源，高度贴近导航文字行。
+        const string resourceName = "Shigure.Assets.arasaka-icon-32.png";
         using var stream = typeof(StatusForm).Assembly.GetManifestResourceStream(resourceName);
         if (stream is null)
         {
@@ -810,63 +806,12 @@ public sealed class StatusForm : Form
 
     private Control CreatePageShell(string title, string subtitle, Control content)
     {
-        var hasSubtitle = !string.IsNullOrWhiteSpace(subtitle);
-        var shell = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0)
-        };
-        // 所有页面统一使用单行页头，标题与说明文字保持各自原有字号。
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-        shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var header = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = hasSubtitle ? 2 : 1,
-            RowCount = 1,
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap)
-        };
-        header.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        if (hasSubtitle)
-        {
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        }
-
-        header.Controls.Add(new Label
-        {
-            Text = title,
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 16F, FontStyle.Bold),
-            TextAlign = ContentAlignment.BottomLeft,
-            Margin = new Padding(0, 0, hasSubtitle ? 14 : 0, 0)
-        }, 0, 0);
-        if (hasSubtitle)
-        {
-            header.Controls.Add(new Label
-            {
-                Text = subtitle,
-                Dock = DockStyle.Fill,
-                AutoEllipsis = true,
-                ForeColor = UiTheme.Muted,
-                Font = new Font(Font.FontFamily, 9.5F, FontStyle.Regular),
-                TextAlign = ContentAlignment.BottomLeft,
-                Margin = new Padding(0)
-            }, 1, 0);
-        }
-        shell.Controls.Add(header, 0, 0);
-
+        // 顶栏导航已表达当前页；去掉重复的大标题+说明行，内容直接铺满。
+        _ = title;
+        _ = subtitle;
         content.Dock = DockStyle.Fill;
         content.Margin = new Padding(0);
-        shell.Controls.Add(content, 0, 1);
-        return shell;
+        return content;
     }
 
     private const int StatusCardWidth = 600;
