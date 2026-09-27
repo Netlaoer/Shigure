@@ -1834,6 +1834,7 @@ public sealed class ClassConfigEditorControl : UserControl
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
                 _classStrip.SetItems([]);
+                _specStrip.LayoutReferenceCount = 0;
                 _pathLabel.Text = "未找到 Fuyutsui\\class";
                 _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
                 return;
@@ -1865,6 +1866,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _classStrip.SetItems(_classItems
                 .Select(item => ((int?)item.ClassId, item.ToString()))
                 .ToList());
+            _specStrip.LayoutReferenceCount = _classItems.Count;
             _statusLabel.Text = $"已加载 {_documents.Count} 个职业文件";
             if (_classItems.Count > 0)
             {
@@ -2076,6 +2078,7 @@ public sealed class ClassConfigEditorControl : UserControl
     {
         _specItems.Clear();
         _specItems.AddRange(options);
+        _specStrip.LayoutReferenceCount = _classItems.Count;
         _specStrip.SetItems(options
             .Select(option => (option.ClassId, option.Id, option.Name))
             .ToList());
