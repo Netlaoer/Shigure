@@ -52,8 +52,7 @@ internal sealed record StatusListIcon(long Id, bool IsItem);
 public sealed class StatusForm : Form
 {
     private const string AboutLogoResourcePath = "Assets.arasaka-icon-transparent.png";
-    private const int AboutCardWidth = 1600;
-    private const int SectionCardWidth = 1600;
+    private const int SettingsContentWidth = 1200;
     private const int AboutLogoSize = 220;
     private const float AboutLogoOpacity = 0.55F;
     private const int BossNumberCardWidth = 400;
@@ -858,6 +857,43 @@ public sealed class StatusForm : Form
         return section;
     }
 
+    private static void SyncCenteredContentLayout(
+        Panel scrollHost,
+        Control content,
+        int contentWidth,
+        int? contentHeight = null)
+    {
+        if (content.Width != contentWidth)
+        {
+            content.Width = contentWidth;
+        }
+
+        if (contentHeight is { } height && content.Height != height)
+        {
+            content.Height = height;
+        }
+
+        var viewWidth = scrollHost.ClientSize.Width;
+        var left = viewWidth > contentWidth
+            ? (viewWidth - contentWidth) / 2
+            : 0;
+        if (content.Left != left)
+        {
+            content.Left = left;
+        }
+
+        if (content.Top != 0)
+        {
+            content.Top = 0;
+        }
+
+        var minSize = new Size(contentWidth, 0);
+        if (scrollHost.AutoScrollMinSize != minSize)
+        {
+            scrollHost.AutoScrollMinSize = minSize;
+        }
+    }
+
     private Control BuildFixedWidthSectionPage(
         string title,
         Control content,
@@ -875,30 +911,20 @@ public sealed class StatusForm : Form
         var section = BuildSection(title, content, subtitle, countListView);
         section.Dock = DockStyle.None;
         section.Location = Point.Empty;
-        section.Width = SectionCardWidth;
-        section.MinimumSize = new Size(SectionCardWidth, 0);
-        section.MaximumSize = new Size(SectionCardWidth, 0);
+        section.Width = SettingsContentWidth;
+        section.MinimumSize = new Size(SettingsContentWidth, 0);
+        section.MaximumSize = new Size(SettingsContentWidth, 0);
 
         void SyncScrollLayout()
         {
             var viewHeight = scrollHost.ClientSize.Height;
-            if (SectionCardWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
+            if (SettingsContentWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
             {
                 viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
             }
 
             var height = Math.Max(200, viewHeight);
-            var nextSize = new Size(SectionCardWidth, height);
-            if (section.Size != nextSize)
-            {
-                section.Size = nextSize;
-            }
-
-            var minSize = new Size(SectionCardWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
+            SyncCenteredContentLayout(scrollHost, section, SettingsContentWidth, height);
         }
 
         scrollHost.Controls.Add(section);
@@ -910,7 +936,6 @@ public sealed class StatusForm : Form
 
     private Control BuildLogPage()
     {
-        const int logCardWidth = 1600;
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
@@ -927,9 +952,9 @@ public sealed class StatusForm : Form
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0),
-            Width = logCardWidth,
-            MinimumSize = new Size(logCardWidth, 0),
-            MaximumSize = new Size(logCardWidth, 0)
+            Width = SettingsContentWidth,
+            MinimumSize = new Size(SettingsContentWidth, 0),
+            MaximumSize = new Size(SettingsContentWidth, 0)
         };
         card.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -975,23 +1000,13 @@ public sealed class StatusForm : Form
         void SyncScrollLayout()
         {
             var viewHeight = scrollHost.ClientSize.Height;
-            if (logCardWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
+            if (SettingsContentWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
             {
                 viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
             }
 
             var height = Math.Max(200, viewHeight);
-            var nextSize = new Size(logCardWidth, height);
-            if (card.Size != nextSize)
-            {
-                card.Size = nextSize;
-            }
-
-            var minSize = new Size(logCardWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
+            SyncCenteredContentLayout(scrollHost, card, SettingsContentWidth, height);
         }
 
         scrollHost.Controls.Add(card);
@@ -1702,8 +1717,8 @@ public sealed class StatusForm : Form
             Padding = new Padding(0),
             Margin = new Padding(0)
         };
-        ApplyAboutCardWidth(panel);
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, AboutCardWidth));
+        ApplySettingsCardWidth(panel);
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SettingsContentWidth));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1719,7 +1734,7 @@ public sealed class StatusForm : Form
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap)
         };
-        ApplyAboutCardWidth(infoCard);
+        ApplySettingsCardWidth(infoCard);
         infoCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         infoCard.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, AboutLogoSize + UiTheme.PageGap));
         infoCard.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1799,21 +1814,29 @@ public sealed class StatusForm : Form
         panel.Controls.Add(CreateAboutArticleCard("界面图标来源", AboutBootstrapIconsAttributionText), 0, 3);
         panel.Controls.Add(CreateAboutArticleCard("技能与物品图标来源", AboutCleanIconsAttributionText), 0, 4);
         panel.Controls.Add(CreateAboutArticleCard("数据来源", AboutWowListfileAttributionText), 0, 5);
+
+        void SyncAboutLayout()
+            => SyncCenteredContentLayout(scrollHost, panel, SettingsContentWidth);
+
         scrollHost.Controls.Add(panel);
+        scrollHost.Resize += (_, _) => SyncAboutLayout();
+        scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncAboutLayout);
+        panel.SizeChanged += (_, _) => SyncAboutLayout();
+        SyncAboutLayout();
         return scrollHost;
     }
 
-    private static void ApplyAboutCardWidth(Control card)
+    private static void ApplySettingsCardWidth(Control card)
     {
         card.Dock = DockStyle.None;
         card.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        card.Width = AboutCardWidth;
-        card.MinimumSize = new Size(AboutCardWidth, 0);
-        card.MaximumSize = new Size(AboutCardWidth, 0);
+        card.Width = SettingsContentWidth;
+        card.MinimumSize = new Size(SettingsContentWidth, 0);
+        card.MaximumSize = new Size(SettingsContentWidth, 0);
     }
 
     private static int GetAboutCardInnerWidth()
-        => Math.Max(80, AboutCardWidth - UiTheme.CardPadding * 2);
+        => Math.Max(80, SettingsContentWidth - UiTheme.CardPadding * 2);
 
     private static int GetAboutInfoTextWidth()
         => Math.Max(80, GetAboutCardInnerWidth() - AboutLogoSize - UiTheme.PageGap);
@@ -1828,7 +1851,7 @@ public sealed class StatusForm : Form
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap)
         };
-        ApplyAboutCardWidth(card);
+        ApplySettingsCardWidth(card);
         card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -1877,11 +1900,11 @@ public sealed class StatusForm : Form
         return card;
     }
 
-    private const int CommonFieldCardWidth = 800;
+    private static readonly int CommonFieldCardWidth = (SettingsContentWidth - UiTheme.PageGap) / 2;
 
     private Control BuildCommonFieldsPanel()
     {
-        var contentWidth = CommonFieldCardWidth * 2 + UiTheme.PageGap;
+        var contentWidth = SettingsContentWidth;
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
@@ -1979,22 +2002,12 @@ public sealed class StatusForm : Form
             104), 1, 4);
 
         void SyncScrollLayout()
-        {
-            if (fields.Width != contentWidth)
-            {
-                fields.Width = contentWidth;
-            }
-
-            var minSize = new Size(contentWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
-        }
+            => SyncCenteredContentLayout(scrollHost, fields, contentWidth);
 
         scrollHost.Controls.Add(fields);
         scrollHost.Resize += (_, _) => SyncScrollLayout();
         scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncScrollLayout);
+        fields.SizeChanged += (_, _) => SyncScrollLayout();
         SyncScrollLayout();
         return scrollHost;
     }
