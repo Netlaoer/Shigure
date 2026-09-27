@@ -678,7 +678,8 @@ public sealed class StatusForm : Form
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            AutoScroll = true,
+            // 过窄时裁切导航文字，不显示横向滚动条；右侧窗控在独立列保持可见。
+            AutoScroll = false,
             BackColor = UiTheme.Background,
             Margin = new Padding(0),
             // 导航按钮高 32，顶栏 44，上下各 6 使文字与图标垂直居中。
