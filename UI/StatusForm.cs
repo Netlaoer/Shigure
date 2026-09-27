@@ -38,7 +38,8 @@ public sealed class StatusForm : Form
     private const int SettingsContentWidth = 1200;
     private const int AboutLogoSize = 220;
     private const float AboutLogoOpacity = 0.55F;
-    private const int BossNumberCardWidth = 400;
+    /// <summary>首领页赛季大卡内副本分区列宽（卡内四列排布）。</summary>
+    private const int BossDungeonSectionWidth = 280;
     private const int AboutScaleIconSize = 18;
     /// <summary>单行顶栏高度（图标 + 导航 + 窗口按钮）。</summary>
     private const int TopBarHeight = 44;
@@ -1292,25 +1293,12 @@ public sealed class StatusForm : Form
 
     private Control BuildBossNumbersPage()
     {
+        var contentWidth = SettingsContentWidth;
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
             BackColor = UiTheme.Surface,
-            Margin = new Padding(0)
-        };
-
-        var cards = new TableLayoutPanel
-        {
-            Dock = DockStyle.None,
-            Anchor = AnchorStyles.Top | AnchorStyles.Left,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 4,
-            RowCount = 0,
-            MinimumSize = new Size(BossNumberCardWidth * 4 + UiTheme.PageGap * 3, 0),
-            Padding = new Padding(0),
             Margin = new Padding(0)
         };
 
@@ -1327,85 +1315,122 @@ public sealed class StatusForm : Form
                 .ToArray())
         ];
 
-        var seasonViews = seasonGroups
-            .Select(group =>
-            {
-                var title = new Label
-                {
-                    Text = group.Title,
-                    AutoSize = true,
-                    ForeColor = UiTheme.Text,
-                    BackColor = Color.Transparent,
-                    Font = new Font(Font.FontFamily, 12F, FontStyle.Bold)
-                };
-                var groupCards = group.Dungeons.Select(CreateBossNumberCard).ToArray();
-                foreach (var card in groupCards)
-                {
-                    card.Margin = new Padding(0, 0, 0, UiTheme.PageGap);
-                }
-
-                return (Title: title, Cards: groupCards);
-            })
-            .ToArray();
-
-        void ApplyLayout()
+        // 恰好两张赛季大卡；副本表以分区形式排在卡内，不再每副本一张卡。
+        var stack = new TableLayoutPanel
         {
-            const int columnCount = 4;
-            cards.SuspendLayout();
-            cards.Controls.Clear();
-            cards.ColumnStyles.Clear();
-            cards.RowStyles.Clear();
-            cards.ColumnCount = columnCount;
-            cards.RowCount = 0;
-            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
-            {
-                var columnWidth = BossNumberCardWidth
-                    + (columnIndex < columnCount - 1 ? UiTheme.PageGap : 0);
-                cards.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, columnWidth));
-            }
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.None,
+            Location = Point.Empty,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = seasonGroups.Count,
+            Width = contentWidth,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            var row = 0;
-            var column = 0;
-            foreach (var (title, groupCards) in seasonViews)
-            {
-                if (column != 0)
-                {
-                    row++;
-                    column = 0;
-                }
-
-                cards.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                cards.RowCount = row + 1;
-                title.Margin = new Padding(2, row == 0 ? 0 : UiTheme.PageGap, 0, UiTheme.PageGap);
-                cards.Controls.Add(title, 0, row);
-                cards.SetColumnSpan(title, columnCount);
-                row++;
-
-                foreach (var card in groupCards)
-                {
-                    if (cards.RowStyles.Count <= row)
-                    {
-                        cards.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                        cards.RowCount = row + 1;
-                    }
-
-                    cards.Controls.Add(card, column, row);
-
-                    column++;
-                    if (column == columnCount)
-                    {
-                        column = 0;
-                        row++;
-                    }
-                }
-            }
-
-            cards.ResumeLayout(true);
+        for (var i = 0; i < seasonGroups.Count; i++)
+        {
+            stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var seasonCard = CreateBossSeasonCard(seasonGroups[i], contentWidth);
+            seasonCard.Margin = new Padding(0, 0, 0, i < seasonGroups.Count - 1 ? UiTheme.PageGap : 0);
+            stack.Controls.Add(seasonCard, 0, i);
         }
 
-        scrollHost.Controls.Add(cards);
-        ApplyLayout();
+        void SyncLayout()
+            => SyncCenteredContentLayout(scrollHost, stack, contentWidth);
+
+        scrollHost.Controls.Add(stack);
+        scrollHost.Resize += (_, _) => SyncLayout();
+        scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncLayout);
+        SyncLayout();
         return scrollHost;
+    }
+
+    private Control CreateBossSeasonCard(BossNumberGroup group, int contentWidth)
+    {
+        const int columnCount = 4;
+        var card = new UiCardPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Width = contentWidth,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(UiTheme.CardPadding),
+            Margin = new Padding(0)
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        card.Controls.Add(new Label
+        {
+            Text = group.Title,
+            Dock = DockStyle.Fill,
+            ForeColor = UiTheme.Text,
+            BackColor = Color.Transparent,
+            Font = new Font(Font.FontFamily, 12F, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0)
+        }, 0, 0);
+
+        var innerWidth = Math.Max(
+            BossDungeonSectionWidth,
+            contentWidth - UiTheme.CardPadding * 2);
+        var sectionWidth = Math.Max(
+            200,
+            (innerWidth - UiTheme.PageGap * (columnCount - 1)) / columnCount);
+
+        var grid = new TableLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Top,
+            BackColor = Color.Transparent,
+            ColumnCount = columnCount,
+            RowCount = 0,
+            Width = innerWidth,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+        {
+            var width = sectionWidth
+                + (columnIndex < columnCount - 1 ? UiTheme.PageGap : 0);
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, width));
+        }
+
+        var row = 0;
+        var column = 0;
+        foreach (var dungeon in group.Dungeons)
+        {
+            if (grid.RowStyles.Count <= row)
+            {
+                grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                grid.RowCount = row + 1;
+            }
+
+            var section = CreateBossDungeonSection(dungeon, sectionWidth);
+            section.Margin = new Padding(
+                0,
+                0,
+                column < columnCount - 1 ? UiTheme.PageGap : 0,
+                UiTheme.PageGap);
+            grid.Controls.Add(section, column, row);
+
+            column++;
+            if (column == columnCount)
+            {
+                column = 0;
+                row++;
+            }
+        }
+
+        card.Controls.Add(grid, 0, 1);
+        return card;
     }
 
     private Control BuildExBossEventsPage()
@@ -1749,22 +1774,23 @@ public sealed class StatusForm : Form
         return types.Length > 0 ? string.Join(" / ", types) : "未分类";
     }
 
-    private Control CreateBossNumberCard(BossDungeon dungeon)
+    private Control CreateBossDungeonSection(BossDungeon dungeon, int width)
     {
-        var card = new UiCardPanel
+        var section = new TableLayoutPanel
         {
-            AutoSize = false,
-            Size = new Size(
-                BossNumberCardWidth,
-                UiTheme.CardPadding * 2 + 34 + (dungeon.Bosses.Count + 1) * 28),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Width = width,
             ColumnCount = 1,
             RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding),
-            MinimumSize = new Size(0, 0)
+            BackColor = Color.Transparent,
+            Padding = new Padding(0),
+            Margin = new Padding(0)
         };
-        card.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        card.Controls.Add(new Label
+        section.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        section.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        section.Controls.Add(new Label
         {
             Text = dungeon.Name,
             Dock = DockStyle.Fill,
@@ -1783,11 +1809,12 @@ public sealed class StatusForm : Form
             BackColor = Color.Transparent,
             ColumnCount = 3,
             RowCount = dungeon.Bosses.Count + 1,
+            Width = width,
             Margin = new Padding(0)
         };
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 48));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 56));
         AddBossNumberCell(table, "序号", 0, 0, UiTheme.Muted, FontStyle.Bold, ContentAlignment.MiddleCenter);
         AddBossNumberCell(table, "名称", 1, 0, UiTheme.Muted, FontStyle.Bold, ContentAlignment.MiddleLeft);
         AddBossNumberCell(table, "编号", 2, 0, UiTheme.Muted, FontStyle.Bold, ContentAlignment.MiddleCenter);
@@ -1801,8 +1828,8 @@ public sealed class StatusForm : Form
             AddBossNumberCell(table, boss.Number.ToString(), 2, tableRow, UiTheme.Accent, FontStyle.Regular, ContentAlignment.MiddleCenter);
         }
 
-        card.Controls.Add(table, 0, 1);
-        return card;
+        section.Controls.Add(table, 0, 1);
+        return section;
     }
 
     private void AddBossNumberCell(
