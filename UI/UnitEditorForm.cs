@@ -11,6 +11,12 @@ public sealed class UnitEditorForm : Form
     private const int RowWidth = 800;
     private const int LabelWidth = 132;
     private const int ControlLeft = LabelWidth + 10;
+    // 页头双栏（类别/统计对象、名称/值名称）：等宽标签列 + 等宽输入，保证标签完整可见且间距一致。
+    private const int HeaderLabelWidth = 100;
+    private const int HeaderGap = 8;
+    private const int HeaderControlLeft = HeaderLabelWidth + HeaderGap;
+    private const int HeaderHalfWidth = RowWidth / 2;
+    private const int HeaderControlWidth = HeaderHalfWidth - HeaderControlLeft;
 
     private static readonly TargetFieldItem[] TargetFieldOptions =
     [
@@ -426,12 +432,18 @@ public sealed class UnitEditorForm : Form
         var hasSelector = IsAverageHealthCategory;
         _selectorBox.Visible = hasSelector;
         _categoryBox.Bounds = hasSelector
-            ? new Rectangle(80, 5, 230, 28)
-            : new Rectangle(80, 5, RowWidth - 80, 28);
+            ? new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28)
+            : new Rectangle(HeaderControlLeft, 5, RowWidth - HeaderControlLeft, 28);
         if (_selectorLabel is not null)
         {
             _selectorLabel.Visible = hasSelector;
             _selectorLabel.Text = "统计对象";
+        }
+
+        if (hasSelector)
+        {
+            _selectorBox.Bounds = new Rectangle(
+                HeaderHalfWidth + HeaderControlLeft, 5, HeaderControlWidth, 28);
         }
 
         if (!hasSelector)
@@ -494,6 +506,10 @@ public sealed class UnitEditorForm : Form
         _valueNameLabel.Visible = visible;
         _valueNameBox.Visible = visible;
         _valueNameBox.Enabled = visible;
+        // 仅队友单位显示双栏；其它类别名称独占整行，与类别下拉的单栏布局一致。
+        _nameBox.Bounds = visible
+            ? new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28)
+            : new Rectangle(HeaderControlLeft, 5, RowWidth - HeaderControlLeft, 28);
         if (!visible)
         {
             _valueNameBox.Text = string.Empty;
@@ -1006,20 +1022,21 @@ public sealed class UnitEditorForm : Form
             Text = labelA,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(0, 5, 72, 28),
+            Bounds = new Rectangle(0, 5, HeaderLabelWidth, 28),
             AutoEllipsis = true
         };
-        controlA.Bounds = new Rectangle(80, 5, 230, 28);
+        controlA.Bounds = new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28);
 
         _selectorLabel = new Label
         {
             Text = labelB,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(330, 5, 72, 28),
+            Bounds = new Rectangle(HeaderHalfWidth, 5, HeaderLabelWidth, 28),
             AutoEllipsis = true
         };
-        controlB.Bounds = new Rectangle(408, 5, RowWidth - 408, 28);
+        controlB.Bounds = new Rectangle(
+            HeaderHalfWidth + HeaderControlLeft, 5, HeaderControlWidth, 28);
 
         panel.Controls.Add(controlA);
         panel.Controls.Add(labelAControl);
@@ -1042,20 +1059,21 @@ public sealed class UnitEditorForm : Form
             Text = "名称",
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(0, 5, 72, 28),
+            Bounds = new Rectangle(0, 5, HeaderLabelWidth, 28),
             AutoEllipsis = true
         };
         UiTheme.StyleTextBox(_nameBox);
-        _nameBox.Bounds = new Rectangle(80, 5, 230, 28);
+        _nameBox.Bounds = new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28);
         _nameBox.TextChanged += (_, _) => UpdatePreview();
 
         _valueNameLabel.Text = "值名称";
         _valueNameLabel.ForeColor = UiTheme.Muted;
         _valueNameLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _valueNameLabel.Bounds = new Rectangle(330, 5, 130, 28);
+        _valueNameLabel.Bounds = new Rectangle(HeaderHalfWidth, 5, HeaderLabelWidth, 28);
         _valueNameLabel.AutoEllipsis = true;
         UiTheme.StyleTextBox(_valueNameBox);
-        _valueNameBox.Bounds = new Rectangle(466, 5, RowWidth - 466, 28);
+        _valueNameBox.Bounds = new Rectangle(
+            HeaderHalfWidth + HeaderControlLeft, 5, HeaderControlWidth, 28);
         _valueNameBox.TextChanged += (_, _) => UpdatePreview();
         const string valueTip = "可选：把所选单位的目标字段值暴露为同名数值条件字段";
         _toolTip.SetToolTip(_valueNameBox, valueTip);
