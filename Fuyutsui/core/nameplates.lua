@@ -1,14 +1,33 @@
 local addon, ns = ...
 
--- 接在队伍后面的主像素：每单位 num 格，依次为已配置的生命值、距离、战斗、光环。
--- index = start + (slot - 1) * num + offset - 1；沿用主像素 R/G 索引与 B 数值。
+-- 姓名板主像素：先 7 格单位映射（目标/焦点/首领1–5），再每单位 num 格（生命值、距离、战斗、光环）。
+-- 槽位像素：index = start + mappingCount + (slot - 1) * num + offset - 1；沿用主像素 R/G 索引与 B 数值。
 -- 不存在的单位整段置黑（无索引），无需增加存在标记格。
 local NAMEPLATE_SLOT_COUNT = 40
+local NAMEPLATE_MAPPING_COUNT = 7
+local MAPPING_UNITS = {
+    "target",
+    "focus",
+    "boss1",
+    "boss2",
+    "boss3",
+    "boss4",
+    "boss5",
+}
+
 local auraContainers = {}
 local pixelConfig
 
 local function PixelIndex(config, slot, offset)
-    return config.start + (slot - 1) * config.num + offset - 1
+    return config.start + NAMEPLATE_MAPPING_COUNT + (slot - 1) * config.num + offset - 1
+end
+
+local function MappingPixelIndex(config, mappingIndex)
+    return config.start + mappingIndex - 1
+end
+
+local function RegionEnd(config)
+    return config.start + NAMEPLATE_MAPPING_COUNT + NAMEPLATE_SLOT_COUNT * config.num - 1
 end
 
 local function ClearSlot(slot)
@@ -74,25 +93,62 @@ local function RefreshAuraContainer(slot, unit, config)
     auraContainers[slot] = CreateNameplateAuraContainer(slot, unit, config)
 end
 
+-- UnitIsUnit 结果不可读（密钥值）或未匹配时返回 0。
+local function FindNameplateSlot(unit)
+    if type(unit) ~= "string" or unit == "" then
+        return 0
+    end
+    if not UnitExists(unit) then
+        return 0
+    end
+
+    for slot = 1, NAMEPLATE_SLOT_COUNT do
+        local isSame = UnitIsUnit(unit, "nameplate" .. slot)
+        if issecretvalue and issecretvalue(isSame) then
+            -- 该对不可读，继续找可读匹配；全部不可读则最终为 0。
+        elseif isSame then
+            return slot
+        end
+    end
+    return 0
+end
+
 function Fuyutsui:ReleaseNameplateAuraContainers()
     for slot in pairs(auraContainers) do ReleaseAuraContainer(slot) end
+end
+
+function Fuyutsui:RefreshNameplateUnitMappings()
+    local config = pixelConfig
+    if not config or not config.start then return end
+
+    for mappingIndex = 1, NAMEPLATE_MAPPING_COUNT do
+        local slot = FindNameplateSlot(MAPPING_UNITS[mappingIndex])
+        self:CreateTexture(MappingPixelIndex(config, mappingIndex), slot / 255)
+    end
 end
 
 function Fuyutsui:LoadNameplatePixels(config)
     self:ReleaseNameplateAuraContainers()
     -- 旧分配可能已被新专精使用，恢复普通零值索引。
     if pixelConfig then
-        for index = pixelConfig.start, pixelConfig.start + NAMEPLATE_SLOT_COUNT * pixelConfig.num - 1 do
+        for index = pixelConfig.start, RegionEnd(pixelConfig) do
             self:CreateTexture(index, 0)
         end
     end
     pixelConfig = config
+    if not pixelConfig then return end
+    for mappingIndex = 1, NAMEPLATE_MAPPING_COUNT do
+        self:CreateTexture(MappingPixelIndex(pixelConfig, mappingIndex), 0)
+    end
     for slot = 1, NAMEPLATE_SLOT_COUNT do ClearSlot(slot) end
+    self:RefreshNameplateUnitMappings()
 end
 
 function Fuyutsui:RefreshNameplatePixels()
     local config = pixelConfig
     if not config or config.num <= 0 then return end
+
+    self:RefreshNameplateUnitMappings()
 
     for slot = 1, NAMEPLATE_SLOT_COUNT do
         local unit = "nameplate" .. slot
@@ -136,3 +192,4 @@ function Fuyutsui:ClearNameplatePixelSlot(unit)
 end
 
 Fuyutsui.NameplateSlotCount = NAMEPLATE_SLOT_COUNT
+Fuyutsui.NameplateMappingFieldCount = NAMEPLATE_MAPPING_COUNT

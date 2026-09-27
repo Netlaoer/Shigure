@@ -973,6 +973,41 @@
         "displayType": "冷却"
       }
     },
+    "姓名板目标": {
+      "step": 115,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板焦点": {
+      "step": 116,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领1": {
+      "step": 117,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领2": {
+      "step": 118,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领3": {
+      "step": 119,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 120,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 121,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
       "start": 115,
       "healthPercent": 1,
@@ -989,7 +1024,8 @@
           "spellId": 703
         }
       ],
-      "num": 5
+      "num": 5,
+      "mappingCount": 7
     }
   },
   "2": {

@@ -483,11 +483,17 @@ end
 function Fuyutsui:PLAYER_TARGET_CHANGED()
     self:RefreshTargetState()
     self:UpdateUnitAuraContainer("target")
+    if self.RefreshNameplateUnitMappings then
+        self:RefreshNameplateUnitMappings()
+    end
 end
 
 function Fuyutsui:PLAYER_FOCUS_CHANGED()
     self:RefreshFocusState()
     self:UpdateUnitAuraContainer("focus")
+    if self.RefreshNameplateUnitMappings then
+        self:RefreshNameplateUnitMappings()
+    end
 end
 
 function Fuyutsui:UPDATE_MOUSEOVER_UNIT()
@@ -520,6 +526,9 @@ function Fuyutsui:NAME_PLATE_UNIT_REMOVED(_, unit)
     nameplate[unit] = nil
     if self.ClearNameplatePixelSlot then
         self:ClearNameplatePixelSlot(unit)
+    end
+    if self.RefreshNameplateUnitMappings then
+        self:RefreshNameplateUnitMappings()
     end
     self:RefreshTargetReactionState()
 end
