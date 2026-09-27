@@ -31,8 +31,7 @@ internal sealed class RuleTextEditorForm : Form
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
         ClientSize = new Size(760, 380);
-        MinimumSize = new Size(620, 320);
-        FormBorderStyle = FormBorderStyle.Sizable;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;

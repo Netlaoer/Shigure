@@ -321,9 +321,9 @@ public sealed class ModuleEditorControl : UserControl
             ColumnCount = 3,
             RowCount = 1
         };
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleFooterButtonWidth));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 8));
-        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleFooterButtonWidth));
         footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _reloadButton = UiTheme.CreateButton("刷新", UiTheme.ButtonKind.Secondary);
@@ -626,11 +626,11 @@ public sealed class ModuleEditorControl : UserControl
             Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 8),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap)
         };
-        // 名称/作者各占剩余宽度的一半, 两个输入框等宽并铺满窗口。
+        // 名称/作者固定半宽，不随编辑区拉伸。
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMetaFieldWidth));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMetaFieldWidth));
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
 
@@ -681,9 +681,9 @@ public sealed class ModuleEditorControl : UserControl
         foreach (var label in matchLabels)
         {
             row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, MeasureLabelColumnWidth(label, Font)));
-            // 下拉框由原来的 25% 缩短到 20%，余下 5% 作为与下一项标签之间的弹性间隔。
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 5));
+            // 筛选项与间隔使用固定像素宽，避免随编辑区拉伸。
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchGapWidth));
         }
         // RowCount 会预置 Percent 样式, 必须 Clear 后再设 Absolute, 否则 Add 只追加到末尾不生效。
         row.RowStyles.Clear();

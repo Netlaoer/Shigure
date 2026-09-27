@@ -485,8 +485,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -895,8 +895,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -1128,8 +1128,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -1430,20 +1430,6 @@ public sealed class ClassConfigEditorControl : UserControl
             fields.Controls.Add(card);
         }
 
-        void FitGroupCards()
-        {
-            const int minimumCardWidth = 176;
-            var totalMargins = groupCards.Sum(card => card.Margin.Horizontal);
-            var availableWidth = Math.Max(0, fields.ClientSize.Width - fields.Padding.Horizontal - totalMargins);
-            var cardWidth = Math.Max(minimumCardWidth, availableWidth / groupCards.Length);
-            foreach (var card in groupCards)
-            {
-                card.Width = cardWidth;
-            }
-        }
-
-        fields.SizeChanged += (_, _) => FitGroupCards();
-        fields.HandleCreated += (_, _) => FitGroupCards();
         panel.Controls.Add(fields, 0, 0);
 
         ConfigureGrid(_groupAurasGrid, "class-config-group-auras");
@@ -1613,7 +1599,7 @@ public sealed class ClassConfigEditorControl : UserControl
     }
 
 
-    private const int GroupCardWidth = 160;
+    private const int GroupCardWidth = UiTheme.GroupCardFixedWidth;
 
     private Control CreateGroupCard(string title, Control content, int width = GroupCardWidth)
     {

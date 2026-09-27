@@ -22,6 +22,18 @@ internal static class UiTheme
     public const int ModuleSidebarWidth = 280;
     /// <summary>模块编辑区固定宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
     public const int ModuleEditorWidth = EditorPageWidth - ModuleSidebarWidth - PageGap;
+    /// <summary>编辑页左右 50/50 分栏固定半宽。</summary>
+    public const int EditorSplitHalfWidth = (EditorPageWidth - PageGap) / 2;
+    /// <summary>队伍页分组卡片固定宽（不再随父宽均分）。</summary>
+    public const int GroupCardFixedWidth = 176;
+    /// <summary>模块元信息名称/作者输入框固定半宽。</summary>
+    public const int ModuleMetaFieldWidth = (ModuleEditorWidth - CardPadding * 2 - 58 * 2) / 2;
+    /// <summary>模块侧栏页脚按钮固定半宽。</summary>
+    public const int ModuleFooterButtonWidth = (ModuleSidebarWidth - CardPadding * 2 - 8) / 2;
+    /// <summary>模块 Match 筛选项下拉固定宽。</summary>
+    public const int ModuleMatchFieldWidth = 280;
+    /// <summary>模块 Match 筛选项之间固定间隔。</summary>
+    public const int ModuleMatchGapWidth = 24;
     /// <summary>EX/BW 事件页卡片宽（通用 1200 × 1.3，与编辑页宽度解耦）。</summary>
     public const int EventPageWidth = 1200 + 1200 * 3 / 10;
     /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>

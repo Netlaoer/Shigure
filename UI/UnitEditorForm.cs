@@ -106,72 +106,11 @@ public sealed class UnitEditorForm : Form
         UiTheme.ApplyDarkTitleBar(this);
     }
 
-    protected override void OnLoad(EventArgs e)
-    {
-        base.OnLoad(e);
-        RestoreCachedWindowSize();
-    }
-
-    protected override void OnResizeEnd(EventArgs e)
-    {
-        base.OnResizeEnd(e);
-        SaveWindowSize();
-    }
-
-    protected override void OnFormClosed(FormClosedEventArgs e)
-    {
-        SaveWindowSize();
-        base.OnFormClosed(e);
-    }
-
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
         _nameBox.Focus();
         _nameBox.SelectAll();
-    }
-
-    private void RestoreCachedWindowSize()
-    {
-        var cached = UiCacheStore.Load().UnitEditorWindowSize;
-        if (cached is null || cached.Width <= 0 || cached.Height <= 0)
-        {
-            return;
-        }
-
-        var workingArea = Owner is not null
-            ? Screen.FromControl(Owner).WorkingArea
-            : Screen.FromControl(this).WorkingArea;
-        var maximumWidth = Math.Max(MinimumSize.Width, workingArea.Width - 40);
-        var maximumHeight = Math.Max(MinimumSize.Height, workingArea.Height - 40);
-        Size = new Size(
-            Math.Clamp(cached.Width, MinimumSize.Width, maximumWidth),
-            Math.Clamp(cached.Height, MinimumSize.Height, maximumHeight));
-
-        if (Owner is not null)
-        {
-            CenterToParent();
-        }
-        else
-        {
-            CenterToScreen();
-        }
-    }
-
-    private void SaveWindowSize()
-    {
-        if (WindowState != FormWindowState.Normal || Width <= 0 || Height <= 0)
-        {
-            return;
-        }
-
-        var cache = UiCacheStore.Load();
-        cache.UnitEditorWindowSize = new WindowSize
-        {
-            Width = Width,
-            Height = Height
-        };
-        UiCacheStore.Save(cache);
     }
 
     private void InitializeComponent()
@@ -182,12 +121,11 @@ public sealed class UnitEditorForm : Form
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
         ClientSize = new Size(RowWidth + 36, 600);
-        FormBorderStyle = FormBorderStyle.Sizable;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(RowWidth + 52, 420);
 
         var root = new TableLayoutPanel
         {
@@ -197,7 +135,9 @@ public sealed class UnitEditorForm : Form
             ColumnCount = 1,
             RowCount = 4
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        // 页头两行固定行高，避免 Percent 50/50 随窗体拉伸。
+        const int headerRowHeight = 56;
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, headerRowHeight * 2));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
@@ -227,8 +167,8 @@ public sealed class UnitEditorForm : Form
             ColumnCount = 1,
             RowCount = 2
         };
-        headerCard.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-        headerCard.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        headerCard.RowStyles.Add(new RowStyle(SizeType.Absolute, headerRowHeight));
+        headerCard.RowStyles.Add(new RowStyle(SizeType.Absolute, headerRowHeight));
         // 类别单独一行；平均血量时右侧显示「统计对象」。
         headerCard.Controls.Add(BuildSplitRow("类别", _categoryBox, "选择器", _selectorBox), 0, 0);
         headerCard.Controls.Add(BuildNameRow(), 0, 1);

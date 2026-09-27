@@ -418,9 +418,9 @@ internal sealed class CountFilterEditorControl : UserControl
             {
                 Name = FieldColumn,
                 HeaderText = "字段",
-                MinimumWidth = 190,
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-                FillWeight = 170,
+                Width = 340,
+                MinimumWidth = 340,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
                 DataSource = _owner.CreateFieldOptions(),
                 DisplayMember = nameof(FieldOption.Text),
                 ValueMember = nameof(FieldOption.Key),
@@ -447,7 +447,8 @@ internal sealed class CountFilterEditorControl : UserControl
                 Name = ValueColumn,
                 HeaderText = "值",
                 Width = 190,
-                MinimumWidth = 150,
+                MinimumWidth = 190,
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
                 SortMode = DataGridViewColumnSortMode.NotSortable
             });
             _grid.Columns.Add(new DataGridViewButtonColumn
@@ -603,11 +604,10 @@ internal sealed class CountFilterEditorControl : UserControl
         {
             ConfigureFixedColumn(NumberColumn, 42);
             ConfigureFixedColumn(EnabledColumn, 84);
+            ConfigureFixedColumn(FieldColumn, 340);
             ConfigureFixedColumn(ComparisonColumn, 144);
+            ConfigureFixedColumn(ValueColumn, 190);
             ConfigureFixedColumn(DeleteColumn, 84);
-
-            ConfigureFillColumn(FieldColumn, 150, 68);
-            ConfigureFillColumn(ValueColumn, 110, 32);
 
             _grid.ColumnHeadersHeight = Math.Max(38, _grid.Font.Height + 12);
             _grid.RowTemplate.Height = Math.Max(40, _grid.Font.Height + 14);
@@ -624,15 +624,6 @@ internal sealed class CountFilterEditorControl : UserControl
             column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
             column.MinimumWidth = width;
             column.Width = width;
-        }
-
-        private void ConfigureFillColumn(string name, int minimumWidth, float fillWeight)
-        {
-            var column = _grid.Columns[name]
-                ?? throw new InvalidOperationException($"找不到数量筛选列：{name}");
-            column.MinimumWidth = minimumWidth;
-            column.FillWeight = fillWeight;
-            column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         }
 
         private void RenumberRows()

@@ -285,23 +285,10 @@ public sealed class ConditionEditorForm : Form
         UiTheme.ApplyDarkTitleBar(this);
     }
 
-    protected override void OnLoad(EventArgs e)
-    {
-        base.OnLoad(e);
-        RestoreCachedWindowSize();
-    }
-
-    protected override void OnResizeEnd(EventArgs e)
-    {
-        base.OnResizeEnd(e);
-        SaveWindowSize();
-    }
-
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         SpellIconCatalog.CatalogChanged -= OnSpellIconCatalogChanged;
         CloseConditionComboDropDown();
-        SaveWindowSize();
         base.OnFormClosed(e);
     }
 
@@ -321,49 +308,6 @@ public sealed class ConditionEditorForm : Form
         _conditionsGrid.Invalidate();
     }
 
-    private void RestoreCachedWindowSize()
-    {
-        var cached = UiCacheStore.Load().ConditionEditorWindowSize;
-        if (cached is null || cached.Width <= 0 || cached.Height <= 0)
-        {
-            return;
-        }
-
-        var workingArea = Owner is not null
-            ? Screen.FromControl(Owner).WorkingArea
-            : Screen.FromControl(this).WorkingArea;
-        var maximumWidth = Math.Max(MinimumSize.Width, workingArea.Width - 40);
-        var maximumHeight = Math.Max(MinimumSize.Height, workingArea.Height - 40);
-        Size = new Size(
-            Math.Clamp(cached.Width, MinimumSize.Width, maximumWidth),
-            Math.Clamp(cached.Height, MinimumSize.Height, maximumHeight));
-
-        if (Owner is not null)
-        {
-            CenterToParent();
-        }
-        else
-        {
-            CenterToScreen();
-        }
-    }
-
-    private void SaveWindowSize()
-    {
-        if (WindowState != FormWindowState.Normal || Width <= 0 || Height <= 0)
-        {
-            return;
-        }
-
-        var cache = UiCacheStore.Load();
-        cache.ConditionEditorWindowSize = new WindowSize
-        {
-            Width = Width,
-            Height = Height
-        };
-        UiCacheStore.Save(cache);
-    }
-
     private void InitializeComponent()
     {
         Text = "编辑条件";
@@ -373,12 +317,11 @@ public sealed class ConditionEditorForm : Form
         ForeColor = UiTheme.Text;
         var initialHeight = _allowSubConditions ? 650 : 460;
         ClientSize = new Size(1080, initialHeight);
-        FormBorderStyle = FormBorderStyle.Sizable;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(780, initialHeight);
 
         var root = new TableLayoutPanel
         {
@@ -611,9 +554,8 @@ public sealed class ConditionEditorForm : Form
         _conditionsGrid.Columns.Add(CreateComboColumn(TypeColumn, "类型", 118, 90));
         _conditionsGrid.Columns.Add(CreateComboColumn(ClassificationColumn, "分类", 130, 100));
 
-        var fieldColumn = CreateComboColumn(FieldColumn, "字段", 260, 160);
-        fieldColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-        fieldColumn.FillWeight = 180;
+        var fieldColumn = CreateComboColumn(FieldColumn, "字段", 260, 260);
+        fieldColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
         // 字段列始终保存唯一字段名，显示名称只负责界面文本。
         // 避免 DataGridView 在对象值与格式化字符串之间切换，导致预览丢行或跨行串值。
         fieldColumn.DisplayMember = nameof(FieldItem.Display);
