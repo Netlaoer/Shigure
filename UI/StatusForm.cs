@@ -556,24 +556,19 @@ public sealed class StatusForm : Form
             Margin = new Padding(0)
         };
 
-        AddNavGroup(nav, "常用");
         AddNavItem(nav, SettingsPage.General, "通用", CreatePageShell("通用", "运行控制、配置同步、数据包与模块选择", _settingsHost));
-        AddNavGroup(nav, "编辑");
         AddNavItem(nav, SettingsPage.Config, "配置", CreatePageShell("配置", "编辑职业、专精和扫描字段", _configHost));
         AddNavItem(nav, SettingsPage.Macros, "宏", CreatePageShell("宏", "维护职业动态宏、静态宏与特殊宏", _macrosHost));
         AddNavItem(nav, SettingsPage.Modules, "模块", CreatePageShell("模块", "创建、匹配并维护运行模块", _moduleHost));
-        AddNavGroup(nav, "监控");
         AddNavItem(nav, SettingsPage.Status, "状态", CreatePageShell("状态", string.Empty, BuildStatusPage()));
         AddNavItem(nav, SettingsPage.Party, "队伍", CreatePageShell("队伍", "当前队伍单位与扫描字段摘要", BuildFixedWidthSectionPage("队伍成员", _partyList, "实时队伍数据")));
         AddNavItem(nav, SettingsPage.Nameplates, "姓名板", CreatePageShell("姓名板", $"{NameplateStateLayout.SlotCount} 个敌对姓名板与配置字段", BuildFixedWidthSectionPage("姓名板", _nameplateList, "实时姓名板数据")));
         AddNavItem(nav, SettingsPage.Logic, "逻辑", CreatePageShell("逻辑", "运行时推荐目标与调试值", BuildFixedWidthSectionPage("逻辑信息", _unitInfoList, "当前模块的决策输出")));
         AddNavItem(nav, SettingsPage.Logs, "日志", CreatePageShell("日志", "运行、模块匹配与施放记录", BuildLogPage()));
-        AddNavGroup(nav, "说明");
         AddNavItem(nav, SettingsPage.BossNumbers, "首领", CreatePageShell("首领编号", "副本首领的序号、名称与扫描编号", BuildBossNumbersPage()));
         AddNavItem(nav, SettingsPage.Event, "EX事件", CreatePageShell("EX 事件", "247 个首领技能事件及其像素编码", BuildExBossEventsPage()));
         AddNavItem(nav, SettingsPage.BigWigsEvent, "BW事件", CreatePageShell("BigWigs 团本事件", $"{BigWigsEventCatalog.Events.Count} 个团队首领技能事件及其像素编码", BuildBigWigsEventsPage()));
         AddNavItem(nav, SettingsPage.CommonFields, "字段", CreatePageShell("常用字段", "模块条件可用的状态字段参考", BuildCommonFieldsPanel()));
-        AddNavGroup(nav, "系统");
         AddNavItem(nav, SettingsPage.About, "关于", CreatePageShell("关于", "应用信息、免责声明、许可证与来源", _aboutHost));
         _aboutHost.Controls.Add(BuildAboutPanel());
 
@@ -1265,32 +1260,6 @@ public sealed class StatusForm : Form
         {
             navItem.IsDirty = dirty;
         }
-    }
-
-    private void AddNavGroup(FlowLayoutPanel nav, string text)
-    {
-        if (nav.Controls.Count > 0)
-        {
-            nav.Controls.Add(new Label
-            {
-                Text = "│",
-                AutoSize = true,
-                ForeColor = UiTheme.Border,
-                Font = new Font(Font.FontFamily, 9F, FontStyle.Regular),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Margin = new Padding(4, 6, 4, 0)
-            });
-        }
-
-        nav.Controls.Add(new Label
-        {
-            Text = text,
-            AutoSize = true,
-            ForeColor = UiTheme.Muted,
-            Font = new Font(Font.FontFamily, 8.5F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(nav.Controls.Count == 0 ? 0 : 2, 8, 4, 0)
-        });
     }
 
     private void AddNavItem(FlowLayoutPanel nav, SettingsPage page, string text, Control view)
