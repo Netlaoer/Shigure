@@ -615,45 +615,13 @@ public sealed class StatusForm : Form
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Background,
-            ColumnCount = 3,
+            ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0)
         };
-        chrome.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         chrome.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         chrome.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         chrome.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var brand = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            Anchor = AnchorStyles.Left,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            BackColor = Color.Transparent,
-            Margin = new Padding(2, 0, 0, 0),
-            Padding = new Padding(0)
-        };
-        var brandTitle = new Label
-        {
-            Text = "SHIGURE",
-            AutoSize = true,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 12F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0, 4, 8, 0)
-        };
-        var brandSubtitle = new Label
-        {
-            Text = "CONTROL CENTER",
-            AutoSize = true,
-            ForeColor = UiTheme.Accent,
-            Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0, 8, 0, 0)
-        };
-        brand.Controls.Add(brandTitle);
-        brand.Controls.Add(brandSubtitle);
 
         var dragSpacer = new Panel
         {
@@ -690,13 +658,9 @@ public sealed class StatusForm : Form
         chromeActions.Controls.Add(minimizeButton);
         chromeActions.Controls.Add(closeButton);
 
-        chrome.Controls.Add(brand, 0, 0);
-        chrome.Controls.Add(dragSpacer, 1, 0);
-        chrome.Controls.Add(chromeActions, 2, 0);
+        chrome.Controls.Add(dragSpacer, 0, 0);
+        chrome.Controls.Add(chromeActions, 1, 0);
         EnableDrag(chrome);
-        EnableDrag(brand);
-        EnableDrag(brandTitle);
-        EnableDrag(brandSubtitle);
         EnableDrag(dragSpacer);
         EnableDrag(versionLabel);
         shell.Controls.Add(chrome, 0, 0);
@@ -1270,13 +1234,17 @@ public sealed class StatusForm : Form
 
         var buttonFont = new Font(Font.FontFamily, 9.5F, FontStyle.Regular);
         var textWidth = TextRenderer.MeasureText(text, buttonFont).Width;
+        // 「通用」左侧带齿轮图标；导航项之间加宽水平间距。
+        var leadingIcon = page == SettingsPage.General ? "General" : null;
+        var iconExtra = leadingIcon is null ? 0 : 20;
         var button = new SettingsNavButton
         {
             Text = text,
+            LeadingIconName = leadingIcon,
             AutoSize = false,
-            Size = new Size(Math.Max(40, textWidth + 18), 32),
+            Size = new Size(Math.Max(40, textWidth + 18 + iconExtra), 32),
             Font = buttonFont,
-            Margin = new Padding(0, 2, 2, 2),
+            Margin = new Padding(0, 2, 12, 2),
             Cursor = Cursors.Hand,
             TabStop = true,
             AccessibleName = text
@@ -2893,6 +2861,7 @@ public sealed class StatusForm : Form
         private bool _pressed;
         private bool _isSelected;
         private bool _isDirty;
+        private string? _leadingIconName;
 
         public SettingsNavButton()
         {
@@ -2907,6 +2876,23 @@ public sealed class StatusForm : Form
                 | ControlStyles.ResizeRedraw
                 | ControlStyles.UserPaint,
                 true);
+        }
+
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string? LeadingIconName
+        {
+            get => _leadingIconName;
+            set
+            {
+                if (_leadingIconName == value)
+                {
+                    return;
+                }
+
+                _leadingIconName = value;
+                Invalidate();
+            }
         }
 
         [System.ComponentModel.Browsable(false)]
@@ -3016,19 +3002,45 @@ public sealed class StatusForm : Form
 
             graphics.SmoothingMode = oldSmoothingMode;
 
+            var foreground = _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted;
             var dirtySpace = _isDirty ? (int)Math.Round(14 * scale) : (int)Math.Round(4 * scale);
+            var sidePad = (int)Math.Round(6 * scale);
+            var iconSize = (int)Math.Round(14 * scale);
+            var iconGap = (int)Math.Round(6 * scale);
+            var hasIcon = !string.IsNullOrEmpty(_leadingIconName);
+            var textSize = TextRenderer.MeasureText(
+                graphics,
+                Text,
+                Font,
+                new Size(int.MaxValue, Height),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
+            var contentWidth = textSize.Width + (hasIcon ? iconSize + iconGap : 0);
+            var contentLeft = Math.Max(
+                sidePad,
+                (Width - dirtySpace - contentWidth) / 2);
+
+            if (hasIcon)
+            {
+                UiIconCatalog.Draw(
+                    graphics,
+                    _leadingIconName!,
+                    new Rectangle(contentLeft, (Height - iconSize) / 2, iconSize, iconSize),
+                    foreground);
+                contentLeft += iconSize + iconGap;
+            }
+
             var textBounds = new Rectangle(
-                (int)Math.Round(6 * scale),
+                contentLeft,
                 0,
-                Math.Max(0, Width - (int)Math.Round(6 * scale) - dirtySpace),
+                Math.Max(0, Width - contentLeft - dirtySpace),
                 Height);
             TextRenderer.DrawText(
                 graphics,
                 Text,
                 Font,
                 textBounds,
-                _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                foreground,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
             if (_isDirty)
             {
