@@ -4,10 +4,9 @@ using System.Drawing.Drawing2D;
 namespace Shigure;
 
 /// <summary>
-/// 顶部横向职业图标条：固定格宽，不随窗口拉伸；可选「全部」项（ClassId=null）。
-/// 图标逻辑尺寸与配置页专精图标一致（UiTheme.ClassSpecIconSize）。
+/// 顶部横向专精图标条：固定格宽，置于职业条正下方；图标尺寸与 ClassIconStrip 一致。
 /// </summary>
-internal sealed class ClassIconStrip : Panel
+internal sealed class SpecIconStrip : Panel
 {
     public const int IconSize = UiTheme.ClassSpecIconSize;
     public const int CellSize = UiTheme.ClassSpecIconCellSize;
@@ -16,11 +15,11 @@ internal sealed class ClassIconStrip : Panel
 
     private readonly FlowLayoutPanel _flow;
     private readonly ToolTip _toolTip = new();
-    private readonly List<ClassIconButton> _buttons = new();
+    private readonly List<SpecIconButton> _buttons = new();
     private int _selectedIndex = -1;
     private bool _suppressSelection;
 
-    public ClassIconStrip()
+    public SpecIconStrip()
     {
         DoubleBuffered = true;
         BackColor = UiTheme.SurfaceRaised;
@@ -49,14 +48,14 @@ internal sealed class ClassIconStrip : Panel
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int? SelectedClassId
+    public (int ClassId, int SpecId)? SelectedSpec
         => _selectedIndex >= 0 && _selectedIndex < _buttons.Count
-            ? _buttons[_selectedIndex].ClassId
+            ? (_buttons[_selectedIndex].ClassId, _buttons[_selectedIndex].SpecId)
             : null;
 
     public event EventHandler? SelectionChanged;
 
-    public void SetItems(IReadOnlyList<(int? ClassId, string Tooltip)> items)
+    public void SetItems(IReadOnlyList<(int ClassId, int SpecId, string Name)> items)
     {
         _suppressSelection = true;
         try
@@ -73,15 +72,15 @@ internal sealed class ClassIconStrip : Panel
 
             for (var i = 0; i < items.Count; i++)
             {
-                var (classId, tooltip) = items[i];
+                var (classId, specId, name) = items[i];
                 var index = i;
-                var button = new ClassIconButton(classId)
+                var button = new SpecIconButton(classId, specId, name)
                 {
                     Margin = new Padding(0, 0, gap, 0),
                     Size = new Size(cell, cell)
                 };
                 button.Click += (_, _) => SelectIndex(index, raiseEvent: true);
-                _toolTip.SetToolTip(button, tooltip);
+                _toolTip.SetToolTip(button, name);
                 _buttons.Add(button);
                 _flow.Controls.Add(button);
             }
@@ -112,15 +111,36 @@ internal sealed class ClassIconStrip : Panel
         }
     }
 
-    public void SelectClassId(int? classId, bool raiseEvent = false)
+    public void SelectSpecId(int? specId, bool raiseEvent = false)
     {
+        if (specId is null)
+        {
+            SelectIndex(-1, raiseEvent);
+            return;
+        }
+
         for (var i = 0; i < _buttons.Count; i++)
         {
-            if (_buttons[i].ClassId == classId)
+            if (_buttons[i].SpecId == specId)
             {
                 SelectIndex(i, raiseEvent);
                 return;
             }
+        }
+    }
+
+    public void Clear()
+    {
+        _suppressSelection = true;
+        try
+        {
+            _flow.Controls.Clear();
+            _buttons.Clear();
+            _selectedIndex = -1;
+        }
+        finally
+        {
+            _suppressSelection = false;
         }
     }
 
@@ -185,14 +205,15 @@ internal sealed class ClassIconStrip : Panel
         base.Dispose(disposing);
     }
 
-    private sealed class ClassIconButton : Control
+    private sealed class SpecIconButton : Control
     {
         private bool _selected;
         private bool _hovered;
 
-        public ClassIconButton(int? classId)
+        public SpecIconButton(int classId, int specId, string name)
         {
             ClassId = classId;
+            SpecId = specId;
             SetStyle(
                 ControlStyles.AllPaintingInWmPaint
                 | ControlStyles.OptimizedDoubleBuffer
@@ -204,12 +225,11 @@ internal sealed class ClassIconStrip : Panel
             BackColor = Color.Transparent;
             TabStop = true;
             AccessibleRole = AccessibleRole.PushButton;
-            AccessibleName = classId is null
-                ? "全部"
-                : ClassNames.GetClassAndSpecName(classId, null).ClassName ?? $"职业{classId}";
+            AccessibleName = name;
         }
 
-        public int? ClassId { get; }
+        public int ClassId { get; }
+        public int SpecId { get; }
 
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -261,9 +281,8 @@ internal sealed class ClassIconStrip : Panel
                 g.FillRectangle(brush, bounds);
             }
 
-            var logicalIcon = IconSize;
             var drawnIconSize = Math.Min(
-                UiTheme.Scale(this, logicalIcon),
+                UiTheme.Scale(this, IconSize),
                 bounds.Height - UiTheme.Scale(this, 12));
             drawnIconSize = Math.Max(8, drawnIconSize);
 
@@ -280,49 +299,31 @@ internal sealed class ClassIconStrip : Panel
                 drawnIconSize,
                 drawnIconSize);
 
-            if (ClassId is { } classId)
+            var icon = UiTheme.GetSpecIcon(ClassId, SpecId);
+            if (icon is not null)
             {
-                var icon = UiTheme.GetClassIcon(classId);
-                if (icon is not null)
-                {
-                    g.DrawImage(icon, iconBounds);
-                }
-                else
-                {
-                    TextRenderer.DrawText(
-                        g,
-                        "?",
-                        Font,
-                        iconBounds,
-                        UiTheme.Muted,
-                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                }
-
-                using var border = new Pen(_selected ? UiTheme.Accent : UiTheme.Border);
-                g.DrawRectangle(
-                    border,
-                    iconBounds.X,
-                    iconBounds.Y,
-                    iconBounds.Width - 1,
-                    iconBounds.Height - 1);
+                g.DrawImage(icon, iconBounds);
             }
             else
             {
-                using var border = new Pen(_selected ? UiTheme.Accent : UiTheme.Border);
-                g.DrawRectangle(
-                    border,
-                    iconBounds.X,
-                    iconBounds.Y,
-                    iconBounds.Width - 1,
-                    iconBounds.Height - 1);
+                using var placeholder = new SolidBrush(UiTheme.Field);
+                g.FillRectangle(placeholder, iconBounds);
                 TextRenderer.DrawText(
                     g,
-                    "全部",
+                    "?",
                     Font,
                     iconBounds,
                     _selected ? UiTheme.Text : UiTheme.Muted,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
+
+            using var border = new Pen(_selected ? UiTheme.Accent : UiTheme.Border);
+            g.DrawRectangle(
+                border,
+                iconBounds.X,
+                iconBounds.Y,
+                iconBounds.Width - 1,
+                iconBounds.Height - 1);
         }
     }
 }

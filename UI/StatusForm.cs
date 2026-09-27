@@ -898,8 +898,10 @@ public sealed class StatusForm : Form
         string title,
         Control content,
         string subtitle,
-        ListView? countListView = null)
+        ListView? countListView = null,
+        int? contentWidth = null)
     {
+        var pageWidth = contentWidth ?? SettingsContentWidth;
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
@@ -911,20 +913,20 @@ public sealed class StatusForm : Form
         var section = BuildSection(title, content, subtitle, countListView);
         section.Dock = DockStyle.None;
         section.Location = Point.Empty;
-        section.Width = SettingsContentWidth;
-        section.MinimumSize = new Size(SettingsContentWidth, 0);
-        section.MaximumSize = new Size(SettingsContentWidth, 0);
+        section.Width = pageWidth;
+        section.MinimumSize = new Size(pageWidth, 0);
+        section.MaximumSize = new Size(pageWidth, 0);
 
         void SyncScrollLayout()
         {
             var viewHeight = scrollHost.ClientSize.Height;
-            if (SettingsContentWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
+            if (pageWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
             {
                 viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
             }
 
             var height = Math.Max(200, viewHeight);
-            SyncCenteredContentLayout(scrollHost, section, SettingsContentWidth, height);
+            SyncCenteredContentLayout(scrollHost, section, pageWidth, height);
         }
 
         scrollHost.Controls.Add(section);
@@ -1351,7 +1353,8 @@ public sealed class StatusForm : Form
             "EX 首领技能事件",
             eventContent,
             "事件键按 eventID 升序生成；像素写入键 / 255，模块条件使用整数键 1–247",
-            eventList);
+            eventList,
+            UiTheme.EventPageWidth);
 
         var updatingFilters = false;
 
@@ -1521,7 +1524,8 @@ public sealed class StatusForm : Form
             "BigWigs 团队首领技能事件",
             eventContent,
             $"按 spellID 升序生成 {allEvents.Count} 个键；像素写入键 / 255，模块条件使用整数键",
-            eventList);
+            eventList,
+            UiTheme.EventPageWidth);
 
         var updatingFilters = false;
 

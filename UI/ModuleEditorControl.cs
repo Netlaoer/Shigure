@@ -162,15 +162,13 @@ public sealed class ModuleEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 2,
-            RowCount = 3,
+            ColumnCount = 1,
+            RowCount = 2,
             Margin = new Padding(0)
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ModuleFooterBarHeight));
         Controls.Add(root);
 
         var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
@@ -184,12 +182,31 @@ public sealed class ModuleEditorControl : UserControl
             ApplyModuleClassFilter(preserveSelection: true);
         };
         root.Controls.Add(_classFilterStrip, 0, 0);
-        root.SetColumnSpan(_classFilterStrip, 2);
 
-        root.Controls.Add(BuildSidebar(), 0, 1);
-        root.Controls.Add(BuildEditor(), 1, 1);
-        root.Controls.Add(BuildSidebarFooter(), 0, 2);
-        root.Controls.Add(BuildActionRow(), 1, 2);
+        var body = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 2,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Width = UiTheme.EditorPageWidth
+        };
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleSidebarWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleEditorWidth));
+        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        body.RowStyles.Add(new RowStyle(SizeType.Absolute, ModuleFooterBarHeight));
+        body.Controls.Add(BuildSidebar(), 0, 0);
+        body.Controls.Add(BuildEditor(), 1, 0);
+        body.Controls.Add(BuildSidebarFooter(), 0, 1);
+        body.Controls.Add(BuildActionRow(), 1, 1);
+        root.Controls.Add(UiTheme.CreateFixedWidthPageHost(body, UiTheme.EditorPageWidth), 0, 1);
+
+        void SyncStripRow()
+            => root.RowStyles[0].Height = _classFilterStrip.ScaledHeight + UiTheme.PageGap;
+
+        HandleCreated += (_, _) => BeginInvoke(SyncStripRow);
+        _classFilterStrip.HandleCreated += (_, _) => SyncStripRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

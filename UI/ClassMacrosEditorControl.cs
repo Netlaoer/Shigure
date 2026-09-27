@@ -92,7 +92,16 @@ public sealed class ClassMacrosEditorControl : UserControl
             }
         };
         root.Controls.Add(_classStrip, 0, 0);
-        root.Controls.Add(BuildEditor(), 0, 1);
+
+        var editor = BuildEditor();
+        editor.Dock = DockStyle.Fill;
+        root.Controls.Add(UiTheme.CreateFixedWidthPageHost(editor, UiTheme.EditorPageWidth), 0, 1);
+
+        void SyncStripRow()
+            => root.RowStyles[0].Height = _classStrip.ScaledHeight + UiTheme.PageGap;
+
+        HandleCreated += (_, _) => BeginInvoke(SyncStripRow);
+        _classStrip.HandleCreated += (_, _) => SyncStripRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

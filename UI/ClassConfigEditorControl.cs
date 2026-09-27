@@ -18,8 +18,9 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
     private readonly ClassIconStrip _classStrip = new();
+    private readonly SpecIconStrip _specStrip = new();
     private readonly List<ClassListItem> _classItems = new();
-    private readonly ListBox _specList = new();
+    private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
     private readonly Label _statusLabel = new();
     private readonly ToolTip _toolTip = new();
@@ -137,13 +138,13 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 2,
-            RowCount = 2,
+            ColumnCount = 1,
+            RowCount = 3,
             Margin = new Padding(0)
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 184));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, SpecIconStrip.StripHeight + UiTheme.PageGap));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         Controls.Add(root);
 
@@ -157,10 +158,32 @@ public sealed class ClassConfigEditorControl : UserControl
 
             SelectClassFromStrip();
         };
+        _specStrip.Dock = DockStyle.Fill;
+        _specStrip.SelectionChanged += (_, _) =>
+        {
+            if (_suppressUi)
+            {
+                return;
+            }
+
+            SelectSpecFromStrip();
+        };
         root.Controls.Add(_classStrip, 0, 0);
-        root.SetColumnSpan(_classStrip, 2);
-        root.Controls.Add(BuildSpecSidebar(), 0, 1);
-        root.Controls.Add(BuildEditor(), 1, 1);
+        root.Controls.Add(_specStrip, 0, 1);
+
+        var editor = BuildEditor();
+        editor.Dock = DockStyle.Fill;
+        root.Controls.Add(UiTheme.CreateFixedWidthPageHost(editor, UiTheme.EditorPageWidth), 0, 2);
+
+        void SyncStripRows()
+        {
+            root.RowStyles[0].Height = _classStrip.ScaledHeight + UiTheme.PageGap;
+            root.RowStyles[1].Height = _specStrip.ScaledHeight + UiTheme.PageGap;
+        }
+
+        HandleCreated += (_, _) => BeginInvoke(SyncStripRows);
+        _classStrip.HandleCreated += (_, _) => SyncStripRows();
+        _specStrip.HandleCreated += (_, _) => SyncStripRows();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -186,49 +209,6 @@ public sealed class ClassConfigEditorControl : UserControl
         }
 
         return base.ProcessCmdKey(ref msg, keyData);
-    }
-
-    private Control BuildSpecSidebar()
-    {
-        var panel = new UiCardPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding),
-            Margin = new Padding(0, 0, UiTheme.PageGap, 0)
-        };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        panel.Controls.Add(new Label
-        {
-            Text = "专精",
-            Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
-        }, 0, 0);
-
-        _specList.Dock = DockStyle.Fill;
-        UiTheme.StyleSpecIconListBox(
-            _specList,
-            item => item is SpecOption spec ? (spec.ClassId, spec.Id) : null,
-            iconSize: 40);
-        _specList.BackColor = UiTheme.SurfaceRaised;
-        _specList.SelectedIndexChanged += (_, _) =>
-        {
-            if (_suppressUi)
-            {
-                return;
-            }
-
-            SelectSpec(_specList.SelectedItem as SpecOption);
-        };
-        panel.Controls.Add(_specList, 0, 1);
-        return panel;
     }
 
     private static void StyleActionButton(Button button)
@@ -2073,7 +2053,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectSpec(_specList.SelectedItem as SpecOption);
+        SelectSpecFromStrip();
         _suppressUi = true;
         try
         {
@@ -2088,21 +2068,33 @@ public sealed class ClassConfigEditorControl : UserControl
 
     private void RebuildSpecList(IReadOnlyList<SpecOption> options)
     {
-        _specList.Items.Clear();
-        foreach (var option in options)
+        _specItems.Clear();
+        _specItems.AddRange(options);
+        _specStrip.SetItems(options
+            .Select(option => (option.ClassId, option.Id, option.Name))
+            .ToList());
+        if (_specItems.Count > 0)
         {
-            _specList.Items.Add(option);
-        }
-
-        if (_specList.Items.Count > 0)
-        {
-            _specList.SelectedIndex = 0;
+            _specStrip.SelectIndex(0);
         }
     }
 
     private void ClearSpecList()
     {
-        _specList.Items.Clear();
+        _specItems.Clear();
+        _specStrip.Clear();
+    }
+
+    private void SelectSpecFromStrip()
+    {
+        var index = _specStrip.SelectedIndex;
+        if (index < 0 || index >= _specItems.Count)
+        {
+            SelectSpec(null);
+            return;
+        }
+
+        SelectSpec(_specItems[index]);
     }
 
     private void SelectSpec(SpecOption? spec)
@@ -2111,7 +2103,6 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             _currentSpec = null;
             _currentSpecId = null;
-            _specList.Invalidate();
             ClearGrids();
             return;
         }
@@ -2129,7 +2120,6 @@ public sealed class ClassConfigEditorControl : UserControl
         }
 
         _currentSpec = blocks;
-        _specList.Invalidate();
         FillAllEditors();
     }
 

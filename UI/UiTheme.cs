@@ -16,6 +16,19 @@ internal static class UiTheme
     public const int CardCornerRadius = 10;
     public const int ControlCornerRadius = 8;
 
+    /// <summary>配置/宏/模块页固定内容宽（与通用设置卡片一致）。</summary>
+    public const int EditorPageWidth = 1200;
+    /// <summary>模块列表侧栏固定宽。</summary>
+    public const int ModuleSidebarWidth = 280;
+    /// <summary>模块编辑区固定宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
+    public const int ModuleEditorWidth = EditorPageWidth - ModuleSidebarWidth - PageGap;
+    /// <summary>EX/BW 事件页卡片宽（EditorPageWidth × 1.3）。</summary>
+    public const int EventPageWidth = EditorPageWidth + EditorPageWidth * 3 / 10;
+    /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>
+    public const int ClassSpecIconSize = 40;
+    /// <summary>职业/专精图标格逻辑边长（iconSize + 16）。</summary>
+    public const int ClassSpecIconCellSize = ClassSpecIconSize + 16;
+
     private static readonly Dictionary<int, Image?> ClassIcons = new();
     private static readonly Dictionary<(int ClassId, int SpecId), Image?> SpecIcons = new();
     private static readonly ConditionalWeakTable<ListView, Func<ListViewItem, int, Image?>> ListViewSubItemIcons = new();
@@ -305,6 +318,77 @@ internal static class UiTheme
 
     public static int Scale(Control control, int logicalPixels)
         => Math.Max(1, (int)Math.Round(logicalPixels * control.DeviceDpi / 96F));
+
+    /// <summary>
+    /// 固定宽度内容宿主：水平居中，高度随视口填充；不随窗口无界拉宽。
+    /// </summary>
+    public static Panel CreateFixedWidthPageHost(Control content, int contentWidth)
+    {
+        var scrollHost = new Panel
+        {
+            Dock = DockStyle.Fill,
+            AutoScroll = true,
+            BackColor = Surface,
+            Margin = new Padding(0)
+        };
+
+        content.Dock = DockStyle.None;
+        content.Location = Point.Empty;
+        content.Width = contentWidth;
+        content.MinimumSize = new Size(contentWidth, 0);
+        content.MaximumSize = new Size(contentWidth, 0);
+
+        void SyncLayout()
+        {
+            if (content.Width != contentWidth)
+            {
+                content.Width = contentWidth;
+            }
+
+            var viewHeight = scrollHost.ClientSize.Height;
+            if (contentWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
+            {
+                viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
+            }
+
+            var height = Math.Max(200, viewHeight);
+            if (content.Height != height)
+            {
+                content.Height = height;
+            }
+
+            var left = scrollHost.ClientSize.Width > contentWidth
+                ? (scrollHost.ClientSize.Width - contentWidth) / 2
+                : 0;
+            if (content.Left != left)
+            {
+                content.Left = left;
+            }
+
+            if (content.Top != 0)
+            {
+                content.Top = 0;
+            }
+
+            var minSize = new Size(contentWidth, 0);
+            if (scrollHost.AutoScrollMinSize != minSize)
+            {
+                scrollHost.AutoScrollMinSize = minSize;
+            }
+        }
+
+        scrollHost.Controls.Add(content);
+        scrollHost.Resize += (_, _) => SyncLayout();
+        scrollHost.HandleCreated += (_, _) =>
+        {
+            if (scrollHost.IsHandleCreated)
+            {
+                scrollHost.BeginInvoke(SyncLayout);
+            }
+        };
+        SyncLayout();
+        return scrollHost;
+    }
 
     public static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int radius)
     {
@@ -865,7 +949,7 @@ internal static class UiTheme
         };
     }
 
-    private static Image? GetSpecIcon(int classId, int specId)
+    internal static Image? GetSpecIcon(int classId, int specId)
     {
         var key = (classId, specId);
         if (SpecIcons.TryGetValue(key, out var cached))
