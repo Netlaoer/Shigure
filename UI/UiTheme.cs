@@ -20,8 +20,14 @@ internal static class UiTheme
     public const int EditorPageWidth = 1800;
     /// <summary>模块列表侧栏固定宽（不加宽）。</summary>
     public const int ModuleSidebarWidth = 280;
+    /// <summary>配置页职业/专精树侧栏展开宽。</summary>
+    public const int ConfigSidebarWidth = 240;
+    /// <summary>配置页职业/专精树侧栏缩窄宽（仅图标）。</summary>
+    public const int ConfigSidebarCollapsedWidth = 52;
     /// <summary>模块编辑区最小宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
     public const int ModuleEditorWidth = EditorPageWidth - ModuleSidebarWidth - PageGap;
+    /// <summary>配置编辑区最小宽（EditorPageWidth - ConfigSidebarWidth - PageGap）。</summary>
+    public const int ConfigEditorWidth = EditorPageWidth - ConfigSidebarWidth - PageGap;
     /// <summary>编辑页左右分栏在最小宽下的半宽参考值。</summary>
     public const int EditorSplitHalfWidth = (EditorPageWidth - PageGap) / 2;
     /// <summary>队伍页分组卡片固定宽（不再随父宽均分）。</summary>

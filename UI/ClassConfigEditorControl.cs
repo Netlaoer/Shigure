@@ -17,8 +17,7 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string?> _resolveClassDirectory;
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
-    private readonly ClassIconStrip _classStrip = new();
-    private readonly SpecIconStrip _specStrip = new();
+    private readonly ClassSpecTreeSidebar _classTree = new();
     private readonly List<ClassListItem> _classItems = new();
     private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
@@ -26,6 +25,8 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly ToolTip _toolTip = new();
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
+    private TableLayoutPanel? _bodyLayout;
+    private const int ConfigFooterBarHeight = 64;
 
     private readonly DataGridView _statesGrid = new();
     private readonly DataGridViewComboBoxColumn _stateNameColumn = new();
@@ -134,62 +135,75 @@ public sealed class ClassConfigEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        _classStrip.SelectionChanged += (_, _) =>
+        var cache = UiCacheStore.Load();
+        if (cache.ConfigSidebarCollapsed == true)
+        {
+            _classTree.SetCollapsed(true);
+        }
+
+        _classTree.Dock = DockStyle.Fill;
+        _classTree.Margin = new Padding(0, 0, UiTheme.PageGap, 0);
+        _classTree.SelectionChanged += (_, _) =>
         {
             if (_suppressUi)
             {
                 return;
             }
 
-            SelectClassFromStrip();
+            SelectFromTree();
         };
-        _specStrip.SelectionChanged += (_, _) =>
+        _classTree.CollapseChanged += (_, _) =>
         {
-            if (_suppressUi)
-            {
-                return;
-            }
-
-            SelectSpecFromStrip();
+            SyncSidebarColumnWidth();
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            UiCacheStore.Save(state);
         };
 
-        var iconStack = UiTheme.CreateIconStripStack(_classStrip, _specStrip);
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
+        editor.Margin = new Padding(0);
+
+        var body = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0)
+        };
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        body.Controls.Add(_classTree, 0, 0);
+        body.Controls.Add(editor, 1, 0);
+        _bodyLayout = body;
 
         var page = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 1,
             Margin = new Padding(0),
             MinimumSize = new Size(UiTheme.EditorPageWidth, 0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight * 2 + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconStack, 0, 0);
-        page.Controls.Add(editor, 0, 1);
+        page.Controls.Add(body, 0, 0);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+    }
 
-        void SyncIconStackRow()
+    private void SyncSidebarColumnWidth()
+    {
+        if (_bodyLayout is null || _bodyLayout.ColumnStyles.Count == 0)
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripStackHeight(
-                this,
-                _classStrip.ScaledHeight,
-                _specStrip.ScaledHeight) + UiTheme.PageGap;
-            if (iconStack.RowStyles.Count >= 2)
-            {
-                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
-                iconStack.RowStyles[1] = new RowStyle(SizeType.Absolute, _specStrip.ScaledHeight);
-            }
+            return;
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
-        _classStrip.HandleCreated += (_, _) => SyncIconStackRow();
-        _specStrip.HandleCreated += (_, _) => SyncIconStackRow();
+        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth);
+        _bodyLayout.PerformLayout();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -234,7 +248,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0)
         };
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ConfigFooterBarHeight));
 
         root.Controls.Add(BuildSectionTabs(), 0, 0);
 
@@ -244,7 +258,7 @@ public sealed class ClassConfigEditorControl : UserControl
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0, UiTheme.PageGap, 0, 0),
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10)
+            Padding = new Padding(UiTheme.CardPadding, 8, UiTheme.CardPadding, 8)
         };
         actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 228));
@@ -283,7 +297,7 @@ public sealed class ClassConfigEditorControl : UserControl
             RowCount = 2,
             Margin = new Padding(0)
         };
-        info.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 56));
+        info.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
         info.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
@@ -1819,7 +1833,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
-                _classStrip.SetItems([]);
+                _classTree.SetClasses([]);
                 _pathLabel.Text = "未找到 Fuyutsui\\class";
                 _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
                 return;
@@ -1848,13 +1862,13 @@ public sealed class ClassConfigEditorControl : UserControl
                 }
             }
 
-            _classStrip.SetItems(_classItems
-                .Select(item => ((int?)item.ClassId, item.ToString()))
+            _classTree.SetClasses(_classItems
+                .Select(item => (item.ClassId, item.Name))
                 .ToList());
             _statusLabel.Text = $"已加载 {_documents.Count} 个职业文件";
             if (_classItems.Count > 0)
             {
-                _classStrip.SelectClassId(_classItems[0].ClassId);
+                _classTree.SelectClass(_classItems[0].ClassId, expand: true);
             }
         }
         finally
@@ -1862,7 +1876,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectClassFromStrip();
+        SelectFromTree();
     }
 
     private static void RegisterDocumentSpellNames(ClassBlocksStore.ClassFileDocument document)
@@ -1937,9 +1951,15 @@ public sealed class ClassConfigEditorControl : UserControl
         }
     }
 
-    private void SelectClassFromStrip()
+    private void SelectFromTree()
     {
-        var item = _classItems.FirstOrDefault(x => x.ClassId == _classStrip.SelectedClassId);
+        var classId = _classTree.SelectedClassId;
+        if (classId is null)
+        {
+            return;
+        }
+
+        var item = _classItems.FirstOrDefault(x => x.ClassId == classId);
         if (item is null)
         {
             return;
@@ -1951,6 +1971,10 @@ public sealed class ClassConfigEditorControl : UserControl
             try
             {
                 SelectClassInList(_currentClassId);
+                if (_currentSpecId is { } previousSpecId && _currentClassId is { } previousClassId)
+                {
+                    _classTree.SelectSpec(previousClassId, previousSpecId);
+                }
             }
             finally
             {
@@ -1961,16 +1985,23 @@ public sealed class ClassConfigEditorControl : UserControl
         }
 
         var discarding = _dirty && _currentClassId != item.ClassId;
-        if (_dirty && _currentClassId == item.ClassId)
+        if (_currentClassId == item.ClassId)
         {
+            // 同职业：仅专精变化时切换；折叠树节点不重载右侧。
+            if (_classTree.SelectedSpecId is { } pendingSpecId
+                && _currentSpecId != pendingSpecId)
+            {
+                SelectSpec(_specItems.FirstOrDefault(x => x.Id == pendingSpecId));
+            }
+
             return;
         }
 
-        if (discarding && _currentClassId is { } previousClassId && _documents.ContainsKey(previousClassId))
+        if (discarding && _currentClassId is { } previousLoadedClassId && _documents.ContainsKey(previousLoadedClassId))
         {
             try
             {
-                _documents[previousClassId] = ClassBlocksStore.Load(_documents[previousClassId].FilePath);
+                _documents[previousLoadedClassId] = ClassBlocksStore.Load(_documents[previousLoadedClassId].FilePath);
             }
             catch
             {
@@ -2045,7 +2076,30 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectSpecFromStrip();
+        var selectedSpecId = _classTree.SelectedSpecId;
+        if (selectedSpecId is { } treeSpecId)
+        {
+            SelectSpec(_specItems.FirstOrDefault(x => x.Id == treeSpecId));
+        }
+        else if (_specItems.Count > 0)
+        {
+            _suppressUi = true;
+            try
+            {
+                _classTree.SelectSpec(item.ClassId, _specItems[0].Id);
+            }
+            finally
+            {
+                _suppressUi = false;
+            }
+
+            SelectSpec(_specItems[0]);
+        }
+        else
+        {
+            SelectSpec(null);
+        }
+
         _suppressUi = true;
         try
         {
@@ -2062,31 +2116,18 @@ public sealed class ClassConfigEditorControl : UserControl
     {
         _specItems.Clear();
         _specItems.AddRange(options);
-        _specStrip.SetItems(options
-            .Select(option => (option.ClassId, option.Id, option.Name))
-            .ToList());
-        if (_specItems.Count > 0)
+        if (_currentClassId is { } classId)
         {
-            _specStrip.SelectIndex(0);
+            _classTree.SetSpecs(
+                classId,
+                options.Select(option => (option.Id, option.Name)).ToList());
         }
     }
 
     private void ClearSpecList()
     {
         _specItems.Clear();
-        _specStrip.Clear();
-    }
-
-    private void SelectSpecFromStrip()
-    {
-        var index = _specStrip.SelectedIndex;
-        if (index < 0 || index >= _specItems.Count)
-        {
-            SelectSpec(null);
-            return;
-        }
-
-        SelectSpec(_specItems[index]);
+        _classTree.ClearSpecs();
     }
 
     private void SelectSpec(SpecOption? spec)
@@ -4270,7 +4311,14 @@ public sealed class ClassConfigEditorControl : UserControl
             return;
         }
 
-        _classStrip.SelectClassId(classId);
+        if (_currentSpecId is { } specId)
+        {
+            _classTree.SelectSpec(classId.Value, specId);
+        }
+        else
+        {
+            _classTree.SelectClass(classId.Value, expand: true);
+        }
     }
 
     private void ClearGrids()

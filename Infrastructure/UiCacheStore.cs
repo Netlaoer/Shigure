@@ -124,6 +124,8 @@ internal sealed class UiCacheState
     public List<DefaultModuleSelection>? DefaultModules { get; set; }
     public Dictionary<string, int>? ModuleRulesGridColumns { get; set; }
     public Dictionary<string, Dictionary<string, int>>? ColumnWidths { get; set; }
+    /// <summary>配置页左侧职业/专精树是否缩窄。</summary>
+    public bool? ConfigSidebarCollapsed { get; set; }
 }
 
 internal sealed class WindowLocation
