@@ -4,16 +4,14 @@ using System.Drawing.Drawing2D;
 namespace Shigure;
 
 /// <summary>
-/// 顶部横向专精图标条：固定格宽，置于职业条正下方；图标尺寸与 ClassIconStrip 一致。
+/// 顶部横向专精图标条：图标固定尺寸、水平均分排布；尺寸与 ClassIconStrip 一致。
 /// </summary>
 internal sealed class SpecIconStrip : Panel
 {
     public const int IconSize = UiTheme.ClassSpecIconSize;
     public const int CellSize = UiTheme.ClassSpecIconCellSize;
-    public const int CellGap = 6;
-    public const int StripPadding = 8;
+    public const int StripPadding = 2;
 
-    private readonly FlowLayoutPanel _flow;
     private readonly ToolTip _toolTip = new();
     private readonly List<SpecIconButton> _buttons = new();
     private int _selectedIndex = -1;
@@ -26,18 +24,6 @@ internal sealed class SpecIconStrip : Panel
         Margin = Padding.Empty;
         Padding = new Padding(0);
         ApplyScaledMetrics();
-
-        _flow = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = false,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0),
-            Padding = new Padding(StripPadding)
-        };
-        Controls.Add(_flow);
     }
 
     public static int StripHeight => CellSize + (StripPadding * 2);
@@ -60,33 +46,25 @@ internal sealed class SpecIconStrip : Panel
         _suppressSelection = true;
         try
         {
-            _flow.SuspendLayout();
-            _flow.Controls.Clear();
+            SuspendLayout();
+            Controls.Clear();
             _buttons.Clear();
             _selectedIndex = -1;
-
-            var cell = ScaledCellSize();
-            var gap = UiTheme.Scale(this, CellGap);
-            var pad = UiTheme.Scale(this, StripPadding);
-            _flow.Padding = new Padding(pad);
 
             for (var i = 0; i < items.Count; i++)
             {
                 var (classId, specId, name) = items[i];
                 var index = i;
-                var button = new SpecIconButton(classId, specId, name)
-                {
-                    Margin = new Padding(0, 0, gap, 0),
-                    Size = new Size(cell, cell)
-                };
+                var button = new SpecIconButton(classId, specId, name);
                 button.Click += (_, _) => SelectIndex(index, raiseEvent: true);
                 _toolTip.SetToolTip(button, name);
                 _buttons.Add(button);
-                _flow.Controls.Add(button);
+                Controls.Add(button);
             }
 
             ApplySelectionVisuals();
-            _flow.ResumeLayout(true);
+            LayoutButtons();
+            ResumeLayout(true);
         }
         finally
         {
@@ -134,7 +112,7 @@ internal sealed class SpecIconStrip : Panel
         _suppressSelection = true;
         try
         {
-            _flow.Controls.Clear();
+            Controls.Clear();
             _buttons.Clear();
             _selectedIndex = -1;
         }
@@ -148,14 +126,20 @@ internal sealed class SpecIconStrip : Panel
     {
         base.OnHandleCreated(e);
         ApplyScaledMetrics();
-        RescaleButtons();
+        LayoutButtons();
     }
 
     protected override void OnDpiChangedAfterParent(EventArgs e)
     {
         base.OnDpiChangedAfterParent(e);
         ApplyScaledMetrics();
-        RescaleButtons();
+        LayoutButtons();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        LayoutButtons();
     }
 
     private void ApplyScaledMetrics()
@@ -166,17 +150,30 @@ internal sealed class SpecIconStrip : Panel
         MaximumSize = new Size(int.MaxValue, height);
     }
 
-    private void RescaleButtons()
+    private void LayoutButtons()
     {
-        var cell = ScaledCellSize();
-        var gap = UiTheme.Scale(this, CellGap);
-        var pad = UiTheme.Scale(this, StripPadding);
-        _flow.Padding = new Padding(pad);
-        foreach (var button in _buttons)
+        var count = _buttons.Count;
+        if (count == 0)
         {
-            button.Size = new Size(cell, cell);
-            button.Margin = new Padding(0, 0, gap, 0);
-            button.Invalidate();
+            return;
+        }
+
+        var pad = UiTheme.Scale(this, StripPadding);
+        var cell = ScaledCellSize();
+        var inner = Math.Max(0, ClientSize.Width - pad * 2);
+        var y = Math.Max(0, (ClientSize.Height - cell) / 2);
+
+        if (count == 1)
+        {
+            _buttons[0].Bounds = new Rectangle(pad + Math.Max(0, (inner - cell) / 2), y, cell, cell);
+            return;
+        }
+
+        var span = Math.Max(0, inner - cell);
+        for (var i = 0; i < count; i++)
+        {
+            var x = pad + (int)Math.Round(span * (i / (double)(count - 1)));
+            _buttons[i].Bounds = new Rectangle(x, y, cell, cell);
         }
     }
 
@@ -271,27 +268,17 @@ internal sealed class SpecIconStrip : Panel
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
             var bounds = ClientRectangle;
-            var fill = _selected
-                ? UiTheme.Hover
-                : _hovered
-                    ? UiTheme.Field
-                    : UiTheme.SurfaceRaised;
-            using (var brush = new SolidBrush(fill))
+            if (_selected || _hovered)
             {
+                var fill = _selected ? UiTheme.Hover : UiTheme.Field;
+                using var brush = new SolidBrush(fill);
                 g.FillRectangle(brush, bounds);
             }
 
             var drawnIconSize = Math.Min(
                 UiTheme.Scale(this, IconSize),
-                bounds.Height - UiTheme.Scale(this, 12));
+                Math.Min(bounds.Width, bounds.Height) - UiTheme.Scale(this, 4));
             drawnIconSize = Math.Max(8, drawnIconSize);
-
-            if (_selected || _hovered)
-            {
-                using var indicator = new SolidBrush(_selected ? Color.White : UiTheme.Muted);
-                var indicatorInset = Math.Max(6, (bounds.Height - drawnIconSize) / 2);
-                g.FillRectangle(indicator, 0, indicatorInset, 3, bounds.Height - indicatorInset * 2);
-            }
 
             var iconBounds = new Rectangle(
                 (bounds.Width - drawnIconSize) / 2,

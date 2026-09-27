@@ -26,12 +26,12 @@ internal static class UiTheme
     public const int EventPageWidth = 1200 + 1200 * 3 / 10;
     /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>
     public const int ClassSpecIconSize = 40;
-    /// <summary>职业/专精图标格逻辑边长（iconSize + 16）。</summary>
-    public const int ClassSpecIconCellSize = ClassSpecIconSize + 16;
+    /// <summary>职业/专精图标格逻辑边长（iconSize + 8）。</summary>
+    public const int ClassSpecIconCellSize = ClassSpecIconSize + 8;
     /// <summary>图标条卡片内边距。</summary>
-    public const int IconStripCardPadding = 8;
+    public const int IconStripCardPadding = 4;
     /// <summary>同一卡片内职业行与专精行间距。</summary>
-    public const int IconStripRowGap = 4;
+    public const int IconStripRowGap = 2;
 
     private static readonly Dictionary<int, Image?> ClassIcons = new();
     private static readonly Dictionary<(int ClassId, int SpecId), Image?> SpecIcons = new();
