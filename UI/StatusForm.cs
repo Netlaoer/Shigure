@@ -665,6 +665,35 @@ public sealed class StatusForm : Form
         EnableDrag(versionLabel);
         shell.Controls.Add(chrome, 0, 0);
 
+        // 导航行：左侧独立品牌图标 + 右侧文字导航（图标不在「通用」按钮内）。
+        var navRow = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Background,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        navRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        navRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        navRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var brandIcon = new PictureBox
+        {
+            Size = new Size(16, 16),
+            MinimumSize = new Size(16, 16),
+            MaximumSize = new Size(16, 16),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.Transparent,
+            Margin = new Padding(2, 8, 16, 0),
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            AccessibleName = "Shigure"
+        };
+        brandIcon.Image = LoadNavBrandIcon();
+        EnableDrag(brandIcon);
+
         nav = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -676,8 +705,23 @@ public sealed class StatusForm : Form
             Padding = new Padding(0, 2, 0, 2)
         };
         EnableDrag(nav);
-        shell.Controls.Add(nav, 0, 1);
+        navRow.Controls.Add(brandIcon, 0, 0);
+        navRow.Controls.Add(nav, 1, 0);
+        shell.Controls.Add(navRow, 0, 1);
         return shell;
+    }
+
+    private static Image? LoadNavBrandIcon()
+    {
+        const string resourceName = "Shigure.Assets.arasaka-icon-16.png";
+        using var stream = typeof(StatusForm).Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var image = Image.FromStream(stream);
+        return new Bitmap(image);
     }
 
     private Button CreateChromeButton(string text, string tooltip)
@@ -1234,15 +1278,11 @@ public sealed class StatusForm : Form
 
         var buttonFont = new Font(Font.FontFamily, 9.5F, FontStyle.Regular);
         var textWidth = TextRenderer.MeasureText(text, buttonFont).Width;
-        // 「通用」左侧带齿轮图标；导航项之间加宽水平间距。
-        var leadingIcon = page == SettingsPage.General ? "General" : null;
-        var iconExtra = leadingIcon is null ? 0 : 20;
         var button = new SettingsNavButton
         {
             Text = text,
-            LeadingIconName = leadingIcon,
             AutoSize = false,
-            Size = new Size(Math.Max(40, textWidth + 18 + iconExtra), 32),
+            Size = new Size(Math.Max(40, textWidth + 18), 32),
             Font = buttonFont,
             Margin = new Padding(0, 2, 12, 2),
             Cursor = Cursors.Hand,
@@ -2861,7 +2901,6 @@ public sealed class StatusForm : Form
         private bool _pressed;
         private bool _isSelected;
         private bool _isDirty;
-        private string? _leadingIconName;
 
         public SettingsNavButton()
         {
@@ -2876,23 +2915,6 @@ public sealed class StatusForm : Form
                 | ControlStyles.ResizeRedraw
                 | ControlStyles.UserPaint,
                 true);
-        }
-
-        [System.ComponentModel.Browsable(false)]
-        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
-        public string? LeadingIconName
-        {
-            get => _leadingIconName;
-            set
-            {
-                if (_leadingIconName == value)
-                {
-                    return;
-                }
-
-                _leadingIconName = value;
-                Invalidate();
-            }
         }
 
         [System.ComponentModel.Browsable(false)]
@@ -3002,45 +3024,19 @@ public sealed class StatusForm : Form
 
             graphics.SmoothingMode = oldSmoothingMode;
 
-            var foreground = _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted;
             var dirtySpace = _isDirty ? (int)Math.Round(14 * scale) : (int)Math.Round(4 * scale);
-            var sidePad = (int)Math.Round(6 * scale);
-            var iconSize = (int)Math.Round(14 * scale);
-            var iconGap = (int)Math.Round(6 * scale);
-            var hasIcon = !string.IsNullOrEmpty(_leadingIconName);
-            var textSize = TextRenderer.MeasureText(
-                graphics,
-                Text,
-                Font,
-                new Size(int.MaxValue, Height),
-                TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
-            var contentWidth = textSize.Width + (hasIcon ? iconSize + iconGap : 0);
-            var contentLeft = Math.Max(
-                sidePad,
-                (Width - dirtySpace - contentWidth) / 2);
-
-            if (hasIcon)
-            {
-                UiIconCatalog.Draw(
-                    graphics,
-                    _leadingIconName!,
-                    new Rectangle(contentLeft, (Height - iconSize) / 2, iconSize, iconSize),
-                    foreground);
-                contentLeft += iconSize + iconGap;
-            }
-
             var textBounds = new Rectangle(
-                contentLeft,
+                (int)Math.Round(6 * scale),
                 0,
-                Math.Max(0, Width - contentLeft - dirtySpace),
+                Math.Max(0, Width - (int)Math.Round(6 * scale) - dirtySpace),
                 Height);
             TextRenderer.DrawText(
                 graphics,
                 Text,
                 Font,
                 textBounds,
-                foreground,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
             if (_isDirty)
             {

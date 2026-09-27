@@ -49,8 +49,8 @@ public sealed class MainForm : Form, IMessageFilter
     private Button _toggleKeyButton = null!;
     private UiDropDown _modeComboBox = null!;
     private UiDropDown _captureMethodComboBox = null!;
-    private NumericUpDown _scanIntervalBox = null!;
-    private NumericUpDown _logicIntervalBox = null!;
+    private UiSlider _scanIntervalSlider = null!;
+    private UiSlider _logicIntervalSlider = null!;
     private UiDropDown _moduleComboBox = null!;
     private Label _moduleFilterLabel = null!;
     private Label _moduleCountLabel = null!;
@@ -967,36 +967,33 @@ public sealed class MainForm : Form, IMessageFilter
             control.Margin = new Padding(0, 0, rightGap, 0);
         }
 
-        NumericUpDown CreateIntervalBox(int minimum, int defaultValue = 100)
+        UiSlider CreateIntervalSlider(string toolTip)
         {
-            var box = new NumericUpDown
+            var slider = new UiSlider
             {
-                Minimum = minimum,
-                Maximum = 2000,
-                Increment = 10,
-                Value = defaultValue,
-                DecimalPlaces = 0,
-                ThousandsSeparator = true,
-                TextAlign = HorizontalAlignment.Right
+                Minimum = 50,
+                Maximum = 150,
+                Value = 100
             };
-            UiTheme.StyleNumericUpDown(box);
-            SizeActionControl(box, 150, rightGap: 10);
-            return box;
+            SizeActionControl(slider, 280, rightGap: 12);
+            _settingsToolTip.SetToolTip(slider, toolTip);
+            return slider;
         }
 
-        FlowLayoutPanel CreateIntervalActions(NumericUpDown box, string toolTip)
+        FlowLayoutPanel CreateIntervalActions(UiSlider slider)
         {
-            _settingsToolTip.SetToolTip(box, toolTip);
-            var actions = CreateActionsHost();
-            actions.Controls.Add(box);
-            actions.Controls.Add(new Label
+            var valueLabel = new Label
             {
-                Text = "毫秒",
                 AutoSize = true,
-                ForeColor = UiTheme.Muted,
+                ForeColor = UiTheme.Text,
                 BackColor = Color.Transparent,
-                Margin = new Padding(0, 7, 0, 0)
-            });
+                Margin = new Padding(0, 8, 0, 0),
+                Text = $"{slider.Value} 毫秒"
+            };
+            slider.ValueChanged += (_, _) => valueLabel.Text = $"{slider.Value} 毫秒";
+            var actions = CreateActionsHost();
+            actions.Controls.Add(slider);
+            actions.Controls.Add(valueLabel);
             return actions;
         }
 
@@ -1130,19 +1127,19 @@ public sealed class MainForm : Form, IMessageFilter
                 CreateRowDescription("WGC 支持窗口被遮挡；窗口最小化或捕获停止时会暂停扫描"),
                 captureActions));
 
-        _scanIntervalBox = CreateIntervalBox(minimum: 50);
-        _logicIntervalBox = CreateIntervalBox(minimum: 50);
+        _scanIntervalSlider = CreateIntervalSlider("扫描间隔，范围 50–150 毫秒");
+        _logicIntervalSlider = CreateIntervalSlider("计算间隔，范围 50–150 毫秒");
         AddSettingsGroup(
             "性能",
             first: false,
             CreateSettingRow(
                 "扫描频率",
                 CreateRowDescription("两次读取游戏画面之间的间隔；数值越小，状态更新越及时，资源占用越高"),
-                CreateIntervalActions(_scanIntervalBox, "扫描间隔，范围 50–2000 毫秒")),
+                CreateIntervalActions(_scanIntervalSlider)),
             CreateSettingRow(
                 "计算频率",
                 CreateRowDescription("两次模块规则计算之间的间隔；计算使用最近一次扫描到的状态"),
-                CreateIntervalActions(_logicIntervalBox, "计算间隔，范围 50–2000 毫秒")));
+                CreateIntervalActions(_logicIntervalSlider)));
 
         _configSourceLabel = CreateRowDescription("项目目录是唯一配置源；尚未执行手动更新");
         _settingsToolTip.SetToolTip(_configSourceLabel, _configSourceLabel.Text);
@@ -1202,8 +1199,11 @@ public sealed class MainForm : Form, IMessageFilter
         {
             var filter = defaultFilters[i];
             filter.AutoSize = false;
-            filter.Dock = DockStyle.Fill;
-            filter.Margin = new Padding(i == 0 ? 0 : 5, 0, i == defaultFilters.Length - 1 ? 0 : 5, 0);
+            filter.Dock = DockStyle.None;
+            filter.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            filter.Height = settingsActionButtonHeight;
+            // 筛选项之间加大间距，缓解四列拥挤。
+            filter.Margin = new Padding(i == 0 ? 0 : 10, 0, i == defaultFilters.Length - 1 ? 0 : 10, 0);
         }
 
         _settingsToolTip.SetToolTip(_defaultClassComboBox, "职业");
@@ -1234,8 +1234,8 @@ public sealed class MainForm : Form, IMessageFilter
         };
         defaultModuleBlock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 20));
         defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 12));
-        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 4));
 
         var defaultModuleHeader = new FlowLayoutPanel
         {
@@ -1244,7 +1244,7 @@ public sealed class MainForm : Form, IMessageFilter
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             BackColor = Color.Transparent,
-            Margin = new Padding(0, 0, 0, 10),
+            Margin = new Padding(0, 0, 0, 14),
             Padding = new Padding(0)
         };
         defaultModuleHeader.Controls.Add(CreateRowTitle("默认模块"));
@@ -2011,14 +2011,14 @@ public sealed class MainForm : Form, IMessageFilter
             CaptureMethod.ScreenCopy => 1,
             _ => 0
         };
-        _scanIntervalBox.Value = ReadCachedInterval(
+        _scanIntervalSlider.Value = ReadCachedInterval(
             _uiCache.ScanIntervalMs,
             _initialOptions.ScanInterval,
-            _scanIntervalBox);
-        _logicIntervalBox.Value = ReadCachedInterval(
+            _scanIntervalSlider);
+        _logicIntervalSlider.Value = ReadCachedInterval(
             _uiCache.LogicIntervalMs,
             _initialOptions.LogicInterval,
-            _logicIntervalBox);
+            _logicIntervalSlider);
         RefreshModuleSelector(_lastSnapshot, forceRefresh: false);
     }
 
@@ -2026,8 +2026,8 @@ public sealed class MainForm : Form, IMessageFilter
     {
         _modeComboBox.SelectedIndexChanged += HandleSettingCommitted;
         _captureMethodComboBox.SelectedIndexChanged += HandleCaptureMethodChanged;
-        _scanIntervalBox.ValueChanged += HandlePerformanceSettingChanged;
-        _logicIntervalBox.ValueChanged += HandlePerformanceSettingChanged;
+        _scanIntervalSlider.ValueChanged += HandlePerformanceSettingChanged;
+        _logicIntervalSlider.ValueChanged += HandlePerformanceSettingChanged;
         _moduleComboBox.SelectedIndexChanged += HandleModuleSelectionChanged;
     }
 
@@ -2211,8 +2211,8 @@ public sealed class MainForm : Form, IMessageFilter
             Mode = ReadMode(),
             ModuleId = _selectedModuleId,
             CaptureMethod = ReadCaptureMethod(),
-            ScanInterval = ReadInterval(_scanIntervalBox),
-            LogicInterval = ReadInterval(_logicIntervalBox)
+            ScanInterval = ReadInterval(_scanIntervalSlider),
+            LogicInterval = ReadInterval(_logicIntervalSlider)
         };
     }
 
@@ -2421,8 +2421,8 @@ public sealed class MainForm : Form, IMessageFilter
     {
         var comboBox = new UiDropDown();
         UiTheme.StyleComboBox(comboBox);
-        comboBox.Dock = DockStyle.Fill;
-        comboBox.Margin = new Padding(0, 4, 8, 4);
+        comboBox.Height = UiTheme.ActionButtonHeight;
+        comboBox.Margin = new Padding(0);
         return comboBox;
     }
 
@@ -2996,8 +2996,8 @@ public sealed class MainForm : Form, IMessageFilter
         _uiCache.ToggleKey = _toggleKeyName;
         _uiCache.SelectedModuleId = _selectedModuleId;
         _uiCache.CaptureMethod = ReadCaptureMethod().ToString();
-        _uiCache.ScanIntervalMs = decimal.ToInt32(_scanIntervalBox.Value);
-        _uiCache.LogicIntervalMs = decimal.ToInt32(_logicIntervalBox.Value);
+        _uiCache.ScanIntervalMs = _scanIntervalSlider.Value;
+        _uiCache.LogicIntervalMs = _logicIntervalSlider.Value;
         UiCacheStore.Save(_uiCache);
     }
 
@@ -3083,16 +3083,16 @@ public sealed class MainForm : Form, IMessageFilter
     private static string CaptureMethodLabel(CaptureMethod method)
         => method == CaptureMethod.ScreenCopy ? "屏幕截图" : "Windows 图形捕获";
 
-    private static TimeSpan ReadInterval(NumericUpDown box)
-        => TimeSpan.FromMilliseconds(decimal.ToInt32(box.Value));
+    private static TimeSpan ReadInterval(UiSlider slider)
+        => TimeSpan.FromMilliseconds(slider.Value);
 
-    private static decimal ReadCachedInterval(
+    private static int ReadCachedInterval(
         int? cachedMilliseconds,
         TimeSpan fallback,
-        NumericUpDown box)
+        UiSlider slider)
     {
         var milliseconds = cachedMilliseconds ?? (int)Math.Round(fallback.TotalMilliseconds);
-        return Math.Min(box.Maximum, Math.Max(box.Minimum, milliseconds));
+        return Math.Clamp(milliseconds, slider.Minimum, slider.Maximum);
     }
 
     private void ConfigureTrayModuleDropDown()
