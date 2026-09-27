@@ -1784,9 +1784,15 @@ public sealed class ModuleEditorControl : UserControl
         // 否则同名目标会被 seen 抢先登记成错误类别，载入时无法正确回填“类型”。
         foreach (var unit in _units)
         {
-            if (!string.IsNullOrWhiteSpace(unit.HealthName))
+            if (!string.IsNullOrWhiteSpace(unit.ValueName))
             {
-                AddAdjustmentField(fields, seen, unit.HealthName, $"{unit.HealthName} (生命值)", ConditionFieldCategory.DynamicUnit);
+                var fieldLabel = UnitSummary.DescribeTargetField(unit.TargetField);
+                AddAdjustmentField(
+                    fields,
+                    seen,
+                    unit.ValueName,
+                    $"{unit.ValueName} ({fieldLabel})",
+                    ConditionFieldCategory.DynamicUnit);
             }
         }
 
@@ -1929,13 +1935,13 @@ public sealed class ModuleEditorControl : UserControl
         var existingEnemyCount = kind == UnitRowKind.EnemyCount ? _enemyCounts[index] : null;
         var existingAverageHealth = kind == UnitRowKind.AverageHealth ? _averageHealthFields[index] : null;
         var ownName = existingUnit?.Name ?? existingCount?.Name ?? existingEnemyCount?.Name ?? existingAverageHealth?.Name;
-        var ownHealthName = existingUnit?.HealthName;
+        var ownValueName = existingUnit?.ValueName;
 
         using var editor = new UnitEditorForm(
             GetAuraFields(),
             GetNameplateAuraFields(),
             GetThresholdFields(),
-            CollectTakenNames(ownName, ownHealthName),
+            CollectTakenNames(ownName, ownValueName),
             existingUnit,
             existingCount,
             existingEnemyCount,
@@ -2047,20 +2053,18 @@ public sealed class ModuleEditorControl : UserControl
         _unitsList.Items.Clear();
         foreach (var unit in _units)
         {
-            var name = string.IsNullOrWhiteSpace(unit.HealthName) ? unit.Name : $"{unit.Name} / {unit.HealthName}";
+            var name = string.IsNullOrWhiteSpace(unit.ValueName) ? unit.Name : $"{unit.Name} / {unit.ValueName}";
             var summary = UnitSummary.Describe(unit, ResolveGroupAuraName);
             var item = new ListViewItem([name, "队友单位", summary]) { ToolTipText = $"{name}\n{summary}" };
-            var referencedAuraIds = (unit.AuraSpellIds ?? [])
-                .Concat(unit.AuraDurationSpellId is { } durationAuraSpellId ? [durationAuraSpellId] : [])
+            var referencedAuraIds = (unit.FilterGroups ?? [])
+                .SelectMany(group => group.Conditions ?? [])
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Concat(unit.TargetAuraSpellId is { } targetAuraId ? [targetAuraId] : [])
+                .Where(id => id > 0)
                 .Distinct();
             var missing = referencedAuraIds.Where(id => !availableAuraIds.Contains(id)).ToArray();
-            if (unit.AuraNames is { Count: > 0 })
-            {
-                item.BackColor = UiTheme.DangerSoft;
-                item.ForeColor = UiTheme.Danger;
-                item.ToolTipText += $"\n旧名称光环引用尚未转换：{string.Join("、", unit.AuraNames)}";
-            }
-            else if (missing.Length > 0)
+            if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
                 item.ForeColor = UiTheme.Danger;
@@ -2217,9 +2221,9 @@ public sealed class ModuleEditorControl : UserControl
         foreach (var unit in _units)
         {
             taken.Add(unit.Name);
-            if (!string.IsNullOrWhiteSpace(unit.HealthName))
+            if (!string.IsNullOrWhiteSpace(unit.ValueName))
             {
-                taken.Add(unit.HealthName);
+                taken.Add(unit.ValueName);
             }
         }
 
@@ -3829,10 +3833,15 @@ public sealed class ModuleEditorControl : UserControl
                 fields.Add(new ConditionField(unit.Name, $"{unit.Name} (存在)", ConditionFieldType.Bool, ConditionFieldCategory.DynamicUnit));
             }
 
-            // 值名称: 该单位 生命值 的直接命名数值字段。
-            if (!string.IsNullOrWhiteSpace(unit.HealthName) && seen.Add(unit.HealthName))
+            // 值名称: 导出所选单位目标字段的命名数值。
+            if (!string.IsNullOrWhiteSpace(unit.ValueName) && seen.Add(unit.ValueName))
             {
-                fields.Add(new ConditionField(unit.HealthName, $"{unit.HealthName} (生命值)", ConditionFieldType.Int, ConditionFieldCategory.DynamicUnit));
+                var fieldLabel = UnitSummary.DescribeTargetField(unit.TargetField);
+                fields.Add(new ConditionField(
+                    unit.ValueName,
+                    $"{unit.ValueName} ({fieldLabel})",
+                    ConditionFieldType.Int,
+                    ConditionFieldCategory.DynamicUnit));
             }
         }
 
@@ -4372,7 +4381,7 @@ public sealed class ModuleEditorControl : UserControl
             .Where(pair => pair.Value.Count == 1)
             .ToDictionary(pair => pair.Key, pair => pair.Value.Single(), StringComparer.Ordinal);
         var dynamicFieldNames = module.Units
-            .SelectMany(unit => new[] { unit.Name, unit.HealthName })
+            .SelectMany(unit => new[] { unit.Name, unit.ValueName })
             .Concat(module.Counts.Select(count => count.Name))
             .Concat(module.EnemyCounts.Select(count => count.Name))
             .Concat(module.AverageHealthFields.Select(field => field.Name))
@@ -4410,32 +4419,6 @@ public sealed class ModuleEditorControl : UserControl
             adjustment.Formula = formula;
         }
 
-        for (var unitIndex = 0; unitIndex < module.Units.Count; unitIndex++)
-        {
-            var unit = module.Units[unitIndex];
-            if (unit.AuraNames is not { Count: > 0 })
-            {
-                continue;
-            }
-            var ids = new List<long>();
-            foreach (var name in unit.AuraNames)
-            {
-                if (!replacements.TryGetValue(name, out var key) || !TryExtractId(key, out var id))
-                {
-                    error = $"动态单位第 {unitIndex + 1} 行“{unit.Name}”引用的队伍光环“{name}”无法唯一转换为本地 spellId。";
-                    return false;
-                }
-                ids.Add(id);
-            }
-            unit.AuraSpellIds = ids.Distinct().ToList();
-            if (unit.AuraDurationFilter != AuraDurationFilterKind.None
-                && unit.AuraDurationSpellId is null
-                && unit.AuraSpellIds.Count > 0)
-            {
-                unit.AuraDurationSpellId = unit.AuraSpellIds[0];
-            }
-            unit.AuraNames = null;
-        }
         return true;
 
         void AddAuraEntries(IEnumerable<ModuleAuraSnapshot>? entries, string scope, string prefix)
@@ -4544,19 +4527,6 @@ public sealed class ModuleEditorControl : UserControl
                 values[i] = replaced;
             }
             return true;
-        }
-
-        static bool TryExtractId(string key, out long id)
-        {
-            foreach (var part in key.Split('.', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (long.TryParse(part, out id) && id > 0)
-                {
-                    return true;
-                }
-            }
-            id = 0;
-            return false;
         }
     }
 
