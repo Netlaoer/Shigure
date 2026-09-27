@@ -545,21 +545,22 @@ public sealed class StatusForm : Form
         _moduleHost = CreatePageHost();
         _aboutHost = CreatePageHost();
 
-        _stateList = UiTheme.CreateListView(Font, "status-state-v3",
+        // 「值」列与光环卡一致：Absolute min44 / width100；名称吸收剩余宽度。
+        _stateList = UiTheme.CreateListView(Font, "status-state-v4",
             new UiTheme.ListColumn("#", 28, 28, FixedWidth: true),
             new UiTheme.ListColumn("分类", 56, 88),
-            new UiTheme.ListColumn("名称", 40, 200),
-            new UiTheme.ListColumn("值", 40, 900, FillRemaining: true));
+            new UiTheme.ListColumn("名称", 40, 200, FillRemaining: true),
+            new UiTheme.ListColumn("值", 44, 100));
         _auraList = UiTheme.CreateListView(Font, "status-aura-v3",
             new UiTheme.ListColumn("#", 28, 28, FixedWidth: true),
             new UiTheme.ListColumn("名称", 70, 240, FillRemaining: true),
             new UiTheme.ListColumn("spellId", 64, 100),
             new UiTheme.ListColumn("类型", 48, 80),
             new UiTheme.ListColumn("值", 44, 100));
-        _dynamicUnitList = UiTheme.CreateListView(Font, "status-dynamic-unit-v2",
+        _dynamicUnitList = UiTheme.CreateListView(Font, "status-dynamic-unit-v3",
             new UiTheme.ListColumn("类型", 40, 140),
-            new UiTheme.ListColumn("名称", 40, 240),
-            new UiTheme.ListColumn("值", 40, 900, FillRemaining: true));
+            new UiTheme.ListColumn("名称", 40, 240, FillRemaining: true),
+            new UiTheme.ListColumn("值", 44, 100));
         _spellList = UiTheme.CreateListView(Font, "status-spell-v3",
             new UiTheme.ListColumn("#", 28, 28, FixedWidth: true),
             new UiTheme.ListColumn("名称", 70, 240, FillRemaining: true),
