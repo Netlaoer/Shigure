@@ -698,19 +698,16 @@ public sealed class ModuleStore
 
         foreach (var count in module.Counts)
         {
-            UpgradeLegacyCountFilters(count);
             count.Name = count.Name.Trim();
-            count.HealthThresholdField = string.IsNullOrWhiteSpace(count.HealthThresholdField) ? null : count.HealthThresholdField.Trim();
-            count.HealingAbsorbThresholdField = string.IsNullOrWhiteSpace(count.HealingAbsorbThresholdField)
-                ? null
-                : count.HealingAbsorbThresholdField.Trim();
+            count.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(count.FilterGroups);
         }
 
         foreach (var count in module.EnemyCounts)
         {
             count.Name = count.Name.Trim();
-            count.HealthThresholdField = string.IsNullOrWhiteSpace(count.HealthThresholdField) ? null : count.HealthThresholdField.Trim();
-            count.RangeThresholdField = string.IsNullOrWhiteSpace(count.RangeThresholdField) ? null : count.RangeThresholdField.Trim();
+            count.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(count.FilterGroups);
         }
 
         foreach (var field in module.AverageHealthFields)
@@ -802,43 +799,23 @@ public sealed class ModuleStore
         }
     }
 
-    private static void UpgradeLegacyCountFilters(ModuleCountField count)
+    private static void NormalizeCountFilterGroups(List<ModuleCountConditionGroup> groups)
     {
-        if (count.FilterVersion == ModuleCountField.CurrentFilterVersion)
+        foreach (var group in groups)
         {
-            return;
+            group.Conditions ??= new List<ModuleCountCondition>();
+            foreach (var condition in group.Conditions)
+            {
+                condition.ValueField = condition.ValueKind == CountConditionValueKind.StateField
+                    && !string.IsNullOrWhiteSpace(condition.ValueField)
+                        ? condition.ValueField.Trim()
+                        : null;
+                condition.AuraSpellId = condition.Field == CountConditionFieldKind.Aura
+                    && condition.AuraSpellId is > 0
+                        ? condition.AuraSpellId
+                        : null;
+            }
         }
-
-        count.HealthFilter = count.Kind is CountKind.UnitsBelowHealth
-            or CountKind.UnitsWithoutAuraBelowHealth
-            or CountKind.UnitsWithAuraBelowHealth
-                ? EnemyThresholdFilterKind.Below
-                : EnemyThresholdFilterKind.None;
-        count.PositiveHealthOnly = count.HealthFilter != EnemyThresholdFilterKind.None;
-        count.HealingAbsorbFilter = count.Kind is CountKind.UnitsAboveHealingAbsorb
-            or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-            or CountKind.UnitsWithAuraAboveHealingAbsorb
-                ? EnemyThresholdFilterKind.Above
-                : EnemyThresholdFilterKind.None;
-        if (count.HealingAbsorbFilter != EnemyThresholdFilterKind.None)
-        {
-            count.HealingAbsorbThreshold = count.HealthThreshold;
-            count.HealingAbsorbThresholdField = count.HealthThresholdField;
-            count.HealthThreshold = null;
-            count.HealthThresholdField = null;
-        }
-
-        count.AuraFilter = count.Kind switch
-        {
-            CountKind.UnitsWithoutAuraBelowHealth or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-                => EnemyAuraFilterKind.WithoutAura,
-            CountKind.UnitsWithAura or CountKind.UnitsWithAuraBelowHealth
-                or CountKind.UnitsWithAuraAboveHealingAbsorb
-                => EnemyAuraFilterKind.WithAura,
-            _ => EnemyAuraFilterKind.None
-        };
-        count.AuraSpellIds = count.AuraSpellId is { } auraSpellId ? [auraSpellId] : null;
-        count.FilterVersion = ModuleCountField.CurrentFilterVersion;
     }
 
     private static void UpgradeLegacyUnitFilters(ModuleUnit unit)
@@ -933,10 +910,10 @@ public sealed class ModuleStore
         {
             UnitSelectorKind.LowestHealthWithAnyAura
                 or UnitSelectorKind.HighestHealingAbsorbWithAnyAura
-                => EnemyAuraFilterKind.WithAnyAura,
+                => EnemyAuraFilterKind.HasAnyAura,
             UnitSelectorKind.LowestHealthWithoutAnyAura
                 or UnitSelectorKind.HighestHealingAbsorbWithoutAnyAura
-                => EnemyAuraFilterKind.WithoutAnyAura,
+                => EnemyAuraFilterKind.MissingAllAuras,
             UnitSelectorKind.LowestHealthWithoutAura
                 or UnitSelectorKind.UnitWithRoleWithoutAura
                 or UnitSelectorKind.HighestHealingAbsorbWithoutAura
@@ -1447,28 +1424,12 @@ public static class ModuleLogic
 
         foreach (var count in module.Counts)
         {
-            if (!string.IsNullOrWhiteSpace(count.HealthThresholdField))
-            {
-                fields.Add(count.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(count.HealingAbsorbThresholdField))
-            {
-                fields.Add(count.HealingAbsorbThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, count.FilterGroups);
         }
 
         foreach (var count in module.EnemyCounts)
         {
-            if (!string.IsNullOrWhiteSpace(count.HealthThresholdField))
-            {
-                fields.Add(count.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(count.RangeThresholdField))
-            {
-                fields.Add(count.RangeThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, count.FilterGroups);
         }
 
         foreach (var field in module.AverageHealthFields)
@@ -1485,6 +1446,20 @@ public static class ModuleLogic
         }
 
         return fields;
+    }
+
+    private static void AddCountConditionValueFields(
+        ISet<string> fields,
+        IReadOnlyList<ModuleCountConditionGroup> groups)
+    {
+        foreach (var condition in groups
+                     .SelectMany(group => group.Conditions)
+                     .Where(condition => condition.Enabled
+                         && condition.ValueKind == CountConditionValueKind.StateField
+                         && !string.IsNullOrWhiteSpace(condition.ValueField)))
+        {
+            fields.Add(condition.ValueField!.Trim());
+        }
     }
 
     private static bool ApplyValueAdjustment(GameState state, ModuleValueAdjustment adjustment)

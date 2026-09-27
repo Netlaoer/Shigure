@@ -47,34 +47,7 @@ internal static class UnitSummary
     }
 
     public static string Describe(ModuleCountField count, Func<long, string?>? resolveAuraName = null)
-    {
-        if (count.FilterVersion == ModuleCountField.CurrentFilterVersion)
-        {
-            return DescribeFilteredAllies(count, resolveAuraName);
-        }
-
-        var threshold = DescribeThreshold(
-            count.HealthThreshold,
-            count.HealthThresholdField,
-            IsHealingAbsorbKind(count.Kind) ? 0 : 100);
-        var aura = count.AuraSpellId is { } id ? FormatAura(id, resolveAuraName) : "?";
-        var roleFilter = count.RoleFilter is null
-            ? string.Empty
-            : count.RoleFilter == UnitRoleFilterKind.Include
-                ? $"职责={count.Role}且"
-                : $"职责!={count.Role}且";
-        return roleFilter + (count.Kind switch
-        {
-            CountKind.UnitsBelowHealth => $"血量<{threshold} 的人数",
-            CountKind.UnitsWithoutAuraBelowHealth => $"不带[{aura}]且血<{threshold} 的人数",
-            CountKind.UnitsWithAuraBelowHealth => $"带[{aura}]且血<{threshold} 的人数",
-            CountKind.UnitsWithAura => $"带[{aura}] 的人数",
-            CountKind.UnitsAboveHealingAbsorb => $"治疗吸收>{threshold} 的人数",
-            CountKind.UnitsWithoutAuraAboveHealingAbsorb => $"不带[{aura}]且治疗吸收>{threshold} 的人数",
-            CountKind.UnitsWithAuraAboveHealingAbsorb => $"带[{aura}]且治疗吸收>{threshold} 的人数",
-            _ => count.Kind.ToString()
-        });
-    }
+        => DescribeCountGroups(count.FilterGroups, "队友人数", resolveAuraName);
 
     private static string DescribeFilteredUnit(
         ModuleUnit unit,
@@ -116,9 +89,10 @@ internal static class UnitSummary
             {
                 EnemyAuraFilterKind.WithAura => $"带[{aura}]",
                 EnemyAuraFilterKind.WithoutAura => $"不带[{aura}]",
-                EnemyAuraFilterKind.WithAnyAura => $"带任一[{auras}]",
-                EnemyAuraFilterKind.WithoutAnyAura => $"不带任一[{auras}]",
-                EnemyAuraFilterKind.WithAllAuras => $"同时带有[{auras}]",
+                EnemyAuraFilterKind.HasAnyAura => $"拥有任一[{auras}]",
+                EnemyAuraFilterKind.HasAllAuras => $"拥有全部[{auras}]",
+                EnemyAuraFilterKind.MissingAnyAura => $"缺少任一[{auras}]",
+                EnemyAuraFilterKind.MissingAllAuras => $"缺少全部[{auras}]",
                 _ => string.Empty
             });
         }
@@ -154,104 +128,79 @@ internal static class UnitSummary
         return parts.Count == 0 ? selector : $"{string.Join("且", parts)} → {selector}";
     }
 
-    private static string DescribeFilteredAllies(
-        ModuleCountField count,
+    public static string Describe(ModuleEnemyCountField count, Func<long, string?>? resolveAuraName = null)
+        => DescribeCountGroups(count.FilterGroups, "敌人数", resolveAuraName);
+
+    private static string DescribeCountGroups(
+        IReadOnlyList<ModuleCountConditionGroup>? groups,
+        string suffix,
         Func<long, string?>? resolveAuraName)
     {
-        var parts = new List<string>();
-        if (count.HealthFilter != EnemyThresholdFilterKind.None)
+        var descriptions = new List<string>();
+        foreach (var group in groups ?? [])
         {
-            parts.Add($"血量{ThresholdOperator(count.HealthFilter)}{DescribeThreshold(count.HealthThreshold, count.HealthThresholdField, 0)}");
-        }
-
-        if (count.HealingAbsorbFilter != EnemyThresholdFilterKind.None)
-        {
-            parts.Add($"治疗吸收{ThresholdOperator(count.HealingAbsorbFilter)}{DescribeThreshold(count.HealingAbsorbThreshold, count.HealingAbsorbThresholdField, 0)}");
-        }
-
-        if (count.RoleFilter is not null)
-        {
-            parts.Add(count.RoleFilter == UnitRoleFilterKind.Include
-                ? $"职责={count.Role}"
-                : $"职责!={count.Role}");
-        }
-
-        if (count.DispelFilter != AllyDispelFilterKind.None)
-        {
-            parts.Add(count.DispelFilter == AllyDispelFilterKind.WithType
-                ? $"驱散类型={count.DispelType}"
-                : $"驱散类型!={count.DispelType}");
-        }
-
-        if (count.AuraFilter != EnemyAuraFilterKind.None)
-        {
-            var ids = count.AuraSpellIds ?? [];
-            var aura = ids.Count > 0 ? FormatAura(ids[0], resolveAuraName) : "?";
-            var auras = ids.Count > 0
-                ? string.Join("/", ids.Select(id => FormatAura(id, resolveAuraName)))
-                : "?";
-            parts.Add(count.AuraFilter switch
+            var enabled = (group.Conditions ?? []).Where(condition => condition.Enabled).ToArray();
+            if (enabled.Length == 0)
             {
-                EnemyAuraFilterKind.WithAura => $"带[{aura}]",
-                EnemyAuraFilterKind.WithoutAura => $"不带[{aura}]",
-                EnemyAuraFilterKind.WithAnyAura => $"带任一[{auras}]",
-                EnemyAuraFilterKind.WithoutAnyAura => $"不带任一[{auras}]",
-                EnemyAuraFilterKind.WithAllAuras => $"同时带有[{auras}]",
-                _ => string.Empty
-            });
-
-        }
-
-        return parts.Count == 0 ? "队友人数" : $"{string.Join("且", parts)} 的队友人数";
-    }
-
-    public static string Describe(ModuleEnemyCountField count, Func<long, string?>? resolveAuraName = null)
-    {
-        var parts = new List<string>();
-        if (count.HealthFilter != EnemyThresholdFilterKind.None)
-        {
-            parts.Add($"血量{ThresholdOperator(count.HealthFilter)}{DescribeThreshold(count.HealthThreshold, count.HealthThresholdField, 0)}");
-        }
-
-        if (count.AuraFilter != EnemyAuraFilterKind.None)
-        {
-            var ids = count.AuraSpellIds ?? [];
-            var aura = ids.Count > 0 ? FormatAura(ids[0], resolveAuraName) : "?";
-            var auras = ids.Count > 0
-                ? string.Join("/", ids.Select(id => FormatAura(id, resolveAuraName)))
-                : "?";
-            parts.Add(count.AuraFilter switch
-            {
-                EnemyAuraFilterKind.WithAura => $"带[{aura}]",
-                EnemyAuraFilterKind.WithoutAura => $"不带[{aura}]",
-                EnemyAuraFilterKind.WithAnyAura => $"带任一[{auras}]",
-                EnemyAuraFilterKind.WithoutAnyAura => $"不带任一[{auras}]",
-                EnemyAuraFilterKind.WithAllAuras => $"同时带有[{auras}]",
-                _ => string.Empty
-            });
-
-            if (count.AuraFilter == EnemyAuraFilterKind.WithAura
-                && count.AuraDurationFilter is AuraDurationFilterKind.Above or AuraDurationFilterKind.Below)
-            {
-                var op = count.AuraDurationFilter == AuraDurationFilterKind.Above ? ">" : "<";
-                parts.Add($"[{aura}]光环时间{op}{count.AuraDurationThreshold.GetValueOrDefault()}秒");
+                continue;
             }
+
+            var separator = group.Mode == CountConditionGroupMode.Any ? " 或 " : " 且 ";
+            var body = string.Join(separator, enabled.Select(condition => DescribeCountCondition(condition, resolveAuraName)));
+            descriptions.Add(enabled.Length > 1 ? $"({body})" : body);
         }
 
-        if (count.RangeFilter != EnemyThresholdFilterKind.None)
-        {
-            parts.Add($"距离{ThresholdOperator(count.RangeFilter)}{DescribeThreshold(count.RangeThreshold, count.RangeThresholdField, 0)}");
-        }
-
-        if (count.CombatFilter != EnemyCombatFilterKind.None)
-        {
-            parts.Add(count.CombatFilter == EnemyCombatFilterKind.InCombat ? "战斗中" : "不在战斗中");
-        }
-
-        return parts.Count == 0
-            ? "敌人数(血量>0)"
-            : $"{string.Join("且", parts)} 的敌人数";
+        return descriptions.Count == 0 ? suffix : $"{string.Join(" 且 ", descriptions)} 的{suffix}";
     }
+
+    private static string DescribeCountCondition(
+        ModuleCountCondition condition,
+        Func<long, string?>? resolveAuraName)
+    {
+        var field = condition.Field switch
+        {
+            CountConditionFieldKind.Health => "生命值",
+            CountConditionFieldKind.HealingAbsorb => "治疗吸收",
+            CountConditionFieldKind.Role => "职责",
+            CountConditionFieldKind.Dispel => "驱散",
+            CountConditionFieldKind.Range => "距离",
+            CountConditionFieldKind.Combat => "战斗",
+            CountConditionFieldKind.Aura => $"[{FormatAura(condition.AuraSpellId.GetValueOrDefault(), resolveAuraName)}]",
+            _ => "?"
+        };
+        var value = condition.ValueKind == CountConditionValueKind.StateField
+            ? $"[{condition.ValueField}]"
+            : DescribeCountValue(condition);
+        return $"{field}{CountComparisonOperator(condition.Comparison)}{value}";
+    }
+
+    private static string DescribeCountValue(ModuleCountCondition condition)
+    {
+        return condition.Field switch
+        {
+            CountConditionFieldKind.Role => condition.Value switch
+            {
+                1 => "坦克",
+                2 => "治疗",
+                3 => "输出",
+                _ => condition.Value.ToString()
+            },
+            CountConditionFieldKind.Combat => condition.Value == 0 ? "不在战斗中" : "战斗中",
+            _ => condition.Value.ToString()
+        };
+    }
+
+    private static string CountComparisonOperator(CountConditionComparisonKind comparison)
+        => comparison switch
+        {
+            CountConditionComparisonKind.Equal => "==",
+            CountConditionComparisonKind.NotEqual => "!=",
+            CountConditionComparisonKind.GreaterThan => ">",
+            CountConditionComparisonKind.LessThan => "<",
+            CountConditionComparisonKind.GreaterThanOrEqual => ">=",
+            CountConditionComparisonKind.LessThanOrEqual => "<=",
+            _ => "?"
+        };
 
     public static string Describe(ModuleAverageHealthField field, Func<long, string?>? resolveAuraName = null)
     {
@@ -272,9 +221,10 @@ internal static class UnitSummary
             {
                 EnemyAuraFilterKind.WithAura => $"带[{aura}]",
                 EnemyAuraFilterKind.WithoutAura => $"不带[{aura}]",
-                EnemyAuraFilterKind.WithAnyAura => $"带任一[{auras}]",
-                EnemyAuraFilterKind.WithoutAnyAura => $"不带任一[{auras}]",
-                EnemyAuraFilterKind.WithAllAuras => $"同时带有[{auras}]",
+                EnemyAuraFilterKind.HasAnyAura => $"拥有任一[{auras}]",
+                EnemyAuraFilterKind.HasAllAuras => $"拥有全部[{auras}]",
+                EnemyAuraFilterKind.MissingAnyAura => $"缺少任一[{auras}]",
+                EnemyAuraFilterKind.MissingAllAuras => $"缺少全部[{auras}]",
                 _ => string.Empty
             });
 
@@ -350,8 +300,4 @@ internal static class UnitSummary
             or UnitSelectorKind.HighestHealingAbsorbWithAura
             or UnitSelectorKind.HighestHealingAbsorbWithAuraCount;
 
-    private static bool IsHealingAbsorbKind(CountKind kind)
-        => kind is CountKind.UnitsAboveHealingAbsorb
-            or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-            or CountKind.UnitsWithAuraAboveHealingAbsorb;
 }

@@ -105,68 +105,9 @@ public static class UnitSelector
     /// <summary>解析数量字段为整数。</summary>
     public static int Resolve(ModuleCountField count, GameState state)
     {
-        if (count.FilterVersion == ModuleCountField.CurrentFilterVersion)
-        {
-            return ResolveFilteredAllies(count, state);
-        }
-
-        var group = state.Group;
-        var threshold = ResolveThreshold(
-            count.HealthThreshold,
-            count.HealthThresholdField,
-            state,
-            IsHealingAbsorbKind(count.Kind) ? 0 : DefaultThreshold);
-        if (RequiresAura(count.Kind)
-            && (count.AuraSpellId is null || !GroupContainsAuraField(group, count.AuraSpellId.Value)))
-        {
-            return 0;
-        }
-
-        return count.Kind switch
-        {
-            CountKind.UnitsBelowHealth => CountUnits(
-                group,
-                data => MatchesRoleFilter(data, count.RoleFilter, count.Role) && BelowThreshold(data, threshold)),
-            CountKind.UnitsWithoutAuraBelowHealth => count.AuraSpellId is null
-                ? 0
-                : CountUnits(
-                    group,
-                    data => MatchesRoleFilter(data, count.RoleFilter, count.Role)
-                        && !HasAura(data, count.AuraSpellId.Value)
-                        && BelowThreshold(data, threshold)),
-            CountKind.UnitsWithAura => count.AuraSpellId is null
-                ? 0
-                : CountUnits(
-                    group,
-                    data => MatchesRoleFilter(data, count.RoleFilter, count.Role)
-                        && HasAura(data, count.AuraSpellId.Value)),
-            CountKind.UnitsWithAuraBelowHealth => count.AuraSpellId is null
-                ? 0
-                : CountUnits(
-                    group,
-                    data => MatchesRoleFilter(data, count.RoleFilter, count.Role)
-                        && HasAura(data, count.AuraSpellId.Value)
-                        && BelowThreshold(data, threshold)),
-            CountKind.UnitsAboveHealingAbsorb => CountUnits(
-                group,
-                data => MatchesRoleFilter(data, count.RoleFilter, count.Role)
-                    && AboveHealingAbsorbThreshold(data, threshold)),
-            CountKind.UnitsWithoutAuraAboveHealingAbsorb => count.AuraSpellId is null
-                ? 0
-                : CountUnits(
-                    group,
-                    data => MatchesRoleFilter(data, count.RoleFilter, count.Role)
-                        && !HasAura(data, count.AuraSpellId.Value)
-                        && AboveHealingAbsorbThreshold(data, threshold)),
-            CountKind.UnitsWithAuraAboveHealingAbsorb => count.AuraSpellId is null
-                ? 0
-                : CountUnits(
-                    group,
-                    data => MatchesRoleFilter(data, count.RoleFilter, count.Role)
-                        && HasAura(data, count.AuraSpellId.Value)
-                        && AboveHealingAbsorbThreshold(data, threshold)),
-            _ => 0
-        };
+        return IsValidCountFilterConfiguration(count.FilterGroups, enemy: false)
+            ? CountUnits(state.Group, data => MatchesCountFilterGroups(data, state, count.FilterGroups))
+            : 0;
     }
 
     private static string? ResolveFilteredUnit(ModuleUnit unit, GameState state)
@@ -328,55 +269,18 @@ public static class UnitSelector
             .ToList();
     }
 
-    private static int ResolveFilteredAllies(ModuleCountField count, GameState state)
-    {
-        var auras = count.AuraSpellIds ?? [];
-        if (RequiresAura(count.AuraFilter)
-            && (auras.Count == 0 || auras.Any(id => !GroupContainsAuraField(state.Group, id))))
-        {
-            return 0;
-        }
-
-        var healthThreshold = ResolveThreshold(count.HealthThreshold, count.HealthThresholdField, state, 0);
-        var healingAbsorbThreshold = ResolveThreshold(
-            count.HealingAbsorbThreshold,
-            count.HealingAbsorbThresholdField,
-            state,
-            0);
-        return CountUnits(state.Group, data =>
-            (!count.PositiveHealthOnly
-                || TryInt(GetField(data, "生命值"), out var positiveHealth) && positiveHealth > 0)
-            && MatchesOptionalThreshold(data, "生命值", count.HealthFilter, healthThreshold)
-            && MatchesOptionalThreshold(data, "治疗吸收", count.HealingAbsorbFilter, healingAbsorbThreshold)
-            && MatchesRoleFilter(data, count.RoleFilter, count.Role)
-            && MatchesDispelFilter(data, count.DispelFilter, count.DispelType)
-            && MatchesAuraFilter(data, count.AuraFilter, auras));
-    }
-
     /// <summary>
     /// 解析敌人数量字段为整数: 统计姓名板中距离 &gt; 0 且满足全部已启用筛选(生命值 / 光环 / 距离 / 战斗)的敌人。
     /// 姓名板未配置距离时该字段恒为 0, 结果也恒为 0。
     /// </summary>
     public static int Resolve(ModuleEnemyCountField count, GameState state)
     {
+        if (!IsValidCountFilterConfiguration(count.FilterGroups, enemy: true))
+        {
+            return 0;
+        }
+
         var nameplates = state.Nameplates;
-        var healthThreshold = ResolveThreshold(count.HealthThreshold, count.HealthThresholdField, state, 0);
-        var rangeThreshold = ResolveThreshold(count.RangeThreshold, count.RangeThresholdField, state, 0);
-        var auras = count.AuraSpellIds ?? [];
-        if (RequiresAura(count.AuraFilter) && auras.Count == 0)
-        {
-            return 0;
-        }
-
-        var durationAuraSpellId = count.AuraFilter == EnemyAuraFilterKind.WithAura && auras.Count > 0
-            ? auras[0]
-            : (long?)null;
-        if (count.AuraDurationFilter is AuraDurationFilterKind.Above or AuraDurationFilterKind.Below
-            && durationAuraSpellId is null)
-        {
-            return 0;
-        }
-
         var result = 0;
         for (var i = 1; i <= NameplateStateLayout.SlotCount; i++)
         {
@@ -396,33 +300,7 @@ public static class UnitSelector
                 continue;
             }
 
-            if (count.HealthFilter != EnemyThresholdFilterKind.None
-                && (!TryInt(GetField(data, "生命值"), out var health)
-                    || !MatchesThreshold(count.HealthFilter, health, healthThreshold)))
-            {
-                continue;
-            }
-
-            if (!MatchesThreshold(count.RangeFilter, range, rangeThreshold))
-            {
-                continue;
-            }
-
-            if (!MatchesAuraFilter(data, count.AuraFilter, auras))
-            {
-                continue;
-            }
-
-            if (!MatchesAuraDuration(
-                    data,
-                    count.AuraDurationFilter,
-                    durationAuraSpellId,
-                    count.AuraDurationThreshold.GetValueOrDefault()))
-            {
-                continue;
-            }
-
-            if (!MatchesCombatFilter(data, count.CombatFilter))
+            if (!MatchesCountFilterGroups(data, state, count.FilterGroups))
             {
                 continue;
             }
@@ -511,6 +389,140 @@ public static class UnitSelector
             ? 0
             : (int)Math.Round((double)total / count, MidpointRounding.AwayFromZero);
 
+    private static bool IsValidCountFilterConfiguration(
+        IReadOnlyList<ModuleCountConditionGroup>? groups,
+        bool enemy)
+    {
+        foreach (var condition in (groups ?? []).SelectMany(group => group.Conditions ?? []).Where(condition => condition.Enabled))
+        {
+            var allowed = enemy
+                ? condition.Field is CountConditionFieldKind.Health
+                    or CountConditionFieldKind.Range
+                    or CountConditionFieldKind.Combat
+                    or CountConditionFieldKind.Aura
+                : condition.Field is CountConditionFieldKind.Health
+                    or CountConditionFieldKind.HealingAbsorb
+                    or CountConditionFieldKind.Role
+                    or CountConditionFieldKind.Dispel
+                    or CountConditionFieldKind.Aura;
+            if (!allowed
+                || condition.Field == CountConditionFieldKind.Aura && condition.AuraSpellId is not > 0
+                || condition.Field != CountConditionFieldKind.Aura && condition.AuraSpellId is not null
+                || (condition.Field is CountConditionFieldKind.Role
+                        or CountConditionFieldKind.Dispel
+                        or CountConditionFieldKind.Combat)
+                    && condition.Comparison is not (CountConditionComparisonKind.Equal
+                        or CountConditionComparisonKind.NotEqual)
+                || condition.ValueKind == CountConditionValueKind.StateField
+                    && (condition.Field is CountConditionFieldKind.Role
+                            or CountConditionFieldKind.Dispel
+                            or CountConditionFieldKind.Combat
+                        || string.IsNullOrWhiteSpace(condition.ValueField)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool MatchesCountFilterGroups(
+        IReadOnlyDictionary<string, object?> data,
+        GameState state,
+        IReadOnlyList<ModuleCountConditionGroup>? groups)
+    {
+        foreach (var group in groups ?? [])
+        {
+            var enabled = (group.Conditions ?? []).Where(condition => condition.Enabled).ToArray();
+            if (enabled.Length == 0)
+            {
+                continue;
+            }
+
+            var matches = group.Mode == CountConditionGroupMode.Any
+                ? enabled.Any(condition => MatchesCountCondition(data, state, condition))
+                : enabled.All(condition => MatchesCountCondition(data, state, condition));
+            if (!matches)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool MatchesCountCondition(
+        IReadOnlyDictionary<string, object?> data,
+        GameState state,
+        ModuleCountCondition condition)
+    {
+        if (!TryReadCountConditionValue(data, condition, out var actual))
+        {
+            return false;
+        }
+
+        var expected = condition.ValueKind == CountConditionValueKind.StateField
+            ? state.GetInt(condition.ValueField ?? string.Empty)
+            : condition.Value;
+        if (condition.Field == CountConditionFieldKind.Aura && actual == 0)
+        {
+            return condition.Comparison == CountConditionComparisonKind.Equal && expected == 0;
+        }
+
+        return condition.Comparison switch
+        {
+            CountConditionComparisonKind.Equal => actual == expected,
+            CountConditionComparisonKind.NotEqual => actual != expected,
+            CountConditionComparisonKind.GreaterThan => actual > expected,
+            CountConditionComparisonKind.LessThan => actual < expected,
+            CountConditionComparisonKind.GreaterThanOrEqual => actual >= expected,
+            CountConditionComparisonKind.LessThanOrEqual => actual <= expected,
+            _ => false
+        };
+    }
+
+    private static bool TryReadCountConditionValue(
+        IReadOnlyDictionary<string, object?> data,
+        ModuleCountCondition condition,
+        out int value)
+    {
+        if (condition.Field == CountConditionFieldKind.Aura)
+        {
+            value = condition.AuraSpellId is { } spellId ? GetAuraDuration(data, spellId) : 0;
+            return condition.AuraSpellId is > 0;
+        }
+
+        if (condition.Field == CountConditionFieldKind.Combat)
+        {
+            value = GetField(data, "战斗") is bool inCombat && inCombat ? 1 : 0;
+            return true;
+        }
+
+        var field = condition.Field switch
+        {
+            CountConditionFieldKind.Health => "生命值",
+            CountConditionFieldKind.HealingAbsorb => "治疗吸收",
+            CountConditionFieldKind.Role => "职责",
+            CountConditionFieldKind.Dispel => "驱散",
+            CountConditionFieldKind.Range => "距离",
+            _ => string.Empty
+        };
+        if (field.Length == 0)
+        {
+            value = 0;
+            return false;
+        }
+
+        if (TryInt(GetField(data, field), out value))
+        {
+            return true;
+        }
+
+        // 未检测到驱散值时等价于 0，使“驱散 != 某类型”保持原有语义。
+        value = 0;
+        return condition.Field == CountConditionFieldKind.Dispel;
+    }
+
     private static bool MatchesThreshold(EnemyThresholdFilterKind filter, int value, int threshold)
     {
         return filter switch
@@ -559,9 +571,10 @@ public static class UnitSelector
         {
             EnemyAuraFilterKind.WithAura => HasAura(data, auraSpellIds[0]),
             EnemyAuraFilterKind.WithoutAura => !HasAura(data, auraSpellIds[0]),
-            EnemyAuraFilterKind.WithAnyAura => HasAnyAura(data, auraSpellIds),
-            EnemyAuraFilterKind.WithoutAnyAura => !HasAnyAura(data, auraSpellIds),
-            EnemyAuraFilterKind.WithAllAuras => auraSpellIds.Count >= 2 && HasAllAuras(data, auraSpellIds),
+            EnemyAuraFilterKind.HasAnyAura => auraSpellIds.Count >= 2 && HasAnyAura(data, auraSpellIds),
+            EnemyAuraFilterKind.HasAllAuras => auraSpellIds.Count >= 2 && HasAllAuras(data, auraSpellIds),
+            EnemyAuraFilterKind.MissingAnyAura => auraSpellIds.Count >= 2 && !HasAllAuras(data, auraSpellIds),
+            EnemyAuraFilterKind.MissingAllAuras => auraSpellIds.Count >= 2 && !HasAnyAura(data, auraSpellIds),
             _ => true
         };
     }
@@ -614,9 +627,10 @@ public static class UnitSelector
     private static bool RequiresAura(EnemyAuraFilterKind filter)
         => filter is EnemyAuraFilterKind.WithAura
             or EnemyAuraFilterKind.WithoutAura
-            or EnemyAuraFilterKind.WithAnyAura
-            or EnemyAuraFilterKind.WithoutAnyAura
-            or EnemyAuraFilterKind.WithAllAuras;
+            or EnemyAuraFilterKind.HasAnyAura
+            or EnemyAuraFilterKind.HasAllAuras
+            or EnemyAuraFilterKind.MissingAnyAura
+            or EnemyAuraFilterKind.MissingAllAuras;
 
     /// <summary>在职责 != 0 的单位里, 取生命值 &lt; 阈值且满足 predicate 的最低血量单位（含 0 和负数）。</summary>
     private static string? LowestHealth(
@@ -816,11 +830,6 @@ public static class UnitSelector
             or UnitSelectorKind.HighestHealingAbsorbWithAura
             or UnitSelectorKind.HighestHealingAbsorbWithAuraCount;
 
-    private static bool IsHealingAbsorbKind(CountKind kind)
-        => kind is CountKind.UnitsAboveHealingAbsorb
-            or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-            or CountKind.UnitsWithAuraAboveHealingAbsorb;
-
     private static bool AuraEquals(IReadOnlyDictionary<string, object?> data, long auraSpellId, int target)
     {
         return TryInt(GetField(data, SpellFieldKey.AuraMember(auraSpellId)), out var val) && val == target;
@@ -911,13 +920,6 @@ public static class UnitSelector
             or UnitSelectorKind.HighestHealingAbsorbWithoutAura
             or UnitSelectorKind.HighestHealingAbsorbWithAura
             or UnitSelectorKind.HighestHealingAbsorbWithAuraCount;
-
-    private static bool RequiresAura(CountKind kind)
-        => kind is CountKind.UnitsWithoutAuraBelowHealth
-            or CountKind.UnitsWithAura
-            or CountKind.UnitsWithAuraBelowHealth
-            or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-            or CountKind.UnitsWithAuraAboveHealingAbsorb;
 
     private static long? FirstAura(List<long>? auraSpellIds)
     {

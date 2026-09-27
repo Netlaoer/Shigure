@@ -2073,14 +2073,14 @@ public sealed class ModuleEditorControl : UserControl
         {
             var summary = UnitSummary.Describe(count, ResolveGroupAuraName);
             var item = new ListViewItem([count.Name, "队友数量", summary]) { ToolTipText = $"{count.Name}\n{summary}" };
-            var missing = (count.AuraSpellIds ?? []).Where(id => !availableAuraIds.Contains(id)).ToArray();
-            if (!string.IsNullOrWhiteSpace(count.AuraName))
-            {
-                item.BackColor = UiTheme.DangerSoft;
-                item.ForeColor = UiTheme.Danger;
-                item.ToolTipText += $"\n旧名称光环引用尚未转换：{count.AuraName}";
-            }
-            else if (missing.Length > 0)
+            var referencedAuraIds = count.FilterGroups
+                .SelectMany(group => group.Conditions)
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Where(id => id > 0)
+                .Distinct();
+            var missing = referencedAuraIds.Where(id => !availableAuraIds.Contains(id)).ToArray();
+            if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
                 item.ForeColor = UiTheme.Danger;
@@ -2098,7 +2098,13 @@ public sealed class ModuleEditorControl : UserControl
         {
             var summary = UnitSummary.Describe(count, ResolveNameplateAuraName);
             var item = new ListViewItem([count.Name, "敌人数量", summary]) { ToolTipText = $"{count.Name}\n{summary}" };
-            var missing = (count.AuraSpellIds ?? []).Where(id => !availableNameplateAuraIds.Contains(id)).ToArray();
+            var referencedAuraIds = count.FilterGroups
+                .SelectMany(group => group.Conditions)
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Where(id => id > 0)
+                .Distinct();
+            var missing = referencedAuraIds.Where(id => !availableNameplateAuraIds.Contains(id)).ToArray();
             if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
@@ -4430,23 +4436,6 @@ public sealed class ModuleEditorControl : UserControl
             }
             unit.AuraNames = null;
         }
-        for (var countIndex = 0; countIndex < module.Counts.Count; countIndex++)
-        {
-            var count = module.Counts[countIndex];
-            if (string.IsNullOrWhiteSpace(count.AuraName))
-            {
-                continue;
-            }
-            if (!replacements.TryGetValue(count.AuraName, out var key) || !TryExtractId(key, out var id))
-            {
-                error = $"动态数量第 {countIndex + 1} 行“{count.Name}”引用的队伍光环“{count.AuraName}”无法唯一转换为本地 spellId。";
-                return false;
-            }
-            count.AuraSpellId = id;
-            count.AuraSpellIds = [id];
-            count.AuraName = null;
-        }
-
         return true;
 
         void AddAuraEntries(IEnumerable<ModuleAuraSnapshot>? entries, string scope, string prefix)

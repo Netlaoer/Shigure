@@ -72,17 +72,6 @@ public sealed class UnitEditorForm : Form
         new("逆序首个", true)
     ];
 
-    private static readonly CountItem[] CountSelectors =
-    [
-        new("血量 - 低于阈值", CountKind.UnitsBelowHealth),
-        new("血量 - 低于阈值不带某光环", CountKind.UnitsWithoutAuraBelowHealth),
-        new("血量 - 低于阈值带某光环", CountKind.UnitsWithAuraBelowHealth),
-        new("治疗吸收 - 大于阈值", CountKind.UnitsAboveHealingAbsorb),
-        new("治疗吸收 - 大于阈值不带某光环", CountKind.UnitsWithoutAuraAboveHealingAbsorb),
-        new("治疗吸收 - 大于阈值带某光环", CountKind.UnitsWithAuraAboveHealingAbsorb),
-        new("光环 - 带某光环", CountKind.UnitsWithAura)
-    ];
-
     private static readonly ThresholdModeItem[] ThresholdModeOptions =
     [
         new("固定阈值", false),
@@ -141,11 +130,12 @@ public sealed class UnitEditorForm : Form
     private static readonly EnemyAuraFilterItem[] EnemyAuraFilterOptions =
     [
         new("不筛选光环", EnemyAuraFilterKind.None),
-        new("有某一个光环", EnemyAuraFilterKind.WithAura),
-        new("没有某一个光环", EnemyAuraFilterKind.WithoutAura),
-        new("有任一光环 (多选)", EnemyAuraFilterKind.WithAnyAura),
-        new("同时拥有光环 (多选)", EnemyAuraFilterKind.WithAllAuras),
-        new("没有任一光环 (多选)", EnemyAuraFilterKind.WithoutAnyAura)
+        new("拥有指定光环", EnemyAuraFilterKind.WithAura),
+        new("缺少指定光环", EnemyAuraFilterKind.WithoutAura),
+        new("拥有任一光环 (多选)", EnemyAuraFilterKind.HasAnyAura),
+        new("拥有全部光环 (多选)", EnemyAuraFilterKind.HasAllAuras),
+        new("缺少任一光环 (多选)", EnemyAuraFilterKind.MissingAnyAura),
+        new("缺少全部光环 (多选)", EnemyAuraFilterKind.MissingAllAuras)
     ];
 
     private static readonly AverageTargetItem[] AverageTargetOptions =
@@ -158,6 +148,7 @@ public sealed class UnitEditorForm : Form
     private readonly IReadOnlyList<ConditionField> _nameplateAuraFields;
     private readonly IReadOnlyList<string> _thresholdFields;
     private readonly HashSet<string> _takenNames;
+    private readonly CountFilterEditorControl _countFilterEditor;
 
     private readonly Label _healthNameLabel = new();
     private readonly TextBox _nameBox = new();
@@ -169,6 +160,7 @@ public sealed class UnitEditorForm : Form
     private readonly FlowLayoutPanel _paramPanel = new();
     private readonly Label _previewLabel = new();
     private readonly ToolTip _toolTip = new();
+    private Button? _okButton;
 
     private readonly NumericUpDown _thresholdBox = new();
     private readonly UiDropDown _thresholdModeBox = new();
@@ -219,6 +211,7 @@ public sealed class UnitEditorForm : Form
     private Panel _dispelOrderRow = null!;
     private Panel _auraOrderRow = null!;
     private UiCardPanel _enemyHealthSection = null!;
+    private UiCardPanel _countFilterSection = null!;
     private UiCardPanel _enemyAuraSection = null!;
     private UiCardPanel _auraDurationSection = null!;
     private UiCardPanel _enemyRangeSection = null!;
@@ -268,6 +261,8 @@ public sealed class UnitEditorForm : Form
         _nameplateAuraFields = nameplateAuraFields;
         _thresholdFields = thresholdFields;
         _takenNames = new HashSet<string>(takenNames, StringComparer.OrdinalIgnoreCase);
+        _countFilterEditor = new CountFilterEditorControl(auraFields, nameplateAuraFields, thresholdFields);
+        _countFilterEditor.Changed += (_, _) => UpdatePreview();
         InitializeComponent();
         Seed(existingUnit, existingCount, existingEnemyCount, existingAverageHealth);
         UpdateParamVisibility();
@@ -567,6 +562,8 @@ public sealed class UnitEditorForm : Form
         BuildEnemyParamRows();
         BuildAllyCountParamRows();
 
+        _countFilterSection = BuildFilterSection("列表筛选", _countFilterEditor);
+
         _thresholdSection = BuildFilterSection("生命值", _thresholdModeRow, _thresholdRow, _thresholdFieldRow);
         _thresholdSectionTitle = _thresholdSection.Controls.OfType<Label>().Single();
         _allyAuraSection = BuildFilterSection(
@@ -581,6 +578,7 @@ public sealed class UnitEditorForm : Form
         _dispelSection = BuildFilterSection("驱散", _dispelRow);
 
         _paramPanel.Controls.AddRange([
+            _countFilterSection,
             _thresholdSection,
             _allyAuraSection,
             _enemyHealthSection,
@@ -983,20 +981,20 @@ public sealed class UnitEditorForm : Form
             Margin = new Padding(0)
         };
 
-        var okButton = UiTheme.CreateButton("确定", UiTheme.ButtonKind.Primary);
-        UiTheme.StyleActionButton(okButton, 84);
-        okButton.Margin = new Padding(8, 0, 0, 0);
-        okButton.Click += (_, _) => OnConfirm();
+        _okButton = UiTheme.CreateButton("确定", UiTheme.ButtonKind.Primary);
+        UiTheme.StyleActionButton(_okButton, 84);
+        _okButton.Margin = new Padding(8, 0, 0, 0);
+        _okButton.Click += (_, _) => OnConfirm();
 
         var cancelButton = UiTheme.CreateButton("取消", UiTheme.ButtonKind.Secondary);
         UiTheme.StyleActionButton(cancelButton, 84);
         cancelButton.Margin = new Padding(8, 0, 0, 0);
         cancelButton.Click += (_, _) => DialogResult = DialogResult.Cancel;
 
-        actions.Controls.Add(okButton);
+        actions.Controls.Add(_okButton);
         actions.Controls.Add(cancelButton);
         row.Controls.Add(actions, 1, 0);
-        AcceptButton = okButton;
+        AcceptButton = _okButton;
         CancelButton = cancelButton;
         return row;
     }
@@ -1050,7 +1048,9 @@ public sealed class UnitEditorForm : Form
             _enemyAuraFilterBox.Items.Clear();
             foreach (var option in EnemyAuraFilterOptions)
             {
-                if (option.Kind != EnemyAuraFilterKind.WithAllAuras || countCategory)
+                if (countCategory
+                    || option.Kind is not (EnemyAuraFilterKind.HasAllAuras
+                        or EnemyAuraFilterKind.MissingAnyAura))
                 {
                     _enemyAuraFilterBox.Items.Add(option);
                 }
@@ -1081,7 +1081,27 @@ public sealed class UnitEditorForm : Form
     {
         bool threshold = false, lowestHealthAuraFilter = false, lowestHealthRoleFilter = false, role = false, reverse = false, auraSingle = false, auraMulti = false, auraCount = false, dispel = false;
 
-        if (IsUnitCategory || IsCountCategory || IsEnemyCountCategory || IsAverageHealthCategory)
+        if (IsCountCategory || IsEnemyCountCategory)
+        {
+            _selectorBox.Visible = false;
+            _selectorLabel.Visible = false;
+            _countFilterEditor.SetEnemyTarget(IsEnemyCountCategory);
+            _countFilterSection.Visible = true;
+            SetEnemyRowsVisible(false);
+            _thresholdSection.Visible = false;
+            _allyAuraSection.Visible = false;
+            _allyRoleSection.Visible = false;
+            _orderSection.Visible = false;
+            _dispelSection.Visible = false;
+            _allyHealingAbsorbSection.Visible = false;
+            _allyDispelSection.Visible = false;
+            UpdatePreview();
+            return;
+        }
+
+        _countFilterSection.Visible = false;
+
+        if (IsUnitCategory || IsAverageHealthCategory)
         {
             // 队友单位隐藏顶部选择器；其他类别显示。
             _selectorBox.Visible = !IsUnitCategory;
@@ -1128,38 +1148,9 @@ public sealed class UnitEditorForm : Form
         SetEnemyRowsVisible(false);
         _allyHealingAbsorbSection.Visible = false;
         _allyDispelSection.Visible = false;
-        if (IsCountCategory)
+        switch ((_selectorBox.SelectedItem as SelectorItem)?.Kind)
         {
-            lowestHealthRoleFilter = true;
-            role = SelectedLowestHealthRoleFilter() is not null;
-            switch ((_selectorBox.SelectedItem as CountItem)?.Kind)
-            {
-                case CountKind.UnitsBelowHealth:
-                    threshold = true;
-                    break;
-                case CountKind.UnitsWithoutAuraBelowHealth:
-                    threshold = auraSingle = true;
-                    break;
-                case CountKind.UnitsWithAuraBelowHealth:
-                    threshold = auraSingle = true;
-                    break;
-                case CountKind.UnitsWithAura:
-                    auraSingle = true;
-                    break;
-                case CountKind.UnitsAboveHealingAbsorb:
-                    threshold = true;
-                    break;
-                case CountKind.UnitsWithoutAuraAboveHealingAbsorb:
-                case CountKind.UnitsWithAuraAboveHealingAbsorb:
-                    threshold = auraSingle = true;
-                    break;
-            }
-        }
-        else
-        {
-            switch ((_selectorBox.SelectedItem as SelectorItem)?.Kind)
-            {
-                case UnitSelectorKind.LowestHealth:
+            case UnitSelectorKind.LowestHealth:
                     threshold = lowestHealthAuraFilter = true;
                     lowestHealthRoleFilter = true;
                     role = SelectedLowestHealthRoleFilter() is not null;
@@ -1230,7 +1221,6 @@ public sealed class UnitEditorForm : Form
                 case UnitSelectorKind.UnitWithDispelType:
                     dispel = true;
                     break;
-            }
         }
 
         var dynamicThreshold = IsDynamicThresholdMode();
@@ -1259,8 +1249,7 @@ public sealed class UnitEditorForm : Form
         var healthFilter = SelectedEnemyHealthFilter() != EnemyThresholdFilterKind.None;
         var rangeFilter = SelectedEnemyRangeFilter() != EnemyThresholdFilterKind.None;
         var auraFilter = SelectedEnemyAuraFilter();
-        var auraTimeFilter = SelectedAuraTimeFilter();
-        var allowAuraTime = IsEnemyCountCategory && auraFilter == EnemyAuraFilterKind.WithAura;
+        const bool allowAuraTime = false;
 
         _enemyHealthSection.Visible = true;
         _enemyAuraSection.Visible = true;
@@ -1275,12 +1264,12 @@ public sealed class UnitEditorForm : Form
         SetThresholdGroupVisible(_enemyHealthThreshold, healthFilter);
         SetThresholdGroupVisible(_enemyRangeThreshold, enemyTarget && rangeFilter);
         _enemyAuraRow.Visible = auraFilter is EnemyAuraFilterKind.WithAura or EnemyAuraFilterKind.WithoutAura;
-        _enemyAurasRow.Visible = auraFilter is EnemyAuraFilterKind.WithAnyAura
-            or EnemyAuraFilterKind.WithoutAnyAura
-            or EnemyAuraFilterKind.WithAllAuras;
+        _enemyAurasRow.Visible = auraFilter is EnemyAuraFilterKind.HasAnyAura
+            or EnemyAuraFilterKind.HasAllAuras
+            or EnemyAuraFilterKind.MissingAnyAura
+            or EnemyAuraFilterKind.MissingAllAuras;
         _enemyAuraTimeFilterRow.Visible = allowAuraTime;
-        _enemyAuraTimeRow.Visible = allowAuraTime
-            && auraTimeFilter is AuraDurationFilterKind.Above or AuraDurationFilterKind.Below;
+        _enemyAuraTimeRow.Visible = false;
         _auraDurationFilterRow.Visible = allowAuraDuration;
         _auraDurationAuraRow.Visible = allowAuraDuration;
     }
@@ -1330,6 +1319,40 @@ public sealed class UnitEditorForm : Form
 
     private void UpdatePreview()
     {
+        if ((IsCountCategory || IsEnemyCountCategory)
+            && !_countFilterEditor.TryValidate(out var filterMessage))
+        {
+            _previewLabel.ForeColor = UiTheme.Danger;
+            _previewLabel.Text = $"预览: {filterMessage}";
+            if (_okButton is not null)
+            {
+                _okButton.Enabled = false;
+            }
+
+            return;
+        }
+
+        if (!IsCountCategory
+            && !IsEnemyCountCategory
+            && IsMultiAuraFilter(SelectedEnemyAuraFilter())
+            && _enemyAurasBox.CheckedItems.Count < 2)
+        {
+            _previewLabel.ForeColor = UiTheme.Danger;
+            _previewLabel.Text = "预览: 多选光环至少需要选择 2 个光环";
+            if (_okButton is not null)
+            {
+                _okButton.Enabled = false;
+            }
+
+            return;
+        }
+
+        _previewLabel.ForeColor = UiTheme.Muted;
+        if (_okButton is not null)
+        {
+            _okButton.Enabled = true;
+        }
+
         var text = BuildPreviewText();
         _previewLabel.Text = string.IsNullOrEmpty(text) ? "预览: -" : $"预览: {text}";
     }
@@ -1405,86 +1428,20 @@ public sealed class UnitEditorForm : Form
     // 用当前控件状态构造敌人数量字段; 预览与确定共用, 校验留给 OnConfirm。
     private ModuleEnemyCountField BuildEnemyCount(string name)
     {
-        var count = new ModuleEnemyCountField
+        return new ModuleEnemyCountField
         {
             Name = name,
-            HealthFilter = SelectedEnemyHealthFilter(),
-            AuraFilter = SelectedEnemyAuraFilter(),
-            AuraDurationFilter = SelectedEnemyAuraFilter() == EnemyAuraFilterKind.WithAura
-                ? SelectedAuraTimeFilter()
-                : AuraDurationFilterKind.None,
-            RangeFilter = SelectedEnemyRangeFilter(),
-            CombatFilter = SelectedEnemyCombatFilter()
+            FilterGroups = _countFilterEditor.ReadGroups()
         };
-
-        if (count.HealthFilter != EnemyThresholdFilterKind.None)
-        {
-            ReadThresholdGroup(_enemyHealthThreshold, out var fixedValue, out var field);
-            count.HealthThreshold = fixedValue;
-            count.HealthThresholdField = field;
-        }
-
-        if (count.RangeFilter != EnemyThresholdFilterKind.None)
-        {
-            ReadThresholdGroup(_enemyRangeThreshold, out var fixedValue, out var field);
-            count.RangeThreshold = fixedValue;
-            count.RangeThresholdField = field;
-        }
-
-        count.AuraSpellIds = count.AuraFilter switch
-        {
-            EnemyAuraFilterKind.WithAura or EnemyAuraFilterKind.WithoutAura => SingleAuraList(_enemyAuraBox),
-            EnemyAuraFilterKind.WithAnyAura or EnemyAuraFilterKind.WithoutAnyAura or EnemyAuraFilterKind.WithAllAuras
-                => CheckedAuras(_enemyAurasBox),
-            _ => null
-        };
-        count.AuraDurationThreshold = count.AuraDurationFilter is AuraDurationFilterKind.Above
-            or AuraDurationFilterKind.Below
-                ? (int)_enemyAuraTimeBox.Value
-                : null;
-
-        return count;
     }
 
     private ModuleCountField BuildAllyCount(string name)
     {
-        var count = new ModuleCountField
+        return new ModuleCountField
         {
             Name = name,
-            FilterVersion = ModuleCountField.CurrentFilterVersion,
-            HealthFilter = SelectedEnemyHealthFilter(),
-            HealingAbsorbFilter = SelectedAllyHealingAbsorbFilter(),
-            AuraFilter = SelectedEnemyAuraFilter(),
-            RoleFilter = SelectedLowestHealthRoleFilter(),
-            Role = SelectedLowestHealthRoleFilter() is null ? null : SelectedRole(),
-            DispelFilter = SelectedAllyDispelFilter(),
-            DispelType = SelectedAllyDispelFilter() == AllyDispelFilterKind.None
-                ? null
-                : SelectedAllyDispelType()
+            FilterGroups = _countFilterEditor.ReadGroups()
         };
-
-        if (count.HealthFilter != EnemyThresholdFilterKind.None)
-        {
-            ReadThresholdGroup(_enemyHealthThreshold, out var fixedValue, out var field);
-            count.HealthThreshold = fixedValue;
-            count.HealthThresholdField = field;
-        }
-
-        if (count.HealingAbsorbFilter != EnemyThresholdFilterKind.None)
-        {
-            ReadThresholdGroup(_allyHealingAbsorbThreshold, out var fixedValue, out var field);
-            count.HealingAbsorbThreshold = fixedValue;
-            count.HealingAbsorbThresholdField = field;
-        }
-
-        count.AuraSpellIds = count.AuraFilter switch
-        {
-            EnemyAuraFilterKind.WithAura or EnemyAuraFilterKind.WithoutAura => SingleAuraList(_enemyAuraBox),
-            EnemyAuraFilterKind.WithAnyAura or EnemyAuraFilterKind.WithoutAnyAura or EnemyAuraFilterKind.WithAllAuras
-                => CheckedAuras(_enemyAurasBox),
-            _ => null
-        };
-        return count;
     }
 
     private ModuleUnit BuildFilteredUnit(string name)
@@ -1534,7 +1491,7 @@ public sealed class UnitEditorForm : Form
         unit.AuraSpellIds = unit.AuraFilter switch
         {
             EnemyAuraFilterKind.WithAura or EnemyAuraFilterKind.WithoutAura => SingleAuraList(_enemyAuraBox),
-            EnemyAuraFilterKind.WithAnyAura or EnemyAuraFilterKind.WithoutAnyAura => CheckedAuras(_enemyAurasBox),
+            EnemyAuraFilterKind.HasAnyAura or EnemyAuraFilterKind.MissingAllAuras => CheckedAuras(_enemyAurasBox),
             _ => null
         };
         unit.AuraDurationSpellId = unit.AuraDurationFilter is AuraDurationFilterKind.Longest
@@ -1584,7 +1541,7 @@ public sealed class UnitEditorForm : Form
         field.AuraSpellIds = field.AuraFilter switch
         {
             EnemyAuraFilterKind.WithAura or EnemyAuraFilterKind.WithoutAura => SingleAuraList(_enemyAuraBox),
-            EnemyAuraFilterKind.WithAnyAura or EnemyAuraFilterKind.WithoutAnyAura => CheckedAuras(_enemyAurasBox),
+            EnemyAuraFilterKind.HasAnyAura or EnemyAuraFilterKind.MissingAllAuras => CheckedAuras(_enemyAurasBox),
             _ => null
         };
         return field;
@@ -1663,20 +1620,8 @@ public sealed class UnitEditorForm : Form
             _nameBox.Text = enemyCount.Name;
             _categoryBox.SelectedIndex = 2;
             PopulateSelectors();
-            SelectEnemyThresholdFilter(_enemyHealthFilterBox, enemyCount.HealthFilter);
-            SelectEnemyThresholdFilter(_enemyRangeFilterBox, enemyCount.RangeFilter);
-            SelectEnemyAuraFilter(enemyCount.AuraFilter);
-            SelectAuraTimeFilter(enemyCount.AuraDurationFilter);
-            SelectEnemyCombatFilter(enemyCount.CombatFilter);
-            SeedThresholdGroup(_enemyHealthThreshold, enemyCount.HealthFilter, enemyCount.HealthThreshold, enemyCount.HealthThresholdField);
-            SeedThresholdGroup(_enemyRangeThreshold, enemyCount.RangeFilter, enemyCount.RangeThreshold, enemyCount.RangeThresholdField);
-            var auraSpellIds = enemyCount.AuraSpellIds ?? [];
-            SelectAura(_enemyAuraBox, auraSpellIds.Count > 0 ? auraSpellIds[0] : null);
-            CheckAuras(_enemyAurasBox, auraSpellIds);
-            if (enemyCount.AuraDurationThreshold is { } auraDurationThreshold)
-            {
-                _enemyAuraTimeBox.Value = Clamp(auraDurationThreshold, _enemyAuraTimeBox);
-            }
+            _countFilterEditor.SetEnemyTarget(true);
+            _countFilterEditor.LoadGroups(enemyCount.FilterGroups);
             return;
         }
 
@@ -1685,35 +1630,8 @@ public sealed class UnitEditorForm : Form
             _nameBox.Text = count.Name;
             _categoryBox.SelectedIndex = 1;
             PopulateSelectors();
-            SelectEnemyThresholdFilter(_enemyHealthFilterBox, count.HealthFilter);
-            SelectEnemyThresholdFilter(_allyHealingAbsorbFilterBox, count.HealingAbsorbFilter);
-            SelectEnemyAuraFilter(count.AuraFilter);
-            SelectLowestHealthRoleFilter(count.RoleFilter);
-            if (count.Role is { } role)
-            {
-                SelectRole(role);
-            }
-            SelectAllyDispelFilter(count.DispelFilter);
-            if (count.DispelType is { } dispelType)
-            {
-                SelectAllyDispelType(dispelType);
-            }
-
-            SeedThresholdGroup(_enemyHealthThreshold, count.HealthFilter, count.HealthThreshold, count.HealthThresholdField);
-            SeedThresholdGroup(
-                _allyHealingAbsorbThreshold,
-                count.HealingAbsorbFilter,
-                count.HealingAbsorbThreshold,
-                count.HealingAbsorbThresholdField);
-            var auraSpellIds = count.AuraSpellIds is { Count: > 0 }
-                ? count.AuraSpellIds
-                : count.AuraSpellId is { } auraSpellId
-                    ? [auraSpellId]
-                    : ResolveLegacyAura(count.AuraName) is { } legacyAuraSpellId
-                        ? [legacyAuraSpellId]
-                        : [];
-            SelectAura(_enemyAuraBox, auraSpellIds.Count > 0 ? auraSpellIds[0] : null);
-            CheckAuras(_enemyAurasBox, auraSpellIds);
+            _countFilterEditor.SetEnemyTarget(false);
+            _countFilterEditor.LoadGroups(count.FilterGroups);
             return;
         }
 
@@ -1834,42 +1752,26 @@ public sealed class UnitEditorForm : Form
 
         if (IsEnemyCountCategory)
         {
-            var enemyCount = BuildEnemyCount(name);
-            if (!ValidateAggregateFilters(
-                    enemyCount.HealthFilter,
-                    enemyCount.HealthThreshold,
-                    enemyCount.HealthThresholdField,
-                    enemyCount.AuraFilter,
-                    enemyCount.AuraSpellIds,
-                    enemyCount.RangeFilter,
-                    enemyCount.RangeThreshold,
-                    enemyCount.RangeThresholdField))
+            if (!_countFilterEditor.TryValidate(out var filterMessage))
             {
+                MessageBox.Show(filterMessage, "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (enemyCount.AuraDurationFilter is AuraDurationFilterKind.Above or AuraDurationFilterKind.Below
-                && (enemyCount.AuraFilter != EnemyAuraFilterKind.WithAura
-                    || enemyCount.AuraDurationThreshold is null))
-            {
-                MessageBox.Show("请选择一个光环并输入光环时间。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            ResultEnemyCount = enemyCount;
+            ResultEnemyCount = BuildEnemyCount(name);
             DialogResult = DialogResult.OK;
             return;
         }
 
         if (IsCountCategory)
         {
-            var count = BuildAllyCount(name);
-            if (!ValidateAllyCountFilters(count))
+            if (!_countFilterEditor.TryValidate(out var filterMessage))
             {
+                MessageBox.Show(filterMessage, "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            ResultCount = count;
+            ResultCount = BuildAllyCount(name);
             DialogResult = DialogResult.OK;
             return;
         }
@@ -2079,52 +1981,28 @@ public sealed class UnitEditorForm : Form
             return false;
         }
 
-        if (auraFilter != EnemyAuraFilterKind.None && (auraSpellIds is null || auraSpellIds.Count == 0))
+        if (auraFilter != EnemyAuraFilterKind.None
+            && (auraSpellIds is null || auraSpellIds.Count == 0))
         {
             MessageBox.Show("请选择光环。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
 
-        if (auraFilter == EnemyAuraFilterKind.WithAllAuras && auraSpellIds!.Count < 2)
+        if (IsMultiAuraFilter(auraFilter)
+            && auraSpellIds!.Count < 2)
         {
-            MessageBox.Show("“同时拥有光环”至少需要选择 2 个光环。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("多选光环至少需要选择 2 个光环。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
 
         return true;
     }
 
-    private static bool ValidateAllyCountFilters(ModuleCountField count)
-    {
-        if (!ValidateAggregateFilters(
-                count.HealthFilter,
-                count.HealthThreshold,
-                count.HealthThresholdField,
-                count.AuraFilter,
-                count.AuraSpellIds,
-                EnemyThresholdFilterKind.None,
-                null,
-                null))
-        {
-            return false;
-        }
-
-        if (count.HealingAbsorbFilter != EnemyThresholdFilterKind.None
-            && count.HealingAbsorbThreshold is null
-            && string.IsNullOrWhiteSpace(count.HealingAbsorbThresholdField))
-        {
-            MessageBox.Show("请选择动态治疗吸收阈值。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return false;
-        }
-
-        if (count.DispelFilter != AllyDispelFilterKind.None && count.DispelType is null)
-        {
-            MessageBox.Show("请选择驱散类型。", "Shigure", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return false;
-        }
-
-        return true;
-    }
+    private static bool IsMultiAuraFilter(EnemyAuraFilterKind filter)
+        => filter is EnemyAuraFilterKind.HasAnyAura
+            or EnemyAuraFilterKind.HasAllAuras
+            or EnemyAuraFilterKind.MissingAnyAura
+            or EnemyAuraFilterKind.MissingAllAuras;
 
     private bool ValidateFilteredUnit(ModuleUnit unit)
     {
@@ -2219,14 +2097,6 @@ public sealed class UnitEditorForm : Form
 
     private bool IsHealingAbsorbSelector()
     {
-        if (IsCountCategory)
-        {
-            return (_selectorBox.SelectedItem as CountItem)?.Kind is
-                CountKind.UnitsAboveHealingAbsorb
-                or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-                or CountKind.UnitsWithAuraAboveHealingAbsorb;
-        }
-
         return (_selectorBox.SelectedItem as SelectorItem)?.Kind == UnitSelectorKind.HighestHealingAbsorb;
     }
 
@@ -2267,18 +2137,6 @@ public sealed class UnitEditorForm : Form
         return false;
     }
 
-    private bool ApplyThreshold(ModuleCountField count)
-    {
-        if (TryReadThreshold(out var fixedValue, out var field))
-        {
-            count.HealthThreshold = fixedValue;
-            count.HealthThresholdField = field;
-            return true;
-        }
-
-        return false;
-    }
-
     private bool TryReadThreshold(out int? fixedValue, out string? field)
     {
         if (!IsDynamicThresholdMode())
@@ -2301,13 +2159,6 @@ public sealed class UnitEditorForm : Form
 
     private bool SupportsHealthName()
         => IsUnitCategory && SelectedHealthTarget() == UnitSelectorKind.LowestHealth;
-
-    private static bool RequiresAura(CountKind kind)
-        => kind is CountKind.UnitsWithoutAuraBelowHealth
-            or CountKind.UnitsWithAuraBelowHealth
-            or CountKind.UnitsWithAura
-            or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-            or CountKind.UnitsWithAuraAboveHealingAbsorb;
 
     private static bool UnitRequiresAura(UnitSelectorKind kind)
         => kind is UnitSelectorKind.LowestHealthWithAnyAura
@@ -2481,18 +2332,6 @@ public sealed class UnitEditorForm : Form
             if (_selectorBox.Items[i] is SelectorItem item
                 && item.Kind == kind
                 && item.Reverse == reverse)
-            {
-                _selectorBox.SelectedIndex = i;
-                return;
-            }
-        }
-    }
-
-    private void SelectSelector(CountKind kind)
-    {
-        for (var i = 0; i < _selectorBox.Items.Count; i++)
-        {
-            if (_selectorBox.Items[i] is CountItem item && item.Kind == kind)
             {
                 _selectorBox.SelectedIndex = i;
                 return;
@@ -2913,11 +2752,6 @@ public sealed class UnitEditorForm : Form
     }
 
     private sealed record LowestHealthRoleFilterItem(string Text, UnitRoleFilterKind? Kind)
-    {
-        public override string ToString() => Text;
-    }
-
-    private sealed record CountItem(string Text, CountKind Kind)
     {
         public override string ToString() => Text;
     }

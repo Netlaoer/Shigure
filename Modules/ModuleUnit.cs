@@ -69,7 +69,7 @@ public enum UnitRoleFilterKind
 
 /// <summary>
 /// 模块内定义的命名动态单位。运行时由 <see cref="UnitSelector"/> 解析为 group 槽位("1".."40")。
-/// 单光环类用 AuraSpellIds[0]; WithAnyAura 用整个列表。
+/// 单光环类用 AuraSpellIds[0]；多光环类使用整个列表。
 /// </summary>
 public sealed class ModuleUnit
 {
@@ -137,33 +137,6 @@ public sealed class ModuleUnit
     }
 }
 
-/// <summary>
-/// 数量统计类型, 对应 utils.py 中返回整数的统计函数。
-/// </summary>
-public enum CountKind
-{
-    /// <summary>生命值低于阈值的人数。count_units_below_health</summary>
-    UnitsBelowHealth,
-
-    /// <summary>不带某光环且生命值低于阈值的人数。count_units_without_aura_below_health</summary>
-    UnitsWithoutAuraBelowHealth,
-
-    /// <summary>拥有某光环的人数。count_units_with_aura</summary>
-    UnitsWithAura,
-
-    /// <summary>拥有某光环且生命值低于阈值的人数。</summary>
-    UnitsWithAuraBelowHealth,
-
-    /// <summary>治疗吸收大于阈值的人数。</summary>
-    UnitsAboveHealingAbsorb,
-
-    /// <summary>不带某光环且治疗吸收大于阈值的人数。</summary>
-    UnitsWithoutAuraAboveHealingAbsorb,
-
-    /// <summary>拥有某光环且治疗吸收大于阈值的人数。</summary>
-    UnitsWithAuraAboveHealingAbsorb
-}
-
 /// <summary>敌人数量的阈值筛选方式(生命值 / 距离共用)。</summary>
 public enum EnemyThresholdFilterKind
 {
@@ -202,14 +175,96 @@ public enum EnemyAuraFilterKind
     /// <summary>不带指定光环。</summary>
     WithoutAura,
 
-    /// <summary>带所选任一光环。</summary>
-    WithAnyAura,
-
-    /// <summary>不带所选任何光环。</summary>
-    WithoutAnyAura,
+    /// <summary>至少带有所选任一光环；至少需要两个光环。</summary>
+    HasAnyAura,
 
     /// <summary>同时带有所选全部光环；至少需要两个光环。</summary>
-    WithAllAuras
+    HasAllAuras,
+
+    /// <summary>至少缺少一个所选光环；至少需要两个光环。</summary>
+    MissingAnyAura,
+
+    /// <summary>所选光环全部不存在；至少需要两个光环。</summary>
+    MissingAllAuras
+}
+
+/// <summary>数量筛选条件组的匹配方式。</summary>
+public enum CountConditionGroupMode
+{
+    All,
+    Any
+}
+
+/// <summary>数量筛选可读取的单位字段。</summary>
+public enum CountConditionFieldKind
+{
+    Health,
+    HealingAbsorb,
+    Role,
+    Dispel,
+    Range,
+    Combat,
+    Aura
+}
+
+/// <summary>数量筛选的比较方式。</summary>
+public enum CountConditionComparisonKind
+{
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual
+}
+
+/// <summary>数量筛选右值的来源。</summary>
+public enum CountConditionValueKind
+{
+    Constant,
+    StateField
+}
+
+/// <summary>一条通用数量筛选条件。</summary>
+public sealed class ModuleCountCondition
+{
+    public bool Enabled { get; set; } = true;
+    public CountConditionFieldKind Field { get; set; }
+    public long? AuraSpellId { get; set; }
+    public CountConditionComparisonKind Comparison { get; set; }
+    public CountConditionValueKind ValueKind { get; set; }
+    public int Value { get; set; }
+    public string? ValueField { get; set; }
+
+    public ModuleCountCondition Clone()
+    {
+        return new ModuleCountCondition
+        {
+            Enabled = Enabled,
+            Field = Field,
+            AuraSpellId = AuraSpellId,
+            Comparison = Comparison,
+            ValueKind = ValueKind,
+            Value = Value,
+            ValueField = ValueField
+        };
+    }
+}
+
+/// <summary>一组通用数量筛选条件；组内按 Mode 组合，组与组之间始终按且组合。</summary>
+public sealed class ModuleCountConditionGroup
+{
+    public CountConditionGroupMode Mode { get; set; } = CountConditionGroupMode.All;
+    public List<ModuleCountCondition> Conditions { get; set; } = new();
+
+    public ModuleCountConditionGroup Clone()
+    {
+        return new ModuleCountConditionGroup
+        {
+            Mode = Mode,
+            Conditions = Conditions.Select(condition => condition.Clone()).ToList()
+        };
+    }
 }
 
 /// <summary>队友驱散类型筛选方式。</summary>
@@ -241,40 +296,14 @@ public enum AuraDurationFilterKind
 public sealed class ModuleEnemyCountField
 {
     public string Name { get; set; } = string.Empty;
-
-    public EnemyThresholdFilterKind HealthFilter { get; set; } = EnemyThresholdFilterKind.None;
-    public int? HealthThreshold { get; set; }
-    public string? HealthThresholdField { get; set; }
-
-    public EnemyAuraFilterKind AuraFilter { get; set; } = EnemyAuraFilterKind.None;
-    /// <summary>单光环筛选取 [0]; 任一/无任一筛选取整个列表。</summary>
-    public List<long>? AuraSpellIds { get; set; }
-    /// <summary>仅在“有某一个光环”时生效，按该光环的剩余秒数筛选。</summary>
-    public AuraDurationFilterKind AuraDurationFilter { get; set; } = AuraDurationFilterKind.None;
-    public int? AuraDurationThreshold { get; set; }
-
-    public EnemyThresholdFilterKind RangeFilter { get; set; } = EnemyThresholdFilterKind.None;
-    public int? RangeThreshold { get; set; }
-    public string? RangeThresholdField { get; set; }
-
-    public EnemyCombatFilterKind CombatFilter { get; set; } = EnemyCombatFilterKind.None;
+    public List<ModuleCountConditionGroup> FilterGroups { get; set; } = new();
 
     public ModuleEnemyCountField Clone()
     {
         return new ModuleEnemyCountField
         {
             Name = Name,
-            HealthFilter = HealthFilter,
-            HealthThreshold = HealthThreshold,
-            HealthThresholdField = HealthThresholdField,
-            AuraFilter = AuraFilter,
-            AuraSpellIds = AuraSpellIds is null ? null : new List<long>(AuraSpellIds),
-            AuraDurationFilter = AuraDurationFilter,
-            AuraDurationThreshold = AuraDurationThreshold,
-            RangeFilter = RangeFilter,
-            RangeThreshold = RangeThreshold,
-            RangeThresholdField = RangeThresholdField,
-            CombatFilter = CombatFilter
+            FilterGroups = FilterGroups.Select(group => group.Clone()).ToList()
         };
     }
 }
@@ -337,53 +366,15 @@ public sealed class ModuleAverageHealthField
 /// </summary>
 public sealed class ModuleCountField
 {
-    public const int CurrentFilterVersion = 1;
-
     public string Name { get; set; } = string.Empty;
-    public int? FilterVersion { get; set; }
-
-    public EnemyThresholdFilterKind HealthFilter { get; set; } = EnemyThresholdFilterKind.None;
-    public bool PositiveHealthOnly { get; set; }
-    public EnemyThresholdFilterKind HealingAbsorbFilter { get; set; } = EnemyThresholdFilterKind.None;
-    public int? HealingAbsorbThreshold { get; set; }
-    public string? HealingAbsorbThresholdField { get; set; }
-
-    public EnemyAuraFilterKind AuraFilter { get; set; } = EnemyAuraFilterKind.None;
-    public List<long>? AuraSpellIds { get; set; }
-
-    public CountKind Kind { get; set; } = CountKind.UnitsBelowHealth;
-    public int? HealthThreshold { get; set; }
-    public string? HealthThresholdField { get; set; }
-    public long? AuraSpellId { get; set; }
-    public UnitRoleFilterKind? RoleFilter { get; set; }
-    public int? Role { get; set; }
-    public AllyDispelFilterKind DispelFilter { get; set; } = AllyDispelFilterKind.None;
-    public int? DispelType { get; set; }
-    // 仅用于读取并迁移旧模块；当前版本保存前必须转换并清空。
-    public string? AuraName { get; set; }
+    public List<ModuleCountConditionGroup> FilterGroups { get; set; } = new();
 
     public ModuleCountField Clone()
     {
         return new ModuleCountField
         {
             Name = Name,
-            FilterVersion = FilterVersion,
-            HealthFilter = HealthFilter,
-            PositiveHealthOnly = PositiveHealthOnly,
-            HealingAbsorbFilter = HealingAbsorbFilter,
-            HealingAbsorbThreshold = HealingAbsorbThreshold,
-            HealingAbsorbThresholdField = HealingAbsorbThresholdField,
-            AuraFilter = AuraFilter,
-            AuraSpellIds = AuraSpellIds is null ? null : new List<long>(AuraSpellIds),
-            Kind = Kind,
-            HealthThreshold = HealthThreshold,
-            HealthThresholdField = HealthThresholdField,
-            AuraSpellId = AuraSpellId,
-            RoleFilter = RoleFilter,
-            Role = Role,
-            DispelFilter = DispelFilter,
-            DispelType = DispelType,
-            AuraName = AuraName
+            FilterGroups = FilterGroups.Select(group => group.Clone()).ToList()
         };
     }
 }
