@@ -126,6 +126,8 @@ internal sealed class UiCacheState
     public Dictionary<string, Dictionary<string, int>>? ColumnWidths { get; set; }
     /// <summary>配置页左侧职业/专精树是否缩窄。</summary>
     public bool? ConfigSidebarCollapsed { get; set; }
+    /// <summary>配置页左侧职业/专精树展开宽度（逻辑像素）。</summary>
+    public int? ConfigSidebarWidth { get; set; }
 }
 
 internal sealed class WindowLocation

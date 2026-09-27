@@ -18,6 +18,7 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
     private readonly ClassSpecTreeSidebar _classTree = new();
+    private readonly Panel _sidebarSplitter = new();
     private readonly List<ClassListItem> _classItems = new();
     private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
@@ -26,6 +27,9 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
     private TableLayoutPanel? _bodyLayout;
+    private bool _splitterDragging;
+    private int _splitterDragStartX;
+    private int _splitterDragStartWidth;
     private const int ConfigFooterBarHeight = 64;
 
     private readonly DataGridView _statesGrid = new();
@@ -136,13 +140,20 @@ public sealed class ClassConfigEditorControl : UserControl
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
         var cache = UiCacheStore.Load();
+        if (cache.ConfigSidebarWidth is { } cachedWidth
+            && cachedWidth >= UiTheme.ConfigSidebarMinWidth
+            && cachedWidth <= UiTheme.ConfigSidebarMaxWidth)
+        {
+            _classTree.SetExpandedWidth(cachedWidth);
+        }
+
         if (cache.ConfigSidebarCollapsed == true)
         {
             _classTree.SetCollapsed(true);
         }
 
         _classTree.Dock = DockStyle.Fill;
-        _classTree.Margin = new Padding(0, 0, UiTheme.PageGap, 0);
+        _classTree.Margin = new Padding(0);
         _classTree.SelectionChanged += (_, _) =>
         {
             if (_suppressUi)
@@ -155,10 +166,21 @@ public sealed class ClassConfigEditorControl : UserControl
         _classTree.CollapseChanged += (_, _) =>
         {
             SyncSidebarColumnWidth();
+            UpdateSplitterEnabled();
             var state = UiCacheStore.Load();
             state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
             UiCacheStore.Save(state);
         };
+        _classTree.ExpandedWidthChanged += (_, _) =>
+        {
+            SyncSidebarColumnWidth();
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            UiCacheStore.Save(state);
+        };
+
+        ConfigureSidebarSplitter();
 
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
@@ -168,16 +190,23 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 2,
+            ColumnCount = 5,
             RowCount = 1,
             Margin = new Padding(0)
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitterThickness));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         body.Controls.Add(_classTree, 0, 0);
-        body.Controls.Add(editor, 1, 0);
+        body.Controls.Add(CreateSplitGap(), 1, 0);
+        body.Controls.Add(_sidebarSplitter, 2, 0);
+        body.Controls.Add(CreateSplitGap(), 3, 0);
+        body.Controls.Add(editor, 4, 0);
         _bodyLayout = body;
+        UpdateSplitterEnabled();
 
         var page = new TableLayoutPanel
         {
@@ -193,6 +222,89 @@ public sealed class ClassConfigEditorControl : UserControl
         page.Controls.Add(body, 0, 0);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+    }
+
+    private static Control CreateSplitGap()
+        => new Panel
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
+            BackColor = UiTheme.Surface
+        };
+
+    private void ConfigureSidebarSplitter()
+    {
+        _sidebarSplitter.Dock = DockStyle.Fill;
+        _sidebarSplitter.Margin = new Padding(0);
+        _sidebarSplitter.BackColor = UiTheme.Border;
+        _sidebarSplitter.Cursor = Cursors.VSplit;
+        _sidebarSplitter.TabStop = false;
+        _toolTip.SetToolTip(_sidebarSplitter, "拖动调整侧栏宽度");
+        _sidebarSplitter.MouseEnter += (_, _) =>
+        {
+            if (_sidebarSplitter.Enabled)
+            {
+                _sidebarSplitter.BackColor = UiTheme.Accent;
+            }
+        };
+        _sidebarSplitter.MouseLeave += (_, _) =>
+        {
+            if (!_splitterDragging)
+            {
+                _sidebarSplitter.BackColor = UiTheme.Border;
+            }
+        };
+        _sidebarSplitter.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left || _classTree.Collapsed)
+            {
+                return;
+            }
+
+            _splitterDragging = true;
+            _splitterDragStartX = Cursor.Position.X;
+            _splitterDragStartWidth = _classTree.ExpandedContentWidth;
+            _sidebarSplitter.Capture = true;
+            _sidebarSplitter.BackColor = UiTheme.Accent;
+        };
+        _sidebarSplitter.MouseMove += (_, _) =>
+        {
+            if (!_splitterDragging)
+            {
+                return;
+            }
+
+            var delta = Cursor.Position.X - _splitterDragStartX;
+            _classTree.SetExpandedWidth(_splitterDragStartWidth + delta);
+            SyncSidebarColumnWidth();
+        };
+        _sidebarSplitter.MouseUp += (_, e) =>
+        {
+            if (!_splitterDragging || e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            _splitterDragging = false;
+            _sidebarSplitter.Capture = false;
+            _sidebarSplitter.BackColor = _sidebarSplitter.ClientRectangle.Contains(
+                _sidebarSplitter.PointToClient(Cursor.Position))
+                ? UiTheme.Accent
+                : UiTheme.Border;
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            UiCacheStore.Save(state);
+        };
+    }
+
+    private void UpdateSplitterEnabled()
+    {
+        var enabled = !_classTree.Collapsed;
+        _sidebarSplitter.Enabled = enabled;
+        _sidebarSplitter.Cursor = enabled ? Cursors.VSplit : Cursors.Default;
+        _sidebarSplitter.BackColor = enabled ? UiTheme.Border : UiTheme.SurfaceRaised;
+        _toolTip.SetToolTip(_sidebarSplitter, enabled ? "拖动调整侧栏宽度" : "展开侧栏后可拖动调整宽度");
     }
 
     private void SyncSidebarColumnWidth()

@@ -8,7 +8,7 @@ namespace Shigure;
 /// </summary>
 internal sealed class ClassSpecTreeSidebar : Panel
 {
-    public const int ExpandedWidth = UiTheme.ConfigSidebarWidth;
+    public const int DefaultExpandedWidth = UiTheme.ConfigSidebarWidth;
     public const int CollapsedWidth = UiTheme.ConfigSidebarCollapsedWidth;
     private const int HeaderHeight = 36;
     private const int RowHeight = 36;
@@ -22,6 +22,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
     private readonly List<ClassNode> _classes = new();
     private readonly List<VisibleRow> _rows = new();
     private readonly HashSet<int> _expandedClassIds = new();
+    private int _expandedWidth = DefaultExpandedWidth;
     private bool _collapsed;
     private bool _suppressSelection;
     private int? _selectedClassId;
@@ -87,7 +88,11 @@ internal sealed class ClassSpecTreeSidebar : Panel
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int PreferredWidth => _collapsed ? CollapsedWidth : ExpandedWidth;
+    public int ExpandedContentWidth => _expandedWidth;
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int PreferredWidth => _collapsed ? CollapsedWidth : _expandedWidth;
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -99,6 +104,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
 
     public event EventHandler? CollapseChanged;
     public event EventHandler? SelectionChanged;
+    public event EventHandler? ExpandedWidthChanged;
 
     public void SetCollapsed(bool collapsed, bool raiseEvent = false)
     {
@@ -112,6 +118,31 @@ internal sealed class ClassSpecTreeSidebar : Panel
         if (raiseEvent)
         {
             CollapseChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public void SetExpandedWidth(int width, bool raiseEvent = false)
+    {
+        var next = Math.Clamp(width, UiTheme.ConfigSidebarMinWidth, UiTheme.ConfigSidebarMaxWidth);
+        if (_expandedWidth == next)
+        {
+            if (!_collapsed)
+            {
+                ApplyCollapsedVisuals(layoutOnly: true);
+            }
+
+            return;
+        }
+
+        _expandedWidth = next;
+        if (!_collapsed)
+        {
+            ApplyCollapsedVisuals(layoutOnly: true);
+        }
+
+        if (raiseEvent)
+        {
+            ExpandedWidthChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
