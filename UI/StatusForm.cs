@@ -1396,41 +1396,38 @@ public sealed class StatusForm : Form
             Margin = new Padding(0)
         }, 0, 0);
 
-        var cacheKey = group.Title == "当前赛季" ? "boss-numbers-current-v1" : "boss-numbers-season1-v1";
+        // 名称列 FillRemaining 上限须够大，否则宽窗口右侧会留出空白深灰条。
+        // 不用 ShowGroups：.NET ListView 组头无法 OwnerDraw，系统默认呈链接色。
+        var cacheKey = group.Title == "当前赛季" ? "boss-numbers-current-v2" : "boss-numbers-season1-v2";
         var list = UiTheme.CreateListView(
             Font,
             cacheKey,
-            new UiTheme.ListColumn("副本", 96, 180),
+            new UiTheme.ListColumn("副本", 96, 220),
             new UiTheme.ListColumn("序号", 48, 56, FixedWidth: true),
-            new UiTheme.ListColumn("名称", 120, 420, FillRemaining: true),
+            new UiTheme.ListColumn("名称", 120, 2000, FillRemaining: true),
             new UiTheme.ListColumn("编号", 56, 72));
         list.BackColor = UiTheme.SurfaceRaised;
-        list.ShowGroups = true;
+        list.ShowGroups = false;
+        UiTheme.EmphasizeListViewPrimaryColumn(list, Font);
 
         list.BeginUpdate();
         try
         {
             foreach (var dungeon in group.Dungeons)
             {
-                var listGroup = new ListViewGroup(dungeon.Name, HorizontalAlignment.Left)
-                {
-                    Header = dungeon.Name,
-                    Name = dungeon.Name
-                };
-                list.Groups.Add(listGroup);
+                var firstInDungeon = true;
                 foreach (var boss in dungeon.Bosses)
                 {
+                    // 同副本仅首行显示副本名，避免整列重复；字重/颜色由 Emphasize 统一。
                     var item = new ListViewItem(
                     [
-                        dungeon.Name,
+                        firstInDungeon ? dungeon.Name : string.Empty,
                         boss.Sequence.ToString(),
                         boss.Name,
                         boss.Number.ToString()
-                    ])
-                    {
-                        Group = listGroup
-                    };
+                    ]);
                     list.Items.Add(item);
+                    firstInDungeon = false;
                 }
             }
         }

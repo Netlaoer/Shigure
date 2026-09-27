@@ -70,6 +70,7 @@ internal static class UiTheme
     private static readonly Dictionary<(int ClassId, int SpecId), Image?> SpecIcons = new();
     private static readonly ConditionalWeakTable<ListView, Func<ListViewItem, int, Image?>> ListViewSubItemIcons = new();
     private static readonly ConditionalWeakTable<ListView, Func<ListViewItem, Color?>> ListViewRowAccents = new();
+    private static readonly ConditionalWeakTable<ListView, Font> ListViewPrimaryColumnBoldFonts = new();
     private static readonly ConditionalWeakTable<ListView, ListColumnLayoutState> ListColumnLayouts = new();
 
     private const int DwmwaUseImmersiveDarkMode = 20;
@@ -1188,6 +1189,23 @@ internal static class UiTheme
         ListViewRowAccents.Add(listView, resolver);
     }
 
+    /// <summary>
+    /// 首列用粗体白字绘制（默认首列为 Muted）；用于首领页「副本」列等强调场景。
+    /// 返回的粗体字体由 ListView 生命周期托管，调用方勿 Dispose。
+    /// </summary>
+    public static Font EmphasizeListViewPrimaryColumn(ListView listView, Font baseFont)
+    {
+        if (ListViewPrimaryColumnBoldFonts.TryGetValue(listView, out var existing))
+        {
+            return existing;
+        }
+
+        var boldFont = new Font(baseFont, FontStyle.Bold);
+        ListViewPrimaryColumnBoldFonts.Add(listView, boldFont);
+        listView.Disposed += (_, _) => boldFont.Dispose();
+        return boldFont;
+    }
+
     public static Color GetStateCategoryAccent(string? category)
     {
         if (string.IsNullOrWhiteSpace(category))
@@ -1311,12 +1329,21 @@ internal static class UiTheme
             }
 
             var textBounds = new Rectangle(textLeft, e.Bounds.Y, textWidth, e.Bounds.Height);
+            var drawFont = font;
+            var drawColor = selected || e.ColumnIndex != 0 ? Text : Muted;
+            if (e.ColumnIndex == 0
+                && ListViewPrimaryColumnBoldFonts.TryGetValue(listView, out var primaryBoldFont))
+            {
+                drawFont = primaryBoldFont;
+                drawColor = Text;
+            }
+
             TextRenderer.DrawText(
                 e.Graphics,
                 e.SubItem?.Text ?? string.Empty,
-                font,
+                drawFont,
                 textBounds,
-                selected ? Text : e.ColumnIndex == 0 ? Muted : Text,
+                drawColor,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         };
 
