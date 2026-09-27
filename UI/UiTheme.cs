@@ -1663,7 +1663,16 @@ internal static class UiTheme
 
         void CaptureFillColumns()
         {
-            fillNames.Clear();
+            // 列常在 ConfigureGrid 之后逐个 Add：先加的 Fill 已被改为 None，
+            // 若此处 Clear 会丢掉已捕获名，导致右侧永远留白。只追加新 Fill，并剔除已删除列。
+            for (var i = fillNames.Count - 1; i >= 0; i--)
+            {
+                if (grid.Columns[fillNames[i]] is null)
+                {
+                    fillNames.RemoveAt(i);
+                }
+            }
+
             foreach (DataGridViewColumn column in grid.Columns)
             {
                 if (column.AutoSizeMode != DataGridViewAutoSizeColumnMode.Fill)
@@ -1671,7 +1680,11 @@ internal static class UiTheme
                     continue;
                 }
 
-                fillNames.Add(column.Name);
+                if (!fillNames.Contains(column.Name))
+                {
+                    fillNames.Add(column.Name);
+                }
+
                 column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
                 if (column.MinimumWidth < 40)
                 {

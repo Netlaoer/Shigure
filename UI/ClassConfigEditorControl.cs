@@ -1106,13 +1106,14 @@ public sealed class ClassConfigEditorControl : UserControl
 
         ConfigureGrid(_spellsGrid, "class-config-spells");
         _spellsGrid.Columns.Add(CreateSpellIconColumn());
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 24, 160));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 14, 120));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 10, 80));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 14, 110));
+        // 仅「名称」作为 Fill 列吸收剩余宽度；其余 Absolute，避免防抖均分摊薄名称列。
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 120));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 80));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 110));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 110));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 110));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 110));
         _spellsGrid.Columns.Add(CreateDeleteColumn());
         _spellsGrid.CellContentClick += HandleDeleteClick;
         _spellsGrid.CellValueChanged += (_, e) =>
@@ -1228,14 +1229,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Width = 125,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
-        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            Name = "Name",
-            HeaderText = "名称",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            SortMode = DataGridViewColumnSortMode.NotSortable
-        });
-        _itemsGrid.Columns.Add(CreateSpellCheckColumn("IsEquipped", "是否装备中", 12, 110));
+        _itemsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
+        _itemsGrid.Columns.Add(CreateSpellCheckColumn("IsEquipped", "是否装备中", 110));
         _itemsGrid.Columns.Add(CreateDeleteColumn());
         itemCard.Controls.Add(_itemsGrid, 0, 1);
         rightColumn.Controls.Add(itemCard, 0, 1);
@@ -1816,7 +1811,9 @@ public sealed class ClassConfigEditorControl : UserControl
             HeaderText = "",
             Text = "×",
             UseColumnTextForButtonValue = true,
-            Width = 44
+            Width = 44,
+            MinimumWidth = 44,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         };
 
     private static DataGridViewButtonColumn CreateAddToCooldownColumn()
@@ -1827,21 +1824,25 @@ public sealed class ClassConfigEditorControl : UserControl
             Text = "添加至冷却",
             UseColumnTextForButtonValue = true,
             Width = 134,
+            MinimumWidth = 134,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
     private static DataGridViewTextBoxColumn CreateSpellTextColumn(
         string name,
         string headerText,
-        float fillWeight,
-        int minimumWidth)
+        int width,
+        bool fill = false)
         => new()
         {
             Name = name,
             HeaderText = headerText,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = fillWeight,
-            MinimumWidth = minimumWidth,
+            AutoSizeMode = fill
+                ? DataGridViewAutoSizeColumnMode.Fill
+                : DataGridViewAutoSizeColumnMode.None,
+            Width = width,
+            MinimumWidth = width,
             SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
@@ -1867,15 +1868,17 @@ public sealed class ClassConfigEditorControl : UserControl
     private static DataGridViewCheckBoxColumn CreateSpellCheckColumn(
         string name,
         string headerText,
-        float fillWeight,
-        int minimumWidth)
+        int width,
+        bool fill = false)
         => new()
         {
             Name = name,
             HeaderText = headerText,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = fillWeight,
-            MinimumWidth = minimumWidth,
+            AutoSizeMode = fill
+                ? DataGridViewAutoSizeColumnMode.Fill
+                : DataGridViewAutoSizeColumnMode.None,
+            Width = width,
+            MinimumWidth = width,
             SortMode = DataGridViewColumnSortMode.NotSortable,
             TrueValue = true,
             FalseValue = false,
