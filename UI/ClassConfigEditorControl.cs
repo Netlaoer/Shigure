@@ -17,8 +17,8 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string?> _resolveClassDirectory;
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
-    private readonly ClassIconStrip _classStrip = new();
-    private readonly SpecIconStrip _specStrip = new();
+    private readonly ClassSpecTreeSidebar _classTree = new();
+    private readonly Panel _sidebarSplitter = new();
     private readonly List<ClassListItem> _classItems = new();
     private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
@@ -26,6 +26,11 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly ToolTip _toolTip = new();
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
+    private TableLayoutPanel? _bodyLayout;
+    private bool _splitterDragging;
+    private int _splitterDragStartX;
+    private int _splitterDragStartWidth;
+    private const int ConfigFooterBarHeight = 64;
 
     private readonly DataGridView _statesGrid = new();
     private readonly DataGridViewComboBoxColumn _stateNameColumn = new();
@@ -134,62 +139,182 @@ public sealed class ClassConfigEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        _classStrip.SelectionChanged += (_, _) =>
+        var cache = UiCacheStore.Load();
+        if (cache.ConfigSidebarWidth is { } cachedWidth
+            && cachedWidth >= UiTheme.ConfigSidebarMinWidth
+            && cachedWidth <= UiTheme.ConfigSidebarMaxWidth)
+        {
+            _classTree.SetExpandedWidth(cachedWidth);
+        }
+
+        if (cache.ConfigSidebarCollapsed == true)
+        {
+            _classTree.SetCollapsed(true);
+        }
+
+        _classTree.Dock = DockStyle.Fill;
+        _classTree.Margin = new Padding(0);
+        _classTree.SelectionChanged += (_, _) =>
         {
             if (_suppressUi)
             {
                 return;
             }
 
-            SelectClassFromStrip();
+            SelectFromTree();
         };
-        _specStrip.SelectionChanged += (_, _) =>
+        _classTree.CollapseChanged += (_, _) =>
         {
-            if (_suppressUi)
-            {
-                return;
-            }
-
-            SelectSpecFromStrip();
+            SyncSidebarColumnWidth();
+            UpdateSplitterEnabled();
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            UiCacheStore.Save(state);
+        };
+        _classTree.ExpandedWidthChanged += (_, _) =>
+        {
+            SyncSidebarColumnWidth();
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            UiCacheStore.Save(state);
         };
 
-        var iconCard = UiTheme.CreateIconStripCard(_classStrip, _specStrip);
+        ConfigureSidebarSplitter();
+
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
+        editor.Margin = new Padding(0);
+
+        var body = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 5,
+            RowCount = 1,
+            Margin = new Padding(0)
+        };
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitterThickness));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        body.Controls.Add(_classTree, 0, 0);
+        body.Controls.Add(CreateSplitGap(), 1, 0);
+        body.Controls.Add(_sidebarSplitter, 2, 0);
+        body.Controls.Add(CreateSplitGap(), 3, 0);
+        body.Controls.Add(editor, 4, 0);
+        _bodyLayout = body;
+        UpdateSplitterEnabled();
 
         var page = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
             ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0),
-            Width = UiTheme.EditorPageWidth
+            RowCount = 1,
+            Margin = new Padding(0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight * 2 + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconCard, 0, 0);
-        page.Controls.Add(editor, 0, 1);
+        page.Controls.Add(body, 0, 0);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+    }
 
-        void SyncIconCardRow()
+    private static Control CreateSplitGap()
+        => new Panel
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripCardHeight(
-                this,
-                _classStrip.ScaledHeight,
-                _specStrip.ScaledHeight) + UiTheme.PageGap;
-            if (iconCard.RowStyles.Count >= 2)
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
+            BackColor = UiTheme.Surface
+        };
+
+    private void ConfigureSidebarSplitter()
+    {
+        _sidebarSplitter.Dock = DockStyle.Fill;
+        _sidebarSplitter.Margin = new Padding(0);
+        _sidebarSplitter.BackColor = UiTheme.Border;
+        _sidebarSplitter.Cursor = Cursors.VSplit;
+        _sidebarSplitter.TabStop = false;
+        _toolTip.SetToolTip(_sidebarSplitter, "拖动调整侧栏宽度");
+        _sidebarSplitter.MouseEnter += (_, _) =>
+        {
+            if (_sidebarSplitter.Enabled)
             {
-                iconCard.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
-                iconCard.RowStyles[1] = new RowStyle(SizeType.Absolute, _specStrip.ScaledHeight);
+                _sidebarSplitter.BackColor = UiTheme.Accent;
             }
+        };
+        _sidebarSplitter.MouseLeave += (_, _) =>
+        {
+            if (!_splitterDragging)
+            {
+                _sidebarSplitter.BackColor = UiTheme.Border;
+            }
+        };
+        _sidebarSplitter.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left || _classTree.Collapsed)
+            {
+                return;
+            }
+
+            _splitterDragging = true;
+            _splitterDragStartX = Cursor.Position.X;
+            _splitterDragStartWidth = _classTree.ExpandedContentWidth;
+            _sidebarSplitter.Capture = true;
+            _sidebarSplitter.BackColor = UiTheme.Accent;
+        };
+        _sidebarSplitter.MouseMove += (_, _) =>
+        {
+            if (!_splitterDragging)
+            {
+                return;
+            }
+
+            var delta = Cursor.Position.X - _splitterDragStartX;
+            _classTree.SetExpandedWidth(_splitterDragStartWidth + delta);
+            SyncSidebarColumnWidth();
+        };
+        _sidebarSplitter.MouseUp += (_, e) =>
+        {
+            if (!_splitterDragging || e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            _splitterDragging = false;
+            _sidebarSplitter.Capture = false;
+            _sidebarSplitter.BackColor = _sidebarSplitter.ClientRectangle.Contains(
+                _sidebarSplitter.PointToClient(Cursor.Position))
+                ? UiTheme.Accent
+                : UiTheme.Border;
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            UiCacheStore.Save(state);
+        };
+    }
+
+    private void UpdateSplitterEnabled()
+    {
+        var enabled = !_classTree.Collapsed;
+        _sidebarSplitter.Enabled = enabled;
+        _sidebarSplitter.Cursor = enabled ? Cursors.VSplit : Cursors.Default;
+        _sidebarSplitter.BackColor = enabled ? UiTheme.Border : UiTheme.SurfaceRaised;
+        _toolTip.SetToolTip(_sidebarSplitter, enabled ? "拖动调整侧栏宽度" : "展开侧栏后可拖动调整宽度");
+    }
+
+    private void SyncSidebarColumnWidth()
+    {
+        if (_bodyLayout is null || _bodyLayout.ColumnStyles.Count == 0)
+        {
+            return;
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncIconCardRow);
-        _classStrip.HandleCreated += (_, _) => SyncIconCardRow();
-        _specStrip.HandleCreated += (_, _) => SyncIconCardRow();
+        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth);
+        _bodyLayout.PerformLayout();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -234,7 +359,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0)
         };
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ConfigFooterBarHeight));
 
         root.Controls.Add(BuildSectionTabs(), 0, 0);
 
@@ -244,7 +369,7 @@ public sealed class ClassConfigEditorControl : UserControl
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0, UiTheme.PageGap, 0, 0),
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10)
+            Padding = new Padding(UiTheme.CardPadding, 8, UiTheme.CardPadding, 8)
         };
         actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 228));
@@ -283,7 +408,7 @@ public sealed class ClassConfigEditorControl : UserControl
             RowCount = 2,
             Margin = new Padding(0)
         };
-        info.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 56));
+        info.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
         info.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
@@ -895,8 +1020,9 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        // 右侧物品冷却相对原 50% 再窄约 30% → 35%；让出的宽度给左侧技能冷却。
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -979,14 +1105,15 @@ public sealed class ClassConfigEditorControl : UserControl
         spellCard.Controls.Add(spellHeader, 0, 0);
 
         ConfigureGrid(_spellsGrid, "class-config-spells");
-        _spellsGrid.Columns.Add(CreateSpellIconColumn());
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 24, 160));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 14, 120));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 10, 80));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 14, 110));
+        // 冷却技能表：图标 ×0.8，法术 ID/最大充能/施法次数/强制已学/法术书中 ×0.9；名称仍为唯一 Fill。
+        _spellsGrid.Columns.Add(CreateSpellIconColumn(43));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 108));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 80));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 99));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 99));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 99));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 99));
         _spellsGrid.Columns.Add(CreateDeleteColumn());
         _spellsGrid.CellContentClick += HandleDeleteClick;
         _spellsGrid.CellValueChanged += (_, e) =>
@@ -1102,14 +1229,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Width = 125,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
-        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            Name = "Name",
-            HeaderText = "名称",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            SortMode = DataGridViewColumnSortMode.NotSortable
-        });
-        _itemsGrid.Columns.Add(CreateSpellCheckColumn("IsEquipped", "是否装备中", 12, 110));
+        _itemsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
+        _itemsGrid.Columns.Add(CreateSpellCheckColumn("IsEquipped", "是否装备中", 110));
         _itemsGrid.Columns.Add(CreateDeleteColumn());
         itemCard.Controls.Add(_itemsGrid, 0, 1);
         rightColumn.Controls.Add(itemCard, 0, 1);
@@ -1430,20 +1551,6 @@ public sealed class ClassConfigEditorControl : UserControl
             fields.Controls.Add(card);
         }
 
-        void FitGroupCards()
-        {
-            const int minimumCardWidth = 176;
-            var totalMargins = groupCards.Sum(card => card.Margin.Horizontal);
-            var availableWidth = Math.Max(0, fields.ClientSize.Width - fields.Padding.Horizontal - totalMargins);
-            var cardWidth = Math.Max(minimumCardWidth, availableWidth / groupCards.Length);
-            foreach (var card in groupCards)
-            {
-                card.Width = cardWidth;
-            }
-        }
-
-        fields.SizeChanged += (_, _) => FitGroupCards();
-        fields.HandleCreated += (_, _) => FitGroupCards();
         panel.Controls.Add(fields, 0, 0);
 
         ConfigureGrid(_groupAurasGrid, "class-config-group-auras");
@@ -1613,7 +1720,7 @@ public sealed class ClassConfigEditorControl : UserControl
     }
 
 
-    private const int GroupCardWidth = 160;
+    private const int GroupCardWidth = UiTheme.GroupCardFixedWidth;
 
     private Control CreateGroupCard(string title, Control content, int width = GroupCardWidth)
     {
@@ -1704,7 +1811,9 @@ public sealed class ClassConfigEditorControl : UserControl
             HeaderText = "",
             Text = "×",
             UseColumnTextForButtonValue = true,
-            Width = 44
+            Width = 44,
+            MinimumWidth = 44,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
         };
 
     private static DataGridViewButtonColumn CreateAddToCooldownColumn()
@@ -1715,31 +1824,35 @@ public sealed class ClassConfigEditorControl : UserControl
             Text = "添加至冷却",
             UseColumnTextForButtonValue = true,
             Width = 134,
+            MinimumWidth = 134,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
     private static DataGridViewTextBoxColumn CreateSpellTextColumn(
         string name,
         string headerText,
-        float fillWeight,
-        int minimumWidth)
+        int width,
+        bool fill = false)
         => new()
         {
             Name = name,
             HeaderText = headerText,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = fillWeight,
-            MinimumWidth = minimumWidth,
+            AutoSizeMode = fill
+                ? DataGridViewAutoSizeColumnMode.Fill
+                : DataGridViewAutoSizeColumnMode.None,
+            Width = width,
+            MinimumWidth = width,
             SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
-    private static DataGridViewImageColumn CreateSpellIconColumn()
+    private static DataGridViewImageColumn CreateSpellIconColumn(int width = 54)
         => new()
         {
             Name = "Icon",
             HeaderText = "图标",
-            Width = 54,
-            MinimumWidth = 54,
+            Width = width,
+            MinimumWidth = width,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ImageLayout = DataGridViewImageCellLayout.Zoom,
             ReadOnly = true,
@@ -1755,15 +1868,17 @@ public sealed class ClassConfigEditorControl : UserControl
     private static DataGridViewCheckBoxColumn CreateSpellCheckColumn(
         string name,
         string headerText,
-        float fillWeight,
-        int minimumWidth)
+        int width,
+        bool fill = false)
         => new()
         {
             Name = name,
             HeaderText = headerText,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = fillWeight,
-            MinimumWidth = minimumWidth,
+            AutoSizeMode = fill
+                ? DataGridViewAutoSizeColumnMode.Fill
+                : DataGridViewAutoSizeColumnMode.None,
+            Width = width,
+            MinimumWidth = width,
             SortMode = DataGridViewColumnSortMode.NotSortable,
             TrueValue = true,
             FalseValue = false,
@@ -1833,8 +1948,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
-                _classStrip.SetItems([]);
-                _specStrip.LayoutReferenceCount = 0;
+                _classTree.SetClasses([]);
                 _pathLabel.Text = "未找到 Fuyutsui\\class";
                 _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
                 return;
@@ -1863,14 +1977,13 @@ public sealed class ClassConfigEditorControl : UserControl
                 }
             }
 
-            _classStrip.SetItems(_classItems
-                .Select(item => ((int?)item.ClassId, item.ToString()))
+            _classTree.SetClasses(_classItems
+                .Select(item => (item.ClassId, item.Name))
                 .ToList());
-            _specStrip.LayoutReferenceCount = _classItems.Count;
             _statusLabel.Text = $"已加载 {_documents.Count} 个职业文件";
             if (_classItems.Count > 0)
             {
-                _classStrip.SelectClassId(_classItems[0].ClassId);
+                _classTree.SelectClass(_classItems[0].ClassId, expand: true);
             }
         }
         finally
@@ -1878,7 +1991,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectClassFromStrip();
+        SelectFromTree();
     }
 
     private static void RegisterDocumentSpellNames(ClassBlocksStore.ClassFileDocument document)
@@ -1953,9 +2066,15 @@ public sealed class ClassConfigEditorControl : UserControl
         }
     }
 
-    private void SelectClassFromStrip()
+    private void SelectFromTree()
     {
-        var item = _classItems.FirstOrDefault(x => x.ClassId == _classStrip.SelectedClassId);
+        var classId = _classTree.SelectedClassId;
+        if (classId is null)
+        {
+            return;
+        }
+
+        var item = _classItems.FirstOrDefault(x => x.ClassId == classId);
         if (item is null)
         {
             return;
@@ -1967,6 +2086,10 @@ public sealed class ClassConfigEditorControl : UserControl
             try
             {
                 SelectClassInList(_currentClassId);
+                if (_currentSpecId is { } previousSpecId && _currentClassId is { } previousClassId)
+                {
+                    _classTree.SelectSpec(previousClassId, previousSpecId);
+                }
             }
             finally
             {
@@ -1977,16 +2100,23 @@ public sealed class ClassConfigEditorControl : UserControl
         }
 
         var discarding = _dirty && _currentClassId != item.ClassId;
-        if (_dirty && _currentClassId == item.ClassId)
+        if (_currentClassId == item.ClassId)
         {
+            // 同职业：仅专精变化时切换；折叠树节点不重载右侧。
+            if (_classTree.SelectedSpecId is { } pendingSpecId
+                && _currentSpecId != pendingSpecId)
+            {
+                SelectSpec(_specItems.FirstOrDefault(x => x.Id == pendingSpecId));
+            }
+
             return;
         }
 
-        if (discarding && _currentClassId is { } previousClassId && _documents.ContainsKey(previousClassId))
+        if (discarding && _currentClassId is { } previousLoadedClassId && _documents.ContainsKey(previousLoadedClassId))
         {
             try
             {
-                _documents[previousClassId] = ClassBlocksStore.Load(_documents[previousClassId].FilePath);
+                _documents[previousLoadedClassId] = ClassBlocksStore.Load(_documents[previousLoadedClassId].FilePath);
             }
             catch
             {
@@ -2061,7 +2191,30 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectSpecFromStrip();
+        var selectedSpecId = _classTree.SelectedSpecId;
+        if (selectedSpecId is { } treeSpecId)
+        {
+            SelectSpec(_specItems.FirstOrDefault(x => x.Id == treeSpecId));
+        }
+        else if (_specItems.Count > 0)
+        {
+            _suppressUi = true;
+            try
+            {
+                _classTree.SelectSpec(item.ClassId, _specItems[0].Id);
+            }
+            finally
+            {
+                _suppressUi = false;
+            }
+
+            SelectSpec(_specItems[0]);
+        }
+        else
+        {
+            SelectSpec(null);
+        }
+
         _suppressUi = true;
         try
         {
@@ -2078,32 +2231,18 @@ public sealed class ClassConfigEditorControl : UserControl
     {
         _specItems.Clear();
         _specItems.AddRange(options);
-        _specStrip.LayoutReferenceCount = _classItems.Count;
-        _specStrip.SetItems(options
-            .Select(option => (option.ClassId, option.Id, option.Name))
-            .ToList());
-        if (_specItems.Count > 0)
+        if (_currentClassId is { } classId)
         {
-            _specStrip.SelectIndex(0);
+            _classTree.SetSpecs(
+                classId,
+                options.Select(option => (option.Id, option.Name)).ToList());
         }
     }
 
     private void ClearSpecList()
     {
         _specItems.Clear();
-        _specStrip.Clear();
-    }
-
-    private void SelectSpecFromStrip()
-    {
-        var index = _specStrip.SelectedIndex;
-        if (index < 0 || index >= _specItems.Count)
-        {
-            SelectSpec(null);
-            return;
-        }
-
-        SelectSpec(_specItems[index]);
+        _classTree.ClearSpecs();
     }
 
     private void SelectSpec(SpecOption? spec)
@@ -4287,7 +4426,14 @@ public sealed class ClassConfigEditorControl : UserControl
             return;
         }
 
-        _classStrip.SelectClassId(classId);
+        if (_currentSpecId is { } specId)
+        {
+            _classTree.SelectSpec(classId.Value, specId);
+        }
+        else
+        {
+            _classTree.SelectClass(classId.Value, expand: true);
+        }
     }
 
     private void ClearGrids()

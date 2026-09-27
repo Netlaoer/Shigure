@@ -68,18 +68,6 @@ internal sealed class UiCardPanel : TableLayoutPanel
         e.Graphics.FillPath(fill, path);
     }
 
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        base.OnPaint(e);
-        if (ClientSize.Width <= 1 || ClientSize.Height <= 1)
-        {
-            return;
-        }
-
-        var bounds = Rectangle.Inflate(ClientRectangle, -1, -1);
-        using var path = UiTheme.CreateRoundedRectanglePath(bounds, UiTheme.Scale(this, CornerRadius));
-        using var outline = new Pen(UiTheme.Border);
-        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        e.Graphics.DrawPath(outline, path);
-    }
+    // 无描边：仅靠 FillColor 与背景色差区分卡片。
+    protected override void OnPaint(PaintEventArgs e) => base.OnPaint(e);
 }

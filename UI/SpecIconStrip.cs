@@ -4,19 +4,19 @@ using System.Drawing.Drawing2D;
 namespace Shigure;
 
 /// <summary>
-/// 顶部横向专精图标条：图标固定尺寸、水平均分排布；尺寸与 ClassIconStrip 一致。
+/// 顶部横向专精图标条：图标固定尺寸、自左向右顺序排布；尺寸与 ClassIconStrip 一致。
 /// </summary>
 internal sealed class SpecIconStrip : Panel
 {
     public const int IconSize = UiTheme.ClassSpecIconSize;
     public const int CellSize = UiTheme.ClassSpecIconCellSize;
     public const int StripPadding = 2;
+    public const int CellGap = UiTheme.IconStripCellGap;
 
     private readonly ToolTip _toolTip = new();
     private readonly List<SpecIconButton> _buttons = new();
     private int _selectedIndex = -1;
     private bool _suppressSelection;
-    private int _layoutReferenceCount;
 
     public SpecIconStrip()
     {
@@ -28,28 +28,6 @@ internal sealed class SpecIconStrip : Panel
     }
 
     public static int StripHeight => CellSize + (StripPadding * 2);
-
-    /// <summary>
-    /// 按参考列数（通常为上方职业行数量）计算间距并左起排布，避免少数专精图标被拉满整行。
-    /// 0 或未设置时回退为按自身数量均分。
-    /// </summary>
-    [Browsable(false)]
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int LayoutReferenceCount
-    {
-        get => _layoutReferenceCount;
-        set
-        {
-            var next = Math.Max(0, value);
-            if (_layoutReferenceCount == next)
-            {
-                return;
-            }
-
-            _layoutReferenceCount = next;
-            LayoutButtons();
-        }
-    }
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -183,22 +161,11 @@ internal sealed class SpecIconStrip : Panel
 
         var pad = UiTheme.Scale(this, StripPadding);
         var cell = ScaledCellSize();
-        var inner = Math.Max(0, ClientSize.Width - pad * 2);
+        var gap = UiTheme.Scale(this, CellGap);
         var y = Math.Max(0, (ClientSize.Height - cell) / 2);
-
-        // 与职业行共用列距：按参考列数算步长，专精从左侧依次落入前 N 列。
-        var slotCount = _layoutReferenceCount > 1 ? _layoutReferenceCount : count;
-        if (slotCount <= 1)
-        {
-            _buttons[0].Bounds = new Rectangle(pad, y, cell, cell);
-            return;
-        }
-
-        var span = Math.Max(0, inner - cell);
-        var step = span / (double)(slotCount - 1);
         for (var i = 0; i < count; i++)
         {
-            var x = pad + (int)Math.Round(step * i);
+            var x = pad + i * (cell + gap);
             _buttons[i].Bounds = new Rectangle(x, y, cell, cell);
         }
     }
