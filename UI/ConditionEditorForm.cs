@@ -285,10 +285,23 @@ public sealed class ConditionEditorForm : Form
         UiTheme.ApplyDarkTitleBar(this);
     }
 
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        UiTheme.RestoreCachedDialogHeight(this, UiCacheStore.Load().ConditionEditorWindowSize);
+    }
+
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.ConditionEditorWindowSize = size);
+    }
+
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         SpellIconCatalog.CatalogChanged -= OnSpellIconCatalogChanged;
         CloseConditionComboDropDown();
+        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.ConditionEditorWindowSize = size);
         base.OnFormClosed(e);
     }
 
@@ -315,11 +328,9 @@ public sealed class ConditionEditorForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        var initialHeight = _allowSubConditions ? 650 : 460;
-        ClientSize = new Size(1080, initialHeight);
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
+        // 默认高度相对原 650/460 翻倍；宽度固定，高度可调并缓存。
+        var baseHeight = _allowSubConditions ? 650 : 460;
+        UiTheme.ConfigureFixedWidthResizableHeight(this, 1080, baseHeight * 2, baseHeight);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
 

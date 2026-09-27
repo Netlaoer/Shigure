@@ -106,6 +106,24 @@ public sealed class UnitEditorForm : Form
         UiTheme.ApplyDarkTitleBar(this);
     }
 
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        UiTheme.RestoreCachedDialogHeight(this, UiCacheStore.Load().UnitEditorWindowSize);
+    }
+
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.UnitEditorWindowSize = size);
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        UiTheme.SaveCachedDialogSize(this, (cache, size) => cache.UnitEditorWindowSize = size);
+        base.OnFormClosed(e);
+    }
+
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
@@ -120,10 +138,8 @@ public sealed class UnitEditorForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        ClientSize = new Size(RowWidth + 36, 600);
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
+        // 默认高度相对原 600 翻倍；宽度固定，高度可调并缓存。
+        UiTheme.ConfigureFixedWidthResizableHeight(this, RowWidth + 36, 1200, 600);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
 

@@ -30,10 +30,10 @@ internal static class UiTheme
     public const int ModuleMetaFieldWidth = (ModuleEditorWidth - CardPadding * 2 - 58 * 2) / 2;
     /// <summary>模块侧栏页脚按钮固定半宽。</summary>
     public const int ModuleFooterButtonWidth = (ModuleSidebarWidth - CardPadding * 2 - 8) / 2;
-    /// <summary>模块 Match 筛选项下拉固定宽。</summary>
-    public const int ModuleMatchFieldWidth = 280;
+    /// <summary>模块 Match 筛选项下拉固定宽（四项等宽，卡内可容纳）。</summary>
+    public const int ModuleMatchFieldWidth = 240;
     /// <summary>模块 Match 筛选项之间固定间隔。</summary>
-    public const int ModuleMatchGapWidth = 24;
+    public const int ModuleMatchGapWidth = 12;
     /// <summary>EX/BW 事件页卡片宽（通用 1200 × 1.3，与编辑页宽度解耦）。</summary>
     public const int EventPageWidth = 1200 + 1200 * 3 / 10;
     /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>
@@ -144,6 +144,61 @@ internal static class UiTheme
     {
         var dark = 1;
         _ = DwmSetWindowAttribute(form.Handle, DwmwaUseImmersiveDarkMode, ref dark, sizeof(int));
+    }
+
+    /// <summary>
+    /// 编辑弹窗：固定客户端宽度、默认可变高度（MinimumSize/MaximumSize 锁宽）。
+    /// </summary>
+    public static void ConfigureFixedWidthResizableHeight(
+        Form form,
+        int clientWidth,
+        int defaultClientHeight,
+        int minimumClientHeight)
+    {
+        form.FormBorderStyle = FormBorderStyle.Sizable;
+        form.MaximizeBox = false;
+        form.MinimizeBox = false;
+        form.ClientSize = new Size(clientWidth, defaultClientHeight);
+        var outerWidth = form.Width;
+        var chromeHeight = Math.Max(0, form.Height - form.ClientSize.Height);
+        form.MinimumSize = new Size(outerWidth, chromeHeight + minimumClientHeight);
+        form.MaximumSize = new Size(outerWidth, int.MaxValue);
+    }
+
+    /// <summary>仅恢复缓存高度，宽度保持锁定。</summary>
+    public static void RestoreCachedDialogHeight(Form form, WindowSize? cached)
+    {
+        if (cached is null || cached.Height <= 0)
+        {
+            return;
+        }
+
+        var workingArea = form.Owner is not null
+            ? Screen.FromControl(form.Owner).WorkingArea
+            : Screen.FromControl(form).WorkingArea;
+        var maximumHeight = Math.Max(form.MinimumSize.Height, workingArea.Height - 40);
+        form.Height = Math.Clamp(cached.Height, form.MinimumSize.Height, maximumHeight);
+        if (form.MaximumSize.Width > 0)
+        {
+            form.Width = form.MaximumSize.Width;
+        }
+    }
+
+    /// <summary>缓存弹窗外框尺寸（主要用于高度）。</summary>
+    public static void SaveCachedDialogSize(Form form, Action<UiCacheState, WindowSize> assign)
+    {
+        if (form.WindowState != FormWindowState.Normal || form.Width <= 0 || form.Height <= 0)
+        {
+            return;
+        }
+
+        var cache = UiCacheStore.Load();
+        assign(cache, new WindowSize
+        {
+            Width = form.Width,
+            Height = form.Height
+        });
+        UiCacheStore.Save(cache);
     }
 
     public static bool ApplyRoundedCorners(Form form)

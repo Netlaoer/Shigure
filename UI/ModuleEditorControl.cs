@@ -673,17 +673,27 @@ public sealed class ModuleEditorControl : UserControl
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 12,
+            ColumnCount = 11,
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0)
         };
-        foreach (var label in matchLabels)
+
+        // 内容宽内：四列等宽下拉 + 三项间隔（末尾不加间隙），保证不超出卡片右缘。
+        var contentWidth = UiTheme.ModuleEditorWidth - UiTheme.CardPadding * 2;
+        var labelWidths = matchLabels.Select(label => MeasureLabelColumnWidth(label, Font)).ToArray();
+        var fieldWidth = Math.Max(
+            120,
+            (contentWidth - labelWidths.Sum() - UiTheme.ModuleMatchGapWidth * (matchLabels.Length - 1))
+                / matchLabels.Length);
+        for (var i = 0; i < matchLabels.Length; i++)
         {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, MeasureLabelColumnWidth(label, Font)));
-            // 筛选项与间隔使用固定像素宽，避免随编辑区拉伸。
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchGapWidth));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, labelWidths[i]));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, fieldWidth));
+            if (i < matchLabels.Length - 1)
+            {
+                row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchGapWidth));
+            }
         }
         // RowCount 会预置 Percent 样式, 必须 Clear 后再设 Absolute, 否则 Add 只追加到末尾不生效。
         row.RowStyles.Clear();
@@ -714,11 +724,14 @@ public sealed class ModuleEditorControl : UserControl
             _rulesGrid.Invalidate();
         };
 
+        // 列索引：标签0/字段1/隙2 → 标签3/字段4/隙5 → 标签6/字段7/隙8 → 标签9/字段10
         AddMatchField(row, "职业:", _classBox, 0);
         AddMatchField(row, "专精:", _specBox, 3);
         AddMatchField(row, "英雄天赋:", _heroTalentBox, 6);
         AddMatchField(row, "队伍类型:", _partyTypeBox, 9);
 
+        var recommendedTalentLabelWidth = MeasureLabelColumnWidth("推荐天赋", Font);
+        var recommendedTalentFieldWidth = Math.Max(120, contentWidth - recommendedTalentLabelWidth);
         var recommendedTalentRow = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -730,21 +743,18 @@ public sealed class ModuleEditorControl : UserControl
         };
         recommendedTalentRow.RowStyles.Clear();
         recommendedTalentRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(
-            SizeType.Absolute,
-            MeasureLabelColumnWidth("推荐天赋", Font)));
-        recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, recommendedTalentLabelWidth));
+        recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, recommendedTalentFieldWidth));
         var recommendedTalentLabel = CreateLabel("推荐天赋:");
         recommendedTalentLabel.AutoSize = false;
         recommendedTalentLabel.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(recommendedTalentLabel, 0, 0);
         UiTheme.StyleTextBox(_recommendedTalentBox);
-        _recommendedTalentBox.Dock = DockStyle.None;
-        _recommendedTalentBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        _recommendedTalentBox.Dock = DockStyle.Fill;
         _recommendedTalentBox.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
         row.Controls.Add(recommendedTalentRow, 0, 1);
-        row.SetColumnSpan(recommendedTalentRow, 12);
+        row.SetColumnSpan(recommendedTalentRow, 11);
 
         return row;
     }
