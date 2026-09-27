@@ -9,11 +9,11 @@ namespace Shigure;
 internal static class UiTheme
 {
     public const int PageGap = 12;
-    public const int CardPadding = 14;
+    public const int CardPadding = 16;
     public const int ActionButtonHeight = 36;
     public const int GridRowHeight = 40;
     public const int TabBarHeight = 42;
-    public const int CardCornerRadius = 10;
+    public const int CardCornerRadius = 12;
     public const int ControlCornerRadius = 8;
 
     /// <summary>配置/宏/模块页最小内容宽（1200 × 1.5）；外层可随窗口加宽。</summary>
@@ -66,17 +66,18 @@ internal static class UiTheme
     private const int AccentEnableBlurBehind = 3;
     private const int AccentEnableAcrylicBlurBehind = 4;
 
-    public static readonly Color Background = Color.FromArgb(12, 15, 19);
-    public static readonly Color Surface = Color.FromArgb(23, 28, 35);
-    public static readonly Color SurfaceRaised = Color.FromArgb(28, 35, 43);
-    public static readonly Color Field = Color.FromArgb(34, 42, 51);
-    public static readonly Color Hover = Color.FromArgb(42, 53, 63);
-    public static readonly Color Pressed = Color.FromArgb(50, 63, 74);
-    public static readonly Color Border = Color.FromArgb(48, 58, 69);
-    public static readonly Color RowAlt = Color.FromArgb(26, 32, 39);
-    public static readonly Color Text = Color.FromArgb(231, 237, 243);
-    public static readonly Color Muted = Color.FromArgb(152, 164, 178);
-    public static readonly Color Accent = Color.FromArgb(82, 224, 209);
+    // Cursor 风格 charcoal 层次；Accent 保留 Shigure 青蓝。
+    public static readonly Color Background = Color.FromArgb(20, 20, 20);       // #141414
+    public static readonly Color Surface = Color.FromArgb(30, 30, 30);          // #1E1E1E
+    public static readonly Color SurfaceRaised = Color.FromArgb(37, 37, 37);    // #252525
+    public static readonly Color Field = Color.FromArgb(45, 45, 45);            // #2D2D2D
+    public static readonly Color Hover = Color.FromArgb(55, 55, 55);            // #373737
+    public static readonly Color Pressed = Color.FromArgb(65, 65, 65);          // #414141
+    public static readonly Color Border = Color.FromArgb(58, 58, 58);           // #3A3A3A
+    public static readonly Color RowAlt = Color.FromArgb(33, 33, 33);           // #212121
+    public static readonly Color Text = Color.FromArgb(245, 245, 245);         // #F5F5F5
+    public static readonly Color Muted = Color.FromArgb(140, 140, 140);         // #8C8C8C
+    public static readonly Color Accent = Color.FromArgb(82, 224, 209);         // #52E0D1
     public static readonly Color AccentSoft = Color.FromArgb(24, 63, 64);
     public static readonly Color Success = Color.FromArgb(103, 211, 145);
     public static readonly Color Warning = Color.FromArgb(232, 196, 106);

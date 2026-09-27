@@ -928,14 +928,24 @@ public sealed class MainForm : Form, IMessageFilter
             Margin = new Padding(0)
         };
 
+        // Cursor 风格：分类用较小字重的 Muted 标题，不再加粗。
         Label CreateSectionHeader(string text, bool first = false) => new()
         {
             Text = text,
             AutoSize = true,
-            Font = new Font(Font.FontFamily, 12F, FontStyle.Bold),
-            ForeColor = UiTheme.Text,
+            Font = new Font(Font.FontFamily, 11F, FontStyle.Regular),
+            ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,
-            Margin = new Padding(2, first ? 0 : 18, 0, 8)
+            Margin = new Padding(2, first ? 0 : 20, 0, 8)
+        };
+
+        Panel CreateRowDivider() => new()
+        {
+            Height = 1,
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Border,
+            Margin = new Padding(UiTheme.CardPadding, 0, UiTheme.CardPadding, 0),
+            Padding = new Padding(0)
         };
 
         FlowLayoutPanel CreateActionsHost() => new()
@@ -990,23 +1000,23 @@ public sealed class MainForm : Form, IMessageFilter
             return actions;
         }
 
-        UiCardPanel CreateSettingRow(string title, Control description, Control actions)
+        // 行内「左文右控」布局；不再单独套卡片，由 CreateSettingsGroup 统一包一张大卡。
+        TableLayoutPanel CreateSettingRow(string title, Control description, Control actions)
         {
-            var card = new UiCardPanel
+            var row = new TableLayoutPanel
             {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 RowCount = 1,
-                Width = settingsContentWidth,
-                MinimumSize = new Size(settingsContentWidth, 0),
-                MaximumSize = new Size(settingsContentWidth, 0),
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent,
                 Padding = new Padding(UiTheme.CardPadding, 14, UiTheme.CardPadding, 14),
-                Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+                Margin = new Padding(0)
             };
-            card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            card.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             var text = new FlowLayoutPanel
             {
@@ -1024,12 +1034,53 @@ public sealed class MainForm : Form, IMessageFilter
             actions.Margin = new Padding(24, 0, 0, 0);
             // Anchor.None：在自动增高的行里垂直居中，并落在右侧 AutoSize 列。
             actions.Anchor = AnchorStyles.None;
-            card.Controls.Add(text, 0, 0);
-            card.Controls.Add(actions, 1, 0);
-            return card;
+            row.Controls.Add(text, 0, 0);
+            row.Controls.Add(actions, 1, 0);
+            return row;
         }
 
-        stack.Controls.Add(CreateSectionHeader("输入与运行", first: true));
+        // 分类标题 + 一张大卡；行间 1px Border 分割线。
+        void AddSettingsGroup(string title, bool first, params Control[] rows)
+        {
+            stack.Controls.Add(CreateSectionHeader(title, first));
+            if (rows.Length == 0)
+            {
+                return;
+            }
+
+            var card = new UiCardPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                Width = settingsContentWidth,
+                MinimumSize = new Size(settingsContentWidth, 0),
+                MaximumSize = new Size(settingsContentWidth, 0),
+                Padding = new Padding(0),
+                Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+            };
+            card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            card.RowStyles.Clear();
+            card.RowCount = 0;
+
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if (i > 0)
+                {
+                    card.RowCount++;
+                    card.RowStyles.Add(new RowStyle(SizeType.Absolute, 1));
+                    card.Controls.Add(CreateRowDivider(), 0, card.RowCount - 1);
+                }
+
+                card.RowCount++;
+                card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                rows[i].Dock = DockStyle.Fill;
+                rows[i].Margin = new Padding(0);
+                card.Controls.Add(rows[i], 0, card.RowCount - 1);
+            }
+
+            stack.Controls.Add(card);
+        }
 
         _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_toggleKeyButton, primaryControlWidth);
@@ -1038,10 +1089,6 @@ public sealed class MainForm : Form, IMessageFilter
         _settingsToolTip.SetToolTip(_toggleKeyButton, "点击后按下新的键盘键或鼠标侧键");
         var toggleActions = CreateActionsHost();
         toggleActions.Controls.Add(_toggleKeyButton);
-        stack.Controls.Add(CreateSettingRow(
-            "触发键",
-            CreateRowDescription("点击后按下新的键盘键或鼠标侧键；修改后运行循环会自动重启"),
-            toggleActions));
 
         _modeComboBox = new UiDropDown();
         UiTheme.StyleComboBox(_modeComboBox);
@@ -1051,10 +1098,6 @@ public sealed class MainForm : Form, IMessageFilter
         _settingsToolTip.SetToolTip(_modeComboBox, "开关：按一次切换；单击：每次触发发送一次；按住：持续按下时运行");
         var modeActions = CreateActionsHost();
         modeActions.Controls.Add(_modeComboBox);
-        stack.Controls.Add(CreateSettingRow(
-            "发送模式",
-            CreateRowDescription("开关：按一次切换；单击：每次触发发送一次；按住：持续按下时运行"),
-            modeActions));
 
         _captureMethodComboBox = new UiDropDown();
         UiTheme.StyleComboBox(_captureMethodComboBox);
@@ -1070,26 +1113,36 @@ public sealed class MainForm : Form, IMessageFilter
             "WGC 可在游戏窗口被遮挡时继续读取；原版读取显示器实际画面，会受遮挡影响");
         var captureActions = CreateActionsHost();
         captureActions.Controls.Add(_captureMethodComboBox);
-        stack.Controls.Add(CreateSettingRow(
-            "画面捕获",
-            CreateRowDescription("WGC 支持窗口被遮挡；窗口最小化或捕获停止时会暂停扫描"),
-            captureActions));
 
-        stack.Controls.Add(CreateSectionHeader("性能"));
+        AddSettingsGroup(
+            "输入与运行",
+            first: true,
+            CreateSettingRow(
+                "触发键",
+                CreateRowDescription("点击后按下新的键盘键或鼠标侧键；修改后运行循环会自动重启"),
+                toggleActions),
+            CreateSettingRow(
+                "发送模式",
+                CreateRowDescription("开关：按一次切换；单击：每次触发发送一次；按住：持续按下时运行"),
+                modeActions),
+            CreateSettingRow(
+                "画面捕获",
+                CreateRowDescription("WGC 支持窗口被遮挡；窗口最小化或捕获停止时会暂停扫描"),
+                captureActions));
 
         _scanIntervalBox = CreateIntervalBox(minimum: 50);
-        stack.Controls.Add(CreateSettingRow(
-            "扫描频率",
-            CreateRowDescription("两次读取游戏画面之间的间隔；数值越小，状态更新越及时，资源占用越高"),
-            CreateIntervalActions(_scanIntervalBox, "扫描间隔，范围 50–2000 毫秒")));
-
         _logicIntervalBox = CreateIntervalBox(minimum: 50);
-        stack.Controls.Add(CreateSettingRow(
-            "计算频率",
-            CreateRowDescription("两次模块规则计算之间的间隔；计算使用最近一次扫描到的状态"),
-            CreateIntervalActions(_logicIntervalBox, "计算间隔，范围 50–2000 毫秒")));
-
-        stack.Controls.Add(CreateSectionHeader("配置同步"));
+        AddSettingsGroup(
+            "性能",
+            first: false,
+            CreateSettingRow(
+                "扫描频率",
+                CreateRowDescription("两次读取游戏画面之间的间隔；数值越小，状态更新越及时，资源占用越高"),
+                CreateIntervalActions(_scanIntervalBox, "扫描间隔，范围 50–2000 毫秒")),
+            CreateSettingRow(
+                "计算频率",
+                CreateRowDescription("两次模块规则计算之间的间隔；计算使用最近一次扫描到的状态"),
+                CreateIntervalActions(_logicIntervalBox, "计算间隔，范围 50–2000 毫秒")));
 
         _configSourceLabel = CreateRowDescription("项目目录是唯一配置源；尚未执行手动更新");
         _settingsToolTip.SetToolTip(_configSourceLabel, _configSourceLabel.Text);
@@ -1098,12 +1151,10 @@ public sealed class MainForm : Form, IMessageFilter
         _updateConfigButton.Click += async (_, _) => await UpdateConfigFromProjectWithFeedbackAsync();
         var configActions = CreateActionsHost();
         configActions.Controls.Add(_updateConfigButton);
-        stack.Controls.Add(CreateSettingRow(
-            "更新配置",
-            _configSourceLabel,
-            configActions));
-
-        stack.Controls.Add(CreateSectionHeader("模块"));
+        AddSettingsGroup(
+            "配置同步",
+            first: false,
+            CreateSettingRow("更新配置", _configSourceLabel, configActions));
 
         var moduleDescription = new FlowLayoutPanel
         {
@@ -1135,7 +1186,6 @@ public sealed class MainForm : Form, IMessageFilter
         var moduleActions = CreateActionsHost();
         moduleActions.Controls.Add(_moduleComboBox);
         moduleActions.Controls.Add(refreshModulesButton);
-        stack.Controls.Add(CreateSettingRow("模块选择", moduleDescription, moduleActions));
 
         _defaultClassComboBox = CreateDefaultFilterComboBox();
         _defaultSpecComboBox = CreateDefaultFilterComboBox();
@@ -1170,22 +1220,22 @@ public sealed class MainForm : Form, IMessageFilter
         SizeActionControl(_setDefaultModuleButton, primaryControlWidth);
         _setDefaultModuleButton.Click += HandleSetDefaultModuleClick;
 
-        var defaultModuleCard = new UiCardPanel
+        // 默认模块多行块并入「模块」大卡，不再单独一张散卡。
+        var defaultModuleBlock = new TableLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 3,
-            Width = settingsContentWidth,
-            MinimumSize = new Size(settingsContentWidth, 0),
-            MaximumSize = new Size(settingsContentWidth, 0),
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
             Padding = new Padding(UiTheme.CardPadding, 14, UiTheme.CardPadding, 14),
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+            Margin = new Padding(0)
         };
-        defaultModuleCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        defaultModuleCard.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        defaultModuleCard.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 12));
-        defaultModuleCard.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 4));
+        defaultModuleBlock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 12));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 4));
 
         var defaultModuleHeader = new FlowLayoutPanel
         {
@@ -1200,7 +1250,7 @@ public sealed class MainForm : Form, IMessageFilter
         defaultModuleHeader.Controls.Add(CreateRowTitle("默认模块"));
         defaultModuleHeader.Controls.Add(
             CreateRowDescription("为指定环境设置自动选择时优先使用的模块，并将选中项保存为默认"));
-        defaultModuleCard.Controls.Add(defaultModuleHeader, 0, 0);
+        defaultModuleBlock.Controls.Add(defaultModuleHeader, 0, 0);
 
         var defaultFilterRow = new TableLayoutPanel
         {
@@ -1222,7 +1272,7 @@ public sealed class MainForm : Form, IMessageFilter
             defaultFilterRow.Controls.Add(defaultFilters[i], i, 0);
         }
 
-        defaultModuleCard.Controls.Add(defaultFilterRow, 0, 1);
+        defaultModuleBlock.Controls.Add(defaultFilterRow, 0, 1);
 
         var defaultModuleRow = new TableLayoutPanel
         {
@@ -1240,8 +1290,7 @@ public sealed class MainForm : Form, IMessageFilter
         defaultModuleRow.Controls.Add(_defaultModuleComboBox, 0, 0);
         _setDefaultModuleButton.Anchor = AnchorStyles.Right;
         defaultModuleRow.Controls.Add(_setDefaultModuleButton, 1, 0);
-        defaultModuleCard.Controls.Add(defaultModuleRow, 0, 2);
-        stack.Controls.Add(defaultModuleCard);
+        defaultModuleBlock.Controls.Add(defaultModuleRow, 0, 2);
 
         ResetDefaultClassOptions();
         ResetDefaultSpecOptions(null);
@@ -1294,9 +1343,13 @@ public sealed class MainForm : Form, IMessageFilter
         var getModuleActions = CreateActionsHost();
         getModuleActions.Controls.Add(openModuleWebsiteButton);
         getModuleActions.Controls.Add(openModuleDirectoryButton);
-        stack.Controls.Add(CreateSettingRow("获取模块", moduleWebsiteLabel, getModuleActions));
 
-        stack.Controls.Add(CreateSectionHeader("界面"));
+        AddSettingsGroup(
+            "模块",
+            first: false,
+            CreateSettingRow("模块选择", moduleDescription, moduleActions),
+            defaultModuleBlock,
+            CreateSettingRow("获取模块", moduleWebsiteLabel, getModuleActions));
 
         _horizontalLayoutButton = UiTheme.CreateButton("横向布局", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_horizontalLayoutButton, primaryControlWidth, rightGap: 10);
@@ -1307,10 +1360,6 @@ public sealed class MainForm : Form, IMessageFilter
         var layoutActions = CreateActionsHost();
         layoutActions.Controls.Add(_horizontalLayoutButton);
         layoutActions.Controls.Add(_verticalLayoutButton);
-        stack.Controls.Add(CreateSettingRow(
-            "界面布局",
-            CreateRowDescription("选择主界面浮动条的排列方向；切换时会交换宽高"),
-            layoutActions));
 
         _minimizeToTrayButton = UiTheme.CreateButton("最小化到系统栏", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_minimizeToTrayButton, primaryControlWidth, rightGap: 10);
@@ -1321,12 +1370,18 @@ public sealed class MainForm : Form, IMessageFilter
         var closeBehaviorActions = CreateActionsHost();
         closeBehaviorActions.Controls.Add(_minimizeToTrayButton);
         closeBehaviorActions.Controls.Add(_exitOnCloseButton);
-        stack.Controls.Add(CreateSettingRow(
-            "点击 X 时",
-            CreateRowDescription("最小化后可通过系统栏图标重新打开；完全退出会停止运行"),
-            closeBehaviorActions));
 
-        stack.Controls.Add(CreateSectionHeader("资源"));
+        AddSettingsGroup(
+            "界面",
+            first: false,
+            CreateSettingRow(
+                "界面布局",
+                CreateRowDescription("选择主界面浮动条的排列方向；切换时会交换宽高"),
+                layoutActions),
+            CreateSettingRow(
+                "点击 X 时",
+                CreateRowDescription("最小化后可通过系统栏图标重新打开；完全退出会停止运行"),
+                closeBehaviorActions));
 
         _spellIconPackageStatusLabel = CreateRowDescription(
             "从 GitHub Release 下载或更新技能/物品图标数据包");
@@ -1335,10 +1390,13 @@ public sealed class MainForm : Form, IMessageFilter
         _downloadSpellIconPackageButton.Click += (_, _) => StartSpellIconPackageDownload();
         var spellIconActions = CreateActionsHost();
         spellIconActions.Controls.Add(_downloadSpellIconPackageButton);
-        stack.Controls.Add(CreateSettingRow(
-            "下载数据包",
-            _spellIconPackageStatusLabel,
-            spellIconActions));
+        AddSettingsGroup(
+            "资源",
+            first: false,
+            CreateSettingRow(
+                "下载数据包",
+                _spellIconPackageStatusLabel,
+                spellIconActions));
 
         UpdateLayoutButtons();
         UpdateCloseBehaviorButtons();
