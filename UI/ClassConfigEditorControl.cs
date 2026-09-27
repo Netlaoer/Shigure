@@ -153,7 +153,7 @@ public sealed class ClassConfigEditorControl : UserControl
             SelectSpecFromStrip();
         };
 
-        var iconCard = UiTheme.CreateIconStripCard(_classStrip, _specStrip);
+        var iconStack = UiTheme.CreateIconStripStack(_classStrip, _specStrip);
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
 
@@ -164,32 +164,32 @@ public sealed class ClassConfigEditorControl : UserControl
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
-            Width = UiTheme.EditorPageWidth
+            MinimumSize = new Size(UiTheme.EditorPageWidth, 0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight * 2 + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconCard, 0, 0);
+        page.Controls.Add(iconStack, 0, 0);
         page.Controls.Add(editor, 0, 1);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
 
-        void SyncIconCardRow()
+        void SyncIconStackRow()
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripCardHeight(
+            page.RowStyles[0].Height = UiTheme.MeasureIconStripStackHeight(
                 this,
                 _classStrip.ScaledHeight,
                 _specStrip.ScaledHeight) + UiTheme.PageGap;
-            if (iconCard.RowStyles.Count >= 2)
+            if (iconStack.RowStyles.Count >= 2)
             {
-                iconCard.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
-                iconCard.RowStyles[1] = new RowStyle(SizeType.Absolute, _specStrip.ScaledHeight);
+                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
+                iconStack.RowStyles[1] = new RowStyle(SizeType.Absolute, _specStrip.ScaledHeight);
             }
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncIconCardRow);
-        _classStrip.HandleCreated += (_, _) => SyncIconCardRow();
-        _specStrip.HandleCreated += (_, _) => SyncIconCardRow();
+        HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
+        _classStrip.HandleCreated += (_, _) => SyncIconStackRow();
+        _specStrip.HandleCreated += (_, _) => SyncIconStackRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -485,8 +485,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -895,8 +895,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -1128,8 +1128,8 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.EditorSplitHalfWidth));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -1820,7 +1820,6 @@ public sealed class ClassConfigEditorControl : UserControl
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
                 _classStrip.SetItems([]);
-                _specStrip.LayoutReferenceCount = 0;
                 _pathLabel.Text = "未找到 Fuyutsui\\class";
                 _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
                 return;
@@ -1852,7 +1851,6 @@ public sealed class ClassConfigEditorControl : UserControl
             _classStrip.SetItems(_classItems
                 .Select(item => ((int?)item.ClassId, item.ToString()))
                 .ToList());
-            _specStrip.LayoutReferenceCount = _classItems.Count;
             _statusLabel.Text = $"已加载 {_documents.Count} 个职业文件";
             if (_classItems.Count > 0)
             {
@@ -2064,7 +2062,6 @@ public sealed class ClassConfigEditorControl : UserControl
     {
         _specItems.Clear();
         _specItems.AddRange(options);
-        _specStrip.LayoutReferenceCount = _classItems.Count;
         _specStrip.SetItems(options
             .Select(option => (option.ClassId, option.Id, option.Name))
             .ToList());

@@ -168,7 +168,7 @@ public sealed class ModuleEditorControl : UserControl
             ApplyModuleClassFilter(preserveSelection: true);
         };
 
-        var iconCard = UiTheme.CreateIconStripCard(_classFilterStrip);
+        var iconStack = UiTheme.CreateIconStripStack(_classFilterStrip);
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -178,7 +178,7 @@ public sealed class ModuleEditorControl : UserControl
             Margin = new Padding(0)
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleSidebarWidth));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleEditorWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Absolute, ModuleFooterBarHeight));
         body.Controls.Add(BuildSidebar(), 0, 0);
@@ -193,28 +193,28 @@ public sealed class ModuleEditorControl : UserControl
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
-            Width = UiTheme.EditorPageWidth
+            MinimumSize = new Size(UiTheme.EditorPageWidth, 0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconCard, 0, 0);
+        page.Controls.Add(iconStack, 0, 0);
         page.Controls.Add(body, 0, 1);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
 
-        void SyncIconCardRow()
+        void SyncIconStackRow()
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripCardHeight(this, _classFilterStrip.ScaledHeight)
+            page.RowStyles[0].Height = UiTheme.MeasureIconStripStackHeight(this, _classFilterStrip.ScaledHeight)
                 + UiTheme.PageGap;
-            if (iconCard.RowStyles.Count >= 1)
+            if (iconStack.RowStyles.Count >= 1)
             {
-                iconCard.RowStyles[0] = new RowStyle(SizeType.Absolute, _classFilterStrip.ScaledHeight);
+                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, _classFilterStrip.ScaledHeight);
             }
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncIconCardRow);
-        _classFilterStrip.HandleCreated += (_, _) => SyncIconCardRow();
+        HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
+        _classFilterStrip.HandleCreated += (_, _) => SyncIconStackRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

@@ -16,17 +16,17 @@ internal static class UiTheme
     public const int CardCornerRadius = 10;
     public const int ControlCornerRadius = 8;
 
-    /// <summary>配置/宏/模块页固定内容宽（1200 × 1.5）。</summary>
+    /// <summary>配置/宏/模块页最小内容宽（1200 × 1.5）；外层可随窗口加宽。</summary>
     public const int EditorPageWidth = 1800;
     /// <summary>模块列表侧栏固定宽（不加宽）。</summary>
     public const int ModuleSidebarWidth = 280;
-    /// <summary>模块编辑区固定宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
+    /// <summary>模块编辑区最小宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
     public const int ModuleEditorWidth = EditorPageWidth - ModuleSidebarWidth - PageGap;
-    /// <summary>编辑页左右 50/50 分栏固定半宽。</summary>
+    /// <summary>编辑页左右分栏在最小宽下的半宽参考值。</summary>
     public const int EditorSplitHalfWidth = (EditorPageWidth - PageGap) / 2;
     /// <summary>队伍页分组卡片固定宽（不再随父宽均分）。</summary>
     public const int GroupCardFixedWidth = 176;
-    /// <summary>模块元信息名称/作者输入框固定半宽。</summary>
+    /// <summary>模块元信息名称/作者输入框固定半宽（按最小编辑区宽）。</summary>
     public const int ModuleMetaFieldWidth = (ModuleEditorWidth - CardPadding * 2 - 58 * 2) / 2;
     /// <summary>模块侧栏页脚按钮固定半宽。</summary>
     public const int ModuleFooterButtonWidth = (ModuleSidebarWidth - CardPadding * 2 - 8) / 2;
@@ -34,15 +34,19 @@ internal static class UiTheme
     public const int ModuleMatchFieldWidth = 240;
     /// <summary>模块 Match 筛选项之间固定间隔。</summary>
     public const int ModuleMatchGapWidth = 12;
+    /// <summary>窗口拖拽时列宽重算防抖间隔（毫秒）。</summary>
+    public const int LayoutResizeDebounceMs = 80;
+    /// <summary>职业/专精图标条相邻格间距。</summary>
+    public const int IconStripCellGap = 4;
     /// <summary>EX/BW 事件页卡片宽（通用 1200 × 1.3，与编辑页宽度解耦）。</summary>
     public const int EventPageWidth = 1200 + 1200 * 3 / 10;
     /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>
     public const int ClassSpecIconSize = 40;
     /// <summary>职业/专精图标格逻辑边长（iconSize + 8）。</summary>
     public const int ClassSpecIconCellSize = ClassSpecIconSize + 8;
-    /// <summary>图标条卡片内边距。</summary>
+    /// <summary>图标条卡片内边距（历史常量；堆叠宿主不再使用卡片）。</summary>
     public const int IconStripCardPadding = 4;
-    /// <summary>同一卡片内职业行与专精行间距。</summary>
+    /// <summary>同一宿主内职业行与专精行间距。</summary>
     public const int IconStripRowGap = 2;
 
     private static readonly Dictionary<int, Image?> ClassIcons = new();
@@ -426,7 +430,7 @@ internal static class UiTheme
         => Math.Max(1, (int)Math.Round(logicalPixels * control.DeviceDpi / 96F));
 
     /// <summary>
-    /// 固定宽度内容宿主：左对齐，高度随视口填充；不随窗口无界拉宽。
+    /// 编辑页宿主：最小宽为 contentWidth，更宽时随窗口铺开（左对齐，避免窄岛两侧留白）。
     /// </summary>
     public static Panel CreateFixedWidthPageHost(Control content, int contentWidth)
     {
@@ -440,24 +444,25 @@ internal static class UiTheme
 
         content.Dock = DockStyle.None;
         content.Location = Point.Empty;
-        content.Width = contentWidth;
         content.MinimumSize = new Size(contentWidth, 0);
-        content.MaximumSize = new Size(contentWidth, int.MaxValue);
+        content.MaximumSize = Size.Empty;
 
         void SyncLayout()
         {
-            if (content.Width != contentWidth)
-            {
-                content.Width = contentWidth;
-            }
-
+            var hostWidth = scrollHost.ClientSize.Width;
+            var targetWidth = Math.Max(contentWidth, hostWidth);
             var viewHeight = scrollHost.ClientSize.Height;
-            if (contentWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
+            if (targetWidth > hostWidth && !scrollHost.HorizontalScroll.Visible)
             {
                 viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
             }
 
             var height = Math.Max(200, viewHeight);
+            if (content.Width != targetWidth)
+            {
+                content.Width = targetWidth;
+            }
+
             if (content.Height != height)
             {
                 content.Height = height;
@@ -494,9 +499,9 @@ internal static class UiTheme
     }
 
     /// <summary>
-    /// 将一条或多条图标条包进圆角卡片；多行时行间距为 IconStripRowGap。
+    /// 将职业/专精图标条自上而下堆叠（无卡片外壳）；图标条本身左起顺序排布。
     /// </summary>
-    public static UiCardPanel CreateIconStripCard(params Control[] strips)
+    public static TableLayoutPanel CreateIconStripStack(params Control[] strips)
     {
         ArgumentNullException.ThrowIfNull(strips);
         if (strips.Length == 0)
@@ -504,39 +509,40 @@ internal static class UiTheme
             throw new ArgumentException("至少需要一条图标条。", nameof(strips));
         }
 
-        var card = new UiCardPanel
+        var host = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = strips.Length,
-            Padding = new Padding(IconStripCardPadding),
-            Margin = new Padding(0, 0, 0, PageGap)
+            Padding = Padding.Empty,
+            Margin = new Padding(0, 0, 0, PageGap),
+            BackColor = Color.Transparent
         };
 
         for (var i = 0; i < strips.Length; i++)
         {
             var strip = strips[i];
-            card.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / strips.Length));
+            host.RowStyles.Add(new RowStyle(SizeType.Absolute, Math.Max(1, strip.Height)));
             strip.Dock = DockStyle.Fill;
             strip.BackColor = Color.Transparent;
             strip.Margin = i < strips.Length - 1
                 ? new Padding(0, 0, 0, IconStripRowGap)
                 : Padding.Empty;
-            card.Controls.Add(strip, 0, i);
+            host.Controls.Add(strip, 0, i);
         }
 
-        return card;
+        return host;
     }
 
-    public static int MeasureIconStripCardHeight(Control host, params int[] stripHeights)
+    /// <summary>堆叠图标条总高度（含行间距，无卡片内边距）。</summary>
+    public static int MeasureIconStripStackHeight(Control host, params int[] stripHeights)
     {
         ArgumentNullException.ThrowIfNull(stripHeights);
         if (stripHeights.Length == 0)
         {
-            return Scale(host, IconStripCardPadding) * 2;
+            return 0;
         }
 
-        var padding = Scale(host, IconStripCardPadding) * 2;
         var gaps = Scale(host, IconStripRowGap) * Math.Max(0, stripHeights.Length - 1);
         var body = 0;
         foreach (var height in stripHeights)
@@ -544,8 +550,11 @@ internal static class UiTheme
             body += height;
         }
 
-        return padding + gaps + body;
+        return gaps + body;
     }
+
+    public static int MeasureIconStripCardHeight(Control host, params int[] stripHeights)
+        => MeasureIconStripStackHeight(host, stripHeights);
 
     public static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int radius)
     {
@@ -1504,7 +1513,34 @@ internal static class UiTheme
         }
 
         ListColumnLayouts.Add(listView, new ListColumnLayoutState(columns));
-        listView.Resize += (_, _) => FitListViewColumns(listView);
+        System.Windows.Forms.Timer? debounce = null;
+        void ScheduleFit()
+        {
+            debounce ??= new System.Windows.Forms.Timer { Interval = LayoutResizeDebounceMs };
+            debounce.Stop();
+            debounce.Tick -= OnDebouncedFit;
+            debounce.Tick += OnDebouncedFit;
+            debounce.Start();
+        }
+
+        void OnDebouncedFit(object? sender, EventArgs e)
+        {
+            debounce?.Stop();
+            if (!listView.IsDisposed && listView.IsHandleCreated)
+            {
+                listView.SuspendLayout();
+                try
+                {
+                    FitListViewColumns(listView);
+                }
+                finally
+                {
+                    listView.ResumeLayout();
+                }
+            }
+        }
+
+        listView.Resize += (_, _) => ScheduleFit();
         listView.HandleCreated += (_, _) =>
         {
             // ListView 在 OnHandleCreated 内部会重建原生 item；此时 Items.Count 已更新，
@@ -1516,6 +1552,17 @@ internal static class UiTheme
                     FitListViewColumns(listView);
                 }
             });
+        };
+        listView.Disposed += (_, _) =>
+        {
+            if (debounce is null)
+            {
+                return;
+            }
+
+            debounce.Stop();
+            debounce.Dispose();
+            debounce = null;
         };
 
         if (!string.IsNullOrWhiteSpace(cacheKey))
@@ -1582,6 +1629,142 @@ internal static class UiTheme
         {
             isInitializing = false;
         }
+
+        EnableDebouncedFillColumns(grid);
+    }
+
+    /// <summary>
+    /// 将 Fill 列改为 Absolute，并在尺寸变化时防抖重算剩余宽度（SuspendLayout 批量更新）。
+    /// </summary>
+    public static void EnableDebouncedFillColumns(
+        DataGridView grid,
+        int debounceMs = LayoutResizeDebounceMs)
+    {
+        System.Windows.Forms.Timer? debounce = null;
+        var fillNames = new List<string>();
+
+        void CaptureFillColumns()
+        {
+            fillNames.Clear();
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                if (column.AutoSizeMode != DataGridViewAutoSizeColumnMode.Fill)
+                {
+                    continue;
+                }
+
+                fillNames.Add(column.Name);
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                if (column.MinimumWidth < 40)
+                {
+                    column.MinimumWidth = 40;
+                }
+            }
+        }
+
+        void ApplyFillWidths()
+        {
+            if (grid.IsDisposed || fillNames.Count == 0 || grid.ClientSize.Width <= 0)
+            {
+                return;
+            }
+
+            var fillColumns = new List<DataGridViewColumn>();
+            foreach (var name in fillNames)
+            {
+                if (grid.Columns[name] is { } column && column.Visible)
+                {
+                    fillColumns.Add(column);
+                }
+            }
+
+            if (fillColumns.Count == 0)
+            {
+                return;
+            }
+
+            var used = grid.RowHeadersVisible ? grid.RowHeadersWidth : 0;
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                if (!column.Visible || fillColumns.Contains(column))
+                {
+                    continue;
+                }
+
+                used += column.Width;
+            }
+
+            // 预留竖向滚动条与边框，避免末列被挤出可视区。
+            var chrome = SystemInformation.VerticalScrollBarWidth + Scale(grid, 4);
+            var remaining = Math.Max(0, grid.ClientSize.Width - used - chrome);
+            var share = remaining / fillColumns.Count;
+
+            grid.SuspendLayout();
+            try
+            {
+                foreach (var column in fillColumns)
+                {
+                    column.Width = Math.Max(column.MinimumWidth, share);
+                }
+            }
+            finally
+            {
+                grid.ResumeLayout();
+            }
+        }
+
+        void ScheduleApply()
+        {
+            if (fillNames.Count == 0)
+            {
+                return;
+            }
+
+            debounce ??= new System.Windows.Forms.Timer { Interval = debounceMs };
+            debounce.Stop();
+            debounce.Tick -= OnDebouncedApply;
+            debounce.Tick += OnDebouncedApply;
+            debounce.Start();
+        }
+
+        void OnDebouncedApply(object? sender, EventArgs e)
+        {
+            debounce?.Stop();
+            ApplyFillWidths();
+        }
+
+        void EnsureBound()
+        {
+            CaptureFillColumns();
+            ApplyFillWidths();
+        }
+
+        if (grid.IsHandleCreated)
+        {
+            EnsureBound();
+        }
+        else
+        {
+            grid.HandleCreated += (_, _) => EnsureBound();
+        }
+
+        grid.SizeChanged += (_, _) => ScheduleApply();
+        grid.ColumnAdded += (_, _) =>
+        {
+            CaptureFillColumns();
+            ScheduleApply();
+        };
+        grid.Disposed += (_, _) =>
+        {
+            if (debounce is null)
+            {
+                return;
+            }
+
+            debounce.Stop();
+            debounce.Dispose();
+            debounce = null;
+        };
     }
 
     public static void CacheListViewColumnWidths(ListView listView, string cacheKey)

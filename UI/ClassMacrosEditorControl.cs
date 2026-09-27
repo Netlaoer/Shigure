@@ -78,7 +78,7 @@ public sealed class ClassMacrosEditorControl : UserControl
             }
         };
 
-        var iconCard = UiTheme.CreateIconStripCard(_classStrip);
+        var iconStack = UiTheme.CreateIconStripStack(_classStrip);
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
 
@@ -89,28 +89,28 @@ public sealed class ClassMacrosEditorControl : UserControl
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
-            Width = UiTheme.EditorPageWidth
+            MinimumSize = new Size(UiTheme.EditorPageWidth, 0)
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconCard, 0, 0);
+        page.Controls.Add(iconStack, 0, 0);
         page.Controls.Add(editor, 0, 1);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
 
-        void SyncIconCardRow()
+        void SyncIconStackRow()
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripCardHeight(this, _classStrip.ScaledHeight)
+            page.RowStyles[0].Height = UiTheme.MeasureIconStripStackHeight(this, _classStrip.ScaledHeight)
                 + UiTheme.PageGap;
-            if (iconCard.RowStyles.Count >= 1)
+            if (iconStack.RowStyles.Count >= 1)
             {
-                iconCard.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
+                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
             }
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncIconCardRow);
-        _classStrip.HandleCreated += (_, _) => SyncIconCardRow();
+        HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
+        _classStrip.HandleCreated += (_, _) => SyncIconStackRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

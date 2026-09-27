@@ -4,13 +4,14 @@ using System.Drawing.Drawing2D;
 namespace Shigure;
 
 /// <summary>
-/// 顶部横向职业图标条：图标固定尺寸、水平均分排布；可选「全部」项（ClassId=null）。
+/// 顶部横向职业图标条：图标固定尺寸、自左向右顺序排布（不均分整行）。
 /// </summary>
 internal sealed class ClassIconStrip : Panel
 {
     public const int IconSize = UiTheme.ClassSpecIconSize;
     public const int CellSize = UiTheme.ClassSpecIconCellSize;
     public const int StripPadding = 2;
+    public const int CellGap = UiTheme.IconStripCellGap;
 
     private readonly ToolTip _toolTip = new();
     private readonly List<ClassIconButton> _buttons = new();
@@ -139,19 +140,11 @@ internal sealed class ClassIconStrip : Panel
 
         var pad = UiTheme.Scale(this, StripPadding);
         var cell = ScaledCellSize();
-        var inner = Math.Max(0, ClientSize.Width - pad * 2);
+        var gap = UiTheme.Scale(this, CellGap);
         var y = Math.Max(0, (ClientSize.Height - cell) / 2);
-
-        if (count == 1)
-        {
-            _buttons[0].Bounds = new Rectangle(pad + Math.Max(0, (inner - cell) / 2), y, cell, cell);
-            return;
-        }
-
-        var span = Math.Max(0, inner - cell);
         for (var i = 0; i < count; i++)
         {
-            var x = pad + (int)Math.Round(span * (i / (double)(count - 1)));
+            var x = pad + i * (cell + gap);
             _buttons[i].Bounds = new Rectangle(x, y, cell, cell);
         }
     }
