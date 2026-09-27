@@ -47,12 +47,14 @@ public sealed class StatusForm : Form
     private const int NavBrandIconSize = 32;
     /// <summary>Windows 风格标题栏按钮宽。</summary>
     private const int ChromeButtonWidth = 46;
-    /// <summary>顶栏导航项文字左侧内边距（逻辑像素）。</summary>
+    /// <summary>顶栏导航项左右内边距（逻辑像素；绘制时对称，避免文字左偏裁切）。</summary>
     private const int NavItemPadX = 8;
     /// <summary>顶栏导航项右侧为未保存黄点预留的宽度（逻辑像素，始终预留）。</summary>
     private const int NavItemDirtyReserve = 18;
     /// <summary>顶栏导航项最小宽（逻辑像素）。</summary>
     private const int NavItemMinWidth = 48;
+    /// <summary>相对实测基础宽再加宽的比例（修左裁切、脏点并存）。</summary>
+    private const double NavItemWidthScale = 1.3;
 
     private const string AboutDisclaimerText =
         """
@@ -1261,7 +1263,9 @@ public sealed class StatusForm : Form
     }
 
     /// <summary>
-    /// 顶栏导航项宽度：文字实测宽 + 左右内边距 + 未保存圆点预留（始终计入，避免变脏后「配...」截断）。
+    /// 顶栏导航项宽度：
+    /// base = textWidth + PadX + DirtyReserve + PadX，再 × <see cref="NavItemWidthScale"/>。
+    /// 脏点预留始终计入；对称内边距配合绘制居中，避免左缘裁切。
     /// </summary>
     private static int MeasureNavItemWidth(string text, Font font)
     {
@@ -1269,8 +1273,9 @@ public sealed class StatusForm : Form
             text,
             font,
             new Size(int.MaxValue, int.MaxValue),
-            TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding).Width;
-        return Math.Max(NavItemMinWidth, textWidth + NavItemPadX + NavItemDirtyReserve + NavItemPadX);
+            TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix).Width;
+        var baseWidth = Math.Max(NavItemMinWidth, textWidth + NavItemPadX + NavItemDirtyReserve + NavItemPadX);
+        return (int)Math.Ceiling(baseWidth * NavItemWidthScale);
     }
 
     private void SelectView(SettingsPage page)
@@ -3002,13 +3007,13 @@ public sealed class StatusForm : Form
 
             graphics.SmoothingMode = oldSmoothingMode;
 
-            // 始终为未保存圆点预留右侧空间，避免 IsDirty 时文字区收窄被 Truncate。
-            var leftPad = (int)Math.Round(NavItemPadX * scale);
+            // 对称左右内边距 + 水平居中：勿只从右侧扣脏点预留，否则文字整体左偏、左缘被 pill 裁切。
+            var hPad = (int)Math.Round(NavItemPadX * scale);
             var dirtyReserve = (int)Math.Round(NavItemDirtyReserve * scale);
             var textBounds = new Rectangle(
-                leftPad,
+                hPad,
                 0,
-                Math.Max(0, Width - leftPad - dirtyReserve),
+                Math.Max(0, Width - hPad * 2),
                 Height);
             TextRenderer.DrawText(
                 graphics,
@@ -3019,16 +3024,19 @@ public sealed class StatusForm : Form
                 TextFormatFlags.HorizontalCenter
                 | TextFormatFlags.VerticalCenter
                 | TextFormatFlags.SingleLine
-                | TextFormatFlags.NoPrefix);
+                | TextFormatFlags.NoPrefix
+                | TextFormatFlags.NoClipping);
 
             if (_isDirty)
             {
                 var dotSize = Math.Max(5, (int)Math.Round(6 * scale));
-                var dotLeft = Width - (int)Math.Round((NavItemDirtyReserve + NavItemPadX) / 2f * scale) - (dotSize / 2);
+                // 黄点落在右侧预留带中心，不挤占居中文字的布局框。
+                var reserveLeft = Width - dirtyReserve;
+                var dotLeft = reserveLeft + (dirtyReserve - dotSize) / 2;
                 using var warning = new SolidBrush(UiTheme.Warning);
                 graphics.FillEllipse(
                     warning,
-                    Math.Max(0, dotLeft),
+                    Math.Max(0, Math.Min(dotLeft, Width - dotSize)),
                     (Height - dotSize) / 2,
                     dotSize,
                     dotSize);
