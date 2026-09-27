@@ -28,6 +28,10 @@ internal static class UiTheme
     public const int ClassSpecIconSize = 40;
     /// <summary>职业/专精图标格逻辑边长（iconSize + 16）。</summary>
     public const int ClassSpecIconCellSize = ClassSpecIconSize + 16;
+    /// <summary>图标条卡片内边距。</summary>
+    public const int IconStripCardPadding = 8;
+    /// <summary>同一卡片内职业行与专精行间距。</summary>
+    public const int IconStripRowGap = 4;
 
     private static readonly Dictionary<int, Image?> ClassIcons = new();
     private static readonly Dictionary<(int ClassId, int SpecId), Image?> SpecIcons = new();
@@ -320,7 +324,7 @@ internal static class UiTheme
         => Math.Max(1, (int)Math.Round(logicalPixels * control.DeviceDpi / 96F));
 
     /// <summary>
-    /// 固定宽度内容宿主：水平居中，高度随视口填充；不随窗口无界拉宽。
+    /// 固定宽度内容宿主：左对齐，高度随视口填充；不随窗口无界拉宽。
     /// </summary>
     public static Panel CreateFixedWidthPageHost(Control content, int contentWidth)
     {
@@ -336,7 +340,7 @@ internal static class UiTheme
         content.Location = Point.Empty;
         content.Width = contentWidth;
         content.MinimumSize = new Size(contentWidth, 0);
-        content.MaximumSize = new Size(contentWidth, 0);
+        content.MaximumSize = new Size(contentWidth, int.MaxValue);
 
         void SyncLayout()
         {
@@ -357,12 +361,9 @@ internal static class UiTheme
                 content.Height = height;
             }
 
-            var left = scrollHost.ClientSize.Width > contentWidth
-                ? (scrollHost.ClientSize.Width - contentWidth) / 2
-                : 0;
-            if (content.Left != left)
+            if (content.Left != 0)
             {
-                content.Left = left;
+                content.Left = 0;
             }
 
             if (content.Top != 0)
@@ -388,6 +389,60 @@ internal static class UiTheme
         };
         SyncLayout();
         return scrollHost;
+    }
+
+    /// <summary>
+    /// 将一条或多条图标条包进圆角卡片；多行时行间距为 IconStripRowGap。
+    /// </summary>
+    public static UiCardPanel CreateIconStripCard(params Control[] strips)
+    {
+        ArgumentNullException.ThrowIfNull(strips);
+        if (strips.Length == 0)
+        {
+            throw new ArgumentException("至少需要一条图标条。", nameof(strips));
+        }
+
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = strips.Length,
+            Padding = new Padding(IconStripCardPadding),
+            Margin = new Padding(0, 0, 0, PageGap)
+        };
+
+        for (var i = 0; i < strips.Length; i++)
+        {
+            var strip = strips[i];
+            card.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / strips.Length));
+            strip.Dock = DockStyle.Fill;
+            strip.BackColor = Color.Transparent;
+            strip.Margin = i < strips.Length - 1
+                ? new Padding(0, 0, 0, IconStripRowGap)
+                : Padding.Empty;
+            card.Controls.Add(strip, 0, i);
+        }
+
+        return card;
+    }
+
+    public static int MeasureIconStripCardHeight(Control host, params int[] stripHeights)
+    {
+        ArgumentNullException.ThrowIfNull(stripHeights);
+        if (stripHeights.Length == 0)
+        {
+            return Scale(host, IconStripCardPadding) * 2;
+        }
+
+        var padding = Scale(host, IconStripCardPadding) * 2;
+        var gaps = Scale(host, IconStripRowGap) * Math.Max(0, stripHeights.Length - 1);
+        var body = 0;
+        foreach (var height in stripHeights)
+        {
+            body += height;
+        }
+
+        return padding + gaps + body;
     }
 
     public static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int radius)

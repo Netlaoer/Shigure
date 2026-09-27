@@ -134,21 +134,6 @@ public sealed class ClassConfigEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var root = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 1,
-            RowCount = 3,
-            Margin = new Padding(0)
-        };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, SpecIconStrip.StripHeight + UiTheme.PageGap));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        Controls.Add(root);
-
-        _classStrip.Dock = DockStyle.Fill;
         _classStrip.SelectionChanged += (_, _) =>
         {
             if (_suppressUi)
@@ -158,7 +143,6 @@ public sealed class ClassConfigEditorControl : UserControl
 
             SelectClassFromStrip();
         };
-        _specStrip.Dock = DockStyle.Fill;
         _specStrip.SelectionChanged += (_, _) =>
         {
             if (_suppressUi)
@@ -168,22 +152,44 @@ public sealed class ClassConfigEditorControl : UserControl
 
             SelectSpecFromStrip();
         };
-        root.Controls.Add(_classStrip, 0, 0);
-        root.Controls.Add(_specStrip, 0, 1);
 
+        var iconCard = UiTheme.CreateIconStripCard(_classStrip, _specStrip);
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
-        root.Controls.Add(UiTheme.CreateFixedWidthPageHost(editor, UiTheme.EditorPageWidth), 0, 2);
 
-        void SyncStripRows()
+        var page = new TableLayoutPanel
         {
-            root.RowStyles[0].Height = _classStrip.ScaledHeight + UiTheme.PageGap;
-            root.RowStyles[1].Height = _specStrip.ScaledHeight + UiTheme.PageGap;
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Width = UiTheme.EditorPageWidth
+        };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight * 2 + UiTheme.PageGap));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(iconCard, 0, 0);
+        page.Controls.Add(editor, 0, 1);
+
+        Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+
+        void SyncIconCardRow()
+        {
+            page.RowStyles[0].Height = UiTheme.MeasureIconStripCardHeight(
+                this,
+                _classStrip.ScaledHeight,
+                _specStrip.ScaledHeight) + UiTheme.PageGap;
+            if (iconCard.RowStyles.Count >= 2)
+            {
+                iconCard.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
+                iconCard.RowStyles[1] = new RowStyle(SizeType.Absolute, _specStrip.ScaledHeight);
+            }
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncStripRows);
-        _classStrip.HandleCreated += (_, _) => SyncStripRows();
-        _specStrip.HandleCreated += (_, _) => SyncStripRows();
+        HandleCreated += (_, _) => BeginInvoke(SyncIconCardRow);
+        _classStrip.HandleCreated += (_, _) => SyncIconCardRow();
+        _specStrip.HandleCreated += (_, _) => SyncIconCardRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

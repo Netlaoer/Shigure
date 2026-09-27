@@ -158,22 +158,8 @@ public sealed class ModuleEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var root = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0)
-        };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        Controls.Add(root);
-
         var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
         filterItems.AddRange(ClassNames.GetClasses().Select(item => ((int?)item.Id, item.Name)));
-        _classFilterStrip.Dock = DockStyle.Fill;
         _classFilterStrip.SetItems(filterItems);
         _classFilterStrip.SelectClassId(null);
         _classFilterStrip.SelectionChanged += (_, _) =>
@@ -181,16 +167,15 @@ public sealed class ModuleEditorControl : UserControl
             _filterClassId = _classFilterStrip.SelectedClassId;
             ApplyModuleClassFilter(preserveSelection: true);
         };
-        root.Controls.Add(_classFilterStrip, 0, 0);
 
+        var iconCard = UiTheme.CreateIconStripCard(_classFilterStrip);
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
             ColumnCount = 2,
             RowCount = 2,
-            Margin = new Padding(0),
-            Width = UiTheme.EditorPageWidth
+            Margin = new Padding(0)
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleSidebarWidth));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleEditorWidth));
@@ -200,13 +185,36 @@ public sealed class ModuleEditorControl : UserControl
         body.Controls.Add(BuildEditor(), 1, 0);
         body.Controls.Add(BuildSidebarFooter(), 0, 1);
         body.Controls.Add(BuildActionRow(), 1, 1);
-        root.Controls.Add(UiTheme.CreateFixedWidthPageHost(body, UiTheme.EditorPageWidth), 0, 1);
 
-        void SyncStripRow()
-            => root.RowStyles[0].Height = _classFilterStrip.ScaledHeight + UiTheme.PageGap;
+        var page = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Width = UiTheme.EditorPageWidth
+        };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(iconCard, 0, 0);
+        page.Controls.Add(body, 0, 1);
 
-        HandleCreated += (_, _) => BeginInvoke(SyncStripRow);
-        _classFilterStrip.HandleCreated += (_, _) => SyncStripRow();
+        Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+
+        void SyncIconCardRow()
+        {
+            page.RowStyles[0].Height = UiTheme.MeasureIconStripCardHeight(this, _classFilterStrip.ScaledHeight)
+                + UiTheme.PageGap;
+            if (iconCard.RowStyles.Count >= 1)
+            {
+                iconCard.RowStyles[0] = new RowStyle(SizeType.Absolute, _classFilterStrip.ScaledHeight);
+            }
+        }
+
+        HandleCreated += (_, _) => BeginInvoke(SyncIconCardRow);
+        _classFilterStrip.HandleCreated += (_, _) => SyncIconCardRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

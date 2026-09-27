@@ -22,8 +22,8 @@ internal sealed class SpecIconStrip : Panel
     public SpecIconStrip()
     {
         DoubleBuffered = true;
-        BackColor = UiTheme.SurfaceRaised;
-        Margin = new Padding(0, 0, 0, UiTheme.PageGap);
+        BackColor = Color.Transparent;
+        Margin = Padding.Empty;
         Padding = new Padding(0);
         ApplyScaledMetrics();
 
