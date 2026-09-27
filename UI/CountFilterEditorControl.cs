@@ -64,6 +64,7 @@ internal sealed class CountFilterEditorControl : UserControl
         _thresholdFields = new HashSet<string>(thresholdFields, StringComparer.Ordinal);
         Width = 800;
         Height = 780;
+        Margin = new Padding(0);
         BackColor = Color.Transparent;
 
         _groupsPanel.Dock = DockStyle.Fill;
@@ -80,6 +81,30 @@ internal sealed class CountFilterEditorControl : UserControl
         addGroupButton.Margin = new Padding(0, 8, 0, 8);
         addGroupButton.Click += (_, _) => AddGroup(CountConditionGroupMode.All, []);
         _groupsPanel.Controls.Add(addGroupButton);
+        _groupsPanel.Resize += (_, _) => FitGroupWidths();
+    }
+
+    protected override void OnSizeChanged(EventArgs e)
+    {
+        base.OnSizeChanged(e);
+        FitGroupWidths();
+    }
+
+    private void FitGroupWidths()
+    {
+        var width = _groupsPanel.ClientSize.Width - _groupsPanel.Padding.Horizontal - 1;
+        if (width < 200)
+        {
+            return;
+        }
+
+        foreach (var group in _groups)
+        {
+            if (group.Root.Width != width)
+            {
+                group.Root.Width = width;
+            }
+        }
     }
 
     public void SetEnemyTarget(bool enemy)
@@ -463,8 +488,7 @@ internal sealed class CountFilterEditorControl : UserControl
             });
 
             ApplyColumnLayout();
-            // 通用主题会按 DPI 扩大最小列宽；这个紧凑表格需要在主题处理后重新分配，
-            // 以保证六列在编辑器的固定宽度内完整显示。
+            // 通用主题会按 DPI 扩大最小列宽；主题处理后重新分配，值列吸收窗口拖宽后的剩余空间。
             _grid.HandleCreated += (_, _) => ApplyColumnLayout();
 
             _grid.CurrentCellDirtyStateChanged += (_, _) =>
@@ -606,7 +630,7 @@ internal sealed class CountFilterEditorControl : UserControl
             ConfigureFixedColumn(EnabledColumn, 84);
             ConfigureFixedColumn(FieldColumn, 340);
             ConfigureFixedColumn(ComparisonColumn, 144);
-            ConfigureFixedColumn(ValueColumn, 190);
+            ConfigureFillColumn(ValueColumn, 190);
             ConfigureFixedColumn(DeleteColumn, 84);
 
             _grid.ColumnHeadersHeight = Math.Max(38, _grid.Font.Height + 12);
@@ -624,6 +648,15 @@ internal sealed class CountFilterEditorControl : UserControl
             column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
             column.MinimumWidth = width;
             column.Width = width;
+        }
+
+        private void ConfigureFillColumn(string name, int minimumWidth)
+        {
+            var column = _grid.Columns[name]
+                ?? throw new InvalidOperationException($"找不到数量筛选列：{name}");
+            column.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+            column.MinimumWidth = minimumWidth;
+            column.FillWeight = 100;
         }
 
         private void RenumberRows()

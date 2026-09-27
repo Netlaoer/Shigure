@@ -9,6 +9,8 @@ namespace Shigure;
 public sealed class UnitEditorForm : Form
 {
     private const int RowWidth = 800;
+    private const int LegacyClientWidth = RowWidth + 36;
+    private const int DefaultClientWidth = LegacyClientWidth * 120 / 100;
     private const int LabelWidth = 132;
     private const int ControlLeft = LabelWidth + 10;
     // 页头双栏（类别/统计对象、名称/值名称）：等宽标签列 + 等宽输入，保证标签完整可见且间距一致。
@@ -70,9 +72,12 @@ public sealed class UnitEditorForm : Form
     private Button? _okButton;
 
     private Label _selectorLabel = null!;
+    private Panel _categoryRow = null!;
+    private Panel _nameRow = null!;
     private Panel _unitTargetRow = null!;
     private Panel _targetAuraRow = null!;
     private UiCardPanel _countFilterSection = null!;
+    private bool _fittingLayout;
 
     public ModuleUnit? ResultUnit { get; private set; }
     public ModuleCountField? ResultCount { get; private set; }
@@ -109,10 +114,22 @@ public sealed class UnitEditorForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
+        var defaultWidth = Width;
         var cache = UiCacheStore.Load();
+        var cached = cache.UnitEditorWindowSize;
+        // 旧版本把宽度锁在最小宽度上。那种缓存改用加宽后的默认宽度，之后的拖动结果仍会记住。
+        if (cached is { Width: > 0 } && cached.Width <= MinimumSize.Width + 2)
+        {
+            cached = new WindowSize
+            {
+                Width = Math.Max(cached.Width, defaultWidth),
+                Height = cached.Height
+            };
+        }
+
         UiTheme.RestoreCachedDialogPlacement(
             this,
-            cache.UnitEditorWindowSize,
+            cached,
             cache.UnitEditorWindowLocation);
     }
 
@@ -137,6 +154,9 @@ public sealed class UnitEditorForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        LayoutCategoryRow();
+        LayoutNameRow();
+        FitParamContent();
         _nameBox.Focus();
         _nameBox.SelectAll();
     }
@@ -148,8 +168,8 @@ public sealed class UnitEditorForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        // 默认高度相对原 600 翻倍；宽度固定，高度可调并缓存。
-        UiTheme.ConfigureFixedWidthResizableHeight(this, RowWidth + 36, 1200, 600);
+        // 默认宽度比原先锁定宽度增加 20%；宽高都可拖动，关闭时缓存。
+        UiTheme.ConfigureResizableDialog(this, DefaultClientWidth, 1200, LegacyClientWidth, 600);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
 
@@ -207,6 +227,7 @@ public sealed class UnitEditorForm : Form
         _paramPanel.AutoScroll = true;
         _paramPanel.Margin = new Padding(0);
         _paramPanel.Padding = new Padding(4, 6, 4, 6);
+        _paramPanel.Resize += (_, _) => FitParamContent();
         BuildParamRows();
         var paramsCard = new UiCardPanel
         {
@@ -397,20 +418,13 @@ public sealed class UnitEditorForm : Form
         // 只有平均血量需要在页头选择统计对象。
         var hasSelector = IsAverageHealthCategory;
         _selectorBox.Visible = hasSelector;
-        _categoryBox.Bounds = hasSelector
-            ? new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28)
-            : new Rectangle(HeaderControlLeft, 5, RowWidth - HeaderControlLeft, 28);
         if (_selectorLabel is not null)
         {
             _selectorLabel.Visible = hasSelector;
             _selectorLabel.Text = "统计对象";
         }
 
-        if (hasSelector)
-        {
-            _selectorBox.Bounds = new Rectangle(
-                HeaderHalfWidth + HeaderControlLeft, 5, HeaderControlWidth, 28);
-        }
+        LayoutCategoryRow();
 
         if (!hasSelector)
         {
@@ -473,9 +487,7 @@ public sealed class UnitEditorForm : Form
         _valueNameBox.Visible = visible;
         _valueNameBox.Enabled = visible;
         // 仅队友单位显示双栏；其它类别名称独占整行，与类别下拉的单栏布局一致。
-        _nameBox.Bounds = visible
-            ? new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28)
-            : new Rectangle(HeaderControlLeft, 5, RowWidth - HeaderControlLeft, 28);
+        LayoutNameRow();
         if (!visible)
         {
             _valueNameBox.Text = string.Empty;
@@ -932,6 +944,14 @@ public sealed class UnitEditorForm : Form
         };
 
         control.Bounds = new Rectangle(ControlLeft, 3, RowWidth - ControlLeft, height - 6);
+        panel.Resize += (_, _) =>
+        {
+            control.Bounds = new Rectangle(
+                ControlLeft,
+                3,
+                Math.Max(80, panel.ClientSize.Width - ControlLeft),
+                height - 6);
+        };
         panel.Controls.Add(control);
         panel.Controls.Add(labelControl);
         return panel;
@@ -966,6 +986,14 @@ public sealed class UnitEditorForm : Form
             AutoEllipsis = true
         };
         controlB.Bounds = new Rectangle(ControlLeft + 340, 8, RowWidth - (ControlLeft + 340), 28);
+        panel.Resize += (_, _) =>
+        {
+            controlB.Bounds = new Rectangle(
+                ControlLeft + 340,
+                8,
+                Math.Max(80, panel.ClientSize.Width - (ControlLeft + 340)),
+                28);
+        };
 
         panel.Controls.Add(controlA);
         panel.Controls.Add(labelAControl);
@@ -982,6 +1010,8 @@ public sealed class UnitEditorForm : Form
             BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0)
         };
+        _categoryRow = panel;
+        panel.Resize += (_, _) => LayoutCategoryRow();
 
         var labelAControl = new Label
         {
@@ -1019,6 +1049,8 @@ public sealed class UnitEditorForm : Form
             BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0)
         };
+        _nameRow = panel;
+        panel.Resize += (_, _) => LayoutNameRow();
 
         var nameLabel = new Label
         {
@@ -1050,6 +1082,74 @@ public sealed class UnitEditorForm : Form
         panel.Controls.Add(_valueNameBox);
         panel.Controls.Add(_valueNameLabel);
         return panel;
+    }
+
+    private void LayoutCategoryRow()
+        => LayoutDualFields(_categoryRow, _categoryBox, _selectorLabel, _selectorBox, IsAverageHealthCategory);
+
+    private void LayoutNameRow()
+        => LayoutDualFields(_nameRow, _nameBox, _valueNameLabel, _valueNameBox, IsUnitCategory && _valueNameBox.Visible);
+
+    private static void LayoutDualFields(
+        Control? host,
+        Control primary,
+        Control? secondaryLabel,
+        Control secondary,
+        bool split)
+    {
+        if (host is null || host.ClientSize.Width < HeaderControlLeft + 80)
+        {
+            return;
+        }
+
+        var width = host.ClientSize.Width;
+        var y = primary.Top > 0 ? primary.Top : 5;
+        var height = Math.Max(primary.Height, 28);
+        if (!split)
+        {
+            primary.SetBounds(HeaderControlLeft, y, Math.Max(80, width - HeaderControlLeft), height);
+            return;
+        }
+
+        var half = width / 2;
+        var controlWidth = Math.Max(80, half - HeaderControlLeft);
+        primary.SetBounds(HeaderControlLeft, y, controlWidth, height);
+        secondaryLabel?.SetBounds(half, secondaryLabel.Top > 0 ? secondaryLabel.Top : y, HeaderLabelWidth, Math.Max(secondaryLabel.Height, 28));
+        secondary.SetBounds(half + HeaderControlLeft, secondary.Top > 0 ? secondary.Top : y, controlWidth, height);
+    }
+
+    private void FitParamContent()
+    {
+        if (_fittingLayout || _paramPanel.IsDisposed)
+        {
+            return;
+        }
+
+        // 留出余量，避免子控件刚好顶满时 FlowLayoutPanel 冒出横向滚动条并来回触发布局。
+        var width = _paramPanel.ClientSize.Width - _paramPanel.Padding.Horizontal - 4;
+        if (width < 320)
+        {
+            return;
+        }
+
+        _fittingLayout = true;
+        try
+        {
+            _unitTargetRow.Width = width;
+            _targetAuraRow.Width = width;
+            var editorWidth = Math.Max(
+                320,
+                width - _countFilterSection.Padding.Horizontal - _countFilterSection.Margin.Horizontal);
+            _countFilterSection.Width = width;
+            if (_countFilterEditor.Width != editorWidth)
+            {
+                _countFilterEditor.Width = editorWidth;
+            }
+        }
+        finally
+        {
+            _fittingLayout = false;
+        }
     }
 
     private sealed record TargetFieldItem(string Text, UnitTargetFieldKind Kind)

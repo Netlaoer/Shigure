@@ -188,6 +188,28 @@ internal static class UiTheme
         form.MaximumSize = new Size(outerWidth, int.MaxValue);
     }
 
+    /// <summary>
+    /// 编辑弹窗：宽高都可拖动。默认客户端尺寸，最小客户端尺寸为下限。
+    /// </summary>
+    public static void ConfigureResizableDialog(
+        Form form,
+        int defaultClientWidth,
+        int defaultClientHeight,
+        int minimumClientWidth,
+        int minimumClientHeight)
+    {
+        form.FormBorderStyle = FormBorderStyle.Sizable;
+        form.MaximizeBox = false;
+        form.MinimizeBox = false;
+        form.ClientSize = new Size(defaultClientWidth, defaultClientHeight);
+        var chromeWidth = Math.Max(0, form.Width - form.ClientSize.Width);
+        var chromeHeight = Math.Max(0, form.Height - form.ClientSize.Height);
+        form.MinimumSize = new Size(
+            chromeWidth + minimumClientWidth,
+            chromeHeight + minimumClientHeight);
+        form.MaximumSize = Size.Empty;
+    }
+
     /// <summary>仅恢复缓存高度，宽度保持锁定。</summary>
     public static void RestoreCachedDialogHeight(Form form, WindowSize? cached)
         => RestoreCachedDialogPlacement(form, cached, location: null);
@@ -211,6 +233,11 @@ internal static class UiTheme
             if (form.MaximumSize.Width > 0)
             {
                 form.Width = form.MaximumSize.Width;
+            }
+            else if (cachedSize.Width > 0 && form.MinimumSize.Width > 0)
+            {
+                var maximumWidth = Math.Max(form.MinimumSize.Width, workingArea.Width - 40);
+                form.Width = Math.Clamp(cachedSize.Width, form.MinimumSize.Width, maximumWidth);
             }
         }
 
