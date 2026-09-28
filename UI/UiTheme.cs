@@ -18,8 +18,8 @@ internal static class UiTheme
 
     /// <summary>配置/宏/模块页最小内容宽（1200 × 1.5）；外层可随窗口加宽。</summary>
     public const int EditorPageWidth = 1800;
-    /// <summary>模块列表侧栏固定宽（不加宽）。</summary>
-    public const int ModuleSidebarWidth = 280;
+    /// <summary>模块列表侧栏宽度，留出名称与职业图标的可读空间。</summary>
+    public const int ModuleSidebarWidth = 320;
     /// <summary>配置页职业/专精树侧栏默认展开宽。</summary>
     public const int ConfigSidebarWidth = 240;
     /// <summary>配置页职业/专精树侧栏缩窄宽（仅图标）。</summary>
@@ -32,8 +32,6 @@ internal static class UiTheme
     public const int ConfigSidebarSplitGap = 8;
     /// <summary>配置侧栏可拖动分隔条厚度。</summary>
     public const int ConfigSidebarSplitterThickness = 4;
-    /// <summary>模块编辑区最小宽（EditorPageWidth - ModuleSidebarWidth - PageGap）。</summary>
-    public const int ModuleEditorWidth = EditorPageWidth - ModuleSidebarWidth - PageGap;
     /// <summary>配置编辑区最小宽（EditorPageWidth - ConfigSidebarWidth - SplitGap×2 - Splitter）。</summary>
     public const int ConfigEditorWidth = EditorPageWidth
         - ConfigSidebarWidth
@@ -43,14 +41,8 @@ internal static class UiTheme
     public const int EditorSplitHalfWidth = (EditorPageWidth - PageGap) / 2;
     /// <summary>队伍页分组卡片固定宽（不再随父宽均分）。</summary>
     public const int GroupCardFixedWidth = 176;
-    /// <summary>模块元信息名称/作者输入框固定半宽（按最小编辑区宽）。</summary>
-    public const int ModuleMetaFieldWidth = (ModuleEditorWidth - CardPadding * 2 - 58 * 2) / 2;
     /// <summary>模块侧栏页脚按钮固定半宽。</summary>
     public const int ModuleFooterButtonWidth = (ModuleSidebarWidth - CardPadding * 2 - 8) / 2;
-    /// <summary>模块 Match 筛选项下拉固定宽（四项等宽，卡内可容纳）。</summary>
-    public const int ModuleMatchFieldWidth = 240;
-    /// <summary>模块 Match 筛选项之间固定间隔。</summary>
-    public const int ModuleMatchGapWidth = 12;
     /// <summary>窗口拖拽时列宽重算防抖间隔（毫秒）。</summary>
     public const int LayoutResizeDebounceMs = 80;
     /// <summary>职业/专精图标条相邻格间距。</summary>
@@ -479,7 +471,10 @@ internal static class UiTheme
     /// 编辑页宿主：宽度始终贴合客户区（可小于 contentWidth）；仅当子控件固有宽度超出时出现横向滚动。
     /// contentWidth 保留为调用方设计参考宽，不再写成 MinimumSize / AutoScrollMinSize，避免最大化还原后卡住。
     /// </summary>
-    public static Panel CreateFixedWidthPageHost(Control content, int contentWidth)
+    public static Panel CreateFixedWidthPageHost(
+        Control content,
+        int contentWidth,
+        bool throttleResize = false)
     {
         _ = contentWidth;
 
@@ -537,21 +532,115 @@ internal static class UiTheme
             }
         }
 
+        var layoutSuspended = false;
+        var applyingResize = false;
+        System.Windows.Forms.Timer? resizeTimer = null;
+        Form? parentForm = null;
+
+        void FinishResize()
+        {
+            resizeTimer?.Stop();
+            if (scrollHost.IsDisposed || content.IsDisposed)
+            {
+                return;
+            }
+
+            applyingResize = true;
+            try
+            {
+                if (layoutSuspended)
+                {
+                    layoutSuspended = false;
+                    content.ResumeLayout(performLayout: true);
+                }
+
+                scrollHost.AutoScroll = true;
+                SyncLayout();
+            }
+            finally
+            {
+                applyingResize = false;
+            }
+        }
+
+        void OnResizeEnd(object? sender, EventArgs e) => FinishResize();
+        if (throttleResize)
+        {
+            resizeTimer = new System.Windows.Forms.Timer { Interval = LayoutResizeDebounceMs };
+            resizeTimer.Tick += (_, _) => FinishResize();
+        }
+
         void ScheduleSync()
         {
-            if (!scrollHost.IsHandleCreated || scrollHost.IsDisposed)
+            if (scrollHost.IsDisposed || content.IsDisposed || applyingResize)
+            {
+                return;
+            }
+
+            if (!scrollHost.IsHandleCreated)
             {
                 SyncLayout();
                 return;
             }
 
-            // 还原窗口时当帧 ClientSize 可能尚未稳定，延后到消息队列再同步。
-            scrollHost.BeginInvoke(SyncLayout);
+            if (!throttleResize)
+            {
+                scrollHost.BeginInvoke(SyncLayout);
+                return;
+            }
+
+            // 模块页先贴合宿主尺寸，延后内部表格与卡片排版，拖动时避免反复重绘。
+            applyingResize = true;
+            try
+            {
+                if (!layoutSuspended)
+                {
+                    content.SuspendLayout();
+                    layoutSuspended = true;
+                    scrollHost.AutoScroll = false;
+                    scrollHost.HorizontalScroll.Visible = false;
+                    scrollHost.VerticalScroll.Visible = false;
+                }
+
+                var width = Math.Max(0, scrollHost.ClientSize.Width);
+                var height = Math.Max(0, scrollHost.ClientSize.Height);
+                if (width > 0 && height > 0
+                    && content.Bounds != new Rectangle(0, 0, width, Math.Max(200, height)))
+                {
+                    content.SetBounds(0, 0, width, Math.Max(200, height));
+                }
+            }
+            finally
+            {
+                applyingResize = false;
+            }
+
+            if (resizeTimer is { Enabled: false })
+            {
+                resizeTimer.Start();
+            }
         }
 
         scrollHost.Controls.Add(content);
         scrollHost.Resize += (_, _) => ScheduleSync();
-        scrollHost.HandleCreated += (_, _) => ScheduleSync();
+        scrollHost.HandleCreated += (_, _) =>
+        {
+            scrollHost.BeginInvoke(SyncLayout);
+            if (throttleResize && scrollHost.FindForm() is { } form)
+            {
+                parentForm = form;
+                form.ResizeEnd += OnResizeEnd;
+            }
+        };
+        scrollHost.Disposed += (_, _) =>
+        {
+            if (parentForm is not null)
+            {
+                parentForm.ResizeEnd -= OnResizeEnd;
+            }
+
+            resizeTimer?.Dispose();
+        };
         SyncLayout();
         return scrollHost;
     }
@@ -1379,6 +1468,9 @@ internal static class UiTheme
 
     public static void StyleDataGridView(DataGridView grid)
     {
+        typeof(Control)
+            .GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.SetValue(grid, true);
         grid.Dock = DockStyle.Fill;
         grid.Margin = new Padding(0);
         grid.BackgroundColor = Surface;
@@ -1436,7 +1528,12 @@ internal static class UiTheme
                 return;
             }
 
-            grid.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText = e.Value.ToString();
+            var cell = grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+            var tooltip = e.Value.ToString() ?? string.Empty;
+            if (!string.Equals(cell.ToolTipText, tooltip, StringComparison.Ordinal))
+            {
+                cell.ToolTipText = tooltip;
+            }
         };
     }
 
