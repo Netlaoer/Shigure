@@ -883,8 +883,8 @@ public sealed class ModuleEditorControl : UserControl
     {
         var matchLabels = new[] { "职业:", "专精:", "英雄天赋:", "队伍类型:" };
         var matchBoxes = new[] { _classBox, _specBox, _heroTalentBox, _partyTypeBox };
-        // 四组等分：弹性 | 标签+下拉 | 弹性 | … | 弹性，左右贴行边、组间距均匀。
-        var columnCount = matchLabels.Length * 2 + (matchLabels.Length + 1);
+        // 职业贴左、队伍类型贴右；组间等宽弹性间隙，四下拉等宽。
+        var columnCount = matchLabels.Length * 2 + (matchLabels.Length - 1);
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
@@ -898,14 +898,16 @@ public sealed class ModuleEditorControl : UserControl
         row.ColumnStyles.Clear();
         for (var i = 0; i < matchLabels.Length; i++)
         {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             row.ColumnStyles.Add(new ColumnStyle(
                 SizeType.Absolute,
                 MeasureLabelColumnWidth(matchLabels[i], Font)));
             row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
+            if (i < matchLabels.Length - 1)
+            {
+                row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            }
         }
 
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -934,10 +936,10 @@ public sealed class ModuleEditorControl : UserControl
             _rulesGrid.Invalidate();
         };
 
-        // 列：隙0 / 标签1 / 框2 / 隙3 / 标签4 / 框5 / …
+        // 列：标签0 / 框1 / 隙2 / 标签3 / 框4 / …
         for (var i = 0; i < matchLabels.Length; i++)
         {
-            AddMatchField(row, matchLabels[i], matchBoxes[i], 1 + i * 3);
+            AddMatchField(row, matchLabels[i], matchBoxes[i], i * 3);
         }
 
         var recommendedTalentRow = new TableLayoutPanel
