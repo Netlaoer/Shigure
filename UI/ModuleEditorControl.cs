@@ -171,6 +171,13 @@ public sealed class ModuleEditorControl : UserControl
         };
 
         var iconStack = UiTheme.CreateIconStripStack(_classFilterStrip);
+        iconStack.Dock = DockStyle.None;
+        iconStack.Margin = Padding.Empty;
+        var identityCard = BuildNameRow();
+        identityCard.Dock = DockStyle.None;
+        var topArea = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Surface, Margin = Padding.Empty };
+        topArea.Controls.Add(iconStack);
+        topArea.Controls.Add(identityCard);
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -199,23 +206,48 @@ public sealed class ModuleEditorControl : UserControl
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconStack, 0, 0);
+        page.Controls.Add(topArea, 0, 0);
         page.Controls.Add(body, 0, 1);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth, throttleResize: true));
 
-        void SyncIconStackRow()
+        void SyncTopArea()
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripStackHeight(this, _classFilterStrip.ScaledHeight)
-                + UiTheme.PageGap;
-            if (iconStack.RowStyles.Count >= 1)
+            var stripHeight = _classFilterStrip.ScaledHeight;
+            var identityHeight = UiTheme.Scale(this, 48);
+            var gap = UiTheme.Scale(this, UiTheme.PageGap);
+            var iconWidth = UiTheme.Scale(
+                this,
+                ClassIconStrip.StripPadding * 2
+                + filterItems.Count * ClassIconStrip.CellSize
+                + Math.Max(0, filterItems.Count - 1) * ClassIconStrip.CellGap);
+            var availableWidth = topArea.ClientSize.Width;
+            var sideBySide = availableWidth >= iconWidth + UiTheme.Scale(this, 420) + gap;
+            var topHeight = sideBySide
+                ? Math.Max(stripHeight, identityHeight) + gap
+                : stripHeight + identityHeight + gap;
+
+            if (Math.Abs(page.RowStyles[0].Height - topHeight) > 0.5f)
             {
-                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, _classFilterStrip.ScaledHeight);
+                page.RowStyles[0].Height = topHeight;
+            }
+
+            iconStack.SetBounds(0, 0, sideBySide ? iconWidth : availableWidth, stripHeight);
+            identityCard.SetBounds(
+                sideBySide ? iconWidth + gap : 0,
+                sideBySide ? 0 : stripHeight,
+                sideBySide ? availableWidth - iconWidth - gap : availableWidth,
+                identityHeight);
+            if (iconStack.RowStyles.Count >= 1
+                && Math.Abs(iconStack.RowStyles[0].Height - stripHeight) > 0.5f)
+            {
+                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, stripHeight);
             }
         }
 
-        HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
-        _classFilterStrip.HandleCreated += (_, _) => SyncIconStackRow();
+        topArea.Resize += (_, _) => SyncTopArea();
+        HandleCreated += (_, _) => BeginInvoke(SyncTopArea);
+        _classFilterStrip.HandleCreated += (_, _) => SyncTopArea();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -428,15 +460,13 @@ public sealed class ModuleEditorControl : UserControl
             Padding = new Padding(0),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
-            RowCount = 3
+            RowCount = 2
         };
-        editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
         editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));
         editor.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        editor.Controls.Add(BuildNameRow(), 0, 0);
-        editor.Controls.Add(BuildMatchRow(), 0, 1);
-        editor.Controls.Add(BuildEditorTabs(), 0, 2);
+        editor.Controls.Add(BuildMatchRow(), 0, 0);
+        editor.Controls.Add(BuildEditorTabs(), 0, 1);
         return editor;
     }
 
@@ -756,49 +786,37 @@ public sealed class ModuleEditorControl : UserControl
     {
         var row = new UiCardPanel
         {
-            Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 4,
+            ColumnCount = 3,
             RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 8),
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+            Padding = new Padding(UiTheme.CardPadding, 4, UiTheme.CardPadding, 4),
+            Margin = Padding.Empty
         };
-        // 输入框等分剩余宽度，窗口拉伸时保持名称与作者对齐。
+        // 名称与作者纵向排列；版本号占作者行右端，不挤占名称输入空间。
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+        row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
         row.Controls.Add(CreateLabel("名称"), 0, 0);
         UiTheme.StyleTextBox(_nameBox);
-        _nameBox.Dock = DockStyle.Fill;
+        _nameBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         row.Controls.Add(_nameBox, 1, 0);
+        row.SetColumnSpan(_nameBox, 2);
 
         var authorLabel = CreateLabel("作者");
-        authorLabel.Margin = new Padding(10, 0, 0, 0);
-        row.Controls.Add(authorLabel, 2, 0);
+        row.Controls.Add(authorLabel, 0, 1);
         UiTheme.StyleTextBox(_authorBox);
-        _authorBox.Dock = DockStyle.Fill;
-        row.Controls.Add(_authorBox, 3, 0);
+        _authorBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        row.Controls.Add(_authorBox, 1, 1);
 
-        _pathLabel.Dock = DockStyle.Fill;
-        _pathLabel.ForeColor = UiTheme.Muted;
-        _pathLabel.BackColor = Color.Transparent;
-        _pathLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _pathLabel.AutoEllipsis = true;
-        _pathLabel.TextChanged += (_, _) => _pathToolTip.SetToolTip(_pathLabel, _pathLabel.Text);
-        row.Controls.Add(_pathLabel, 0, 1);
-        row.SetColumnSpan(_pathLabel, 3);
-
-        // 版本号紧贴窗口右侧, 右对齐显示在"路径"同一行。
         _versionLabel.Dock = DockStyle.Fill;
         _versionLabel.ForeColor = UiTheme.Muted;
         _versionLabel.BackColor = Color.Transparent;
         _versionLabel.TextAlign = ContentAlignment.MiddleRight;
         _versionLabel.AutoEllipsis = true;
-        row.Controls.Add(_versionLabel, 3, 1);
+        row.Controls.Add(_versionLabel, 2, 1);
 
         return row;
     }
@@ -4089,12 +4107,13 @@ public sealed class ModuleEditorControl : UserControl
             openFolderButton,
             "在资源管理器中打开模块目录；若已选中已保存模块则定位到对应文件");
 
-        var spacer = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
-        };
+        _pathLabel.Dock = DockStyle.Fill;
+        _pathLabel.Margin = new Padding(8, 0, 16, 0);
+        _pathLabel.ForeColor = UiTheme.Muted;
+        _pathLabel.BackColor = Color.Transparent;
+        _pathLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _pathLabel.AutoEllipsis = true;
+        _pathLabel.TextChanged += (_, _) => _pathToolTip.SetToolTip(_pathLabel, _pathLabel.Text);
 
         var buttons = new TableLayoutPanel
         {
@@ -4137,7 +4156,7 @@ public sealed class ModuleEditorControl : UserControl
         buttons.Controls.Add(_saveButton, 4, 0);
 
         row.Controls.Add(openFolderButton, 0, 0);
-        row.Controls.Add(spacer, 1, 0);
+        row.Controls.Add(_pathLabel, 1, 0);
         row.Controls.Add(buttons, 2, 0);
         return row;
     }
