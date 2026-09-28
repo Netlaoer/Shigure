@@ -370,35 +370,35 @@
       "category": "鼠标"
     },
     "治疗石": {
-      "step": 90,
+      "step": 95,
       "type": "int",
       "category": "物品",
       "itemId": 5512,
       "isEquipped": false
     },
     "物品名称": {
-      "step": 91,
+      "step": 96,
       "type": "int",
       "category": "物品",
       "itemId": 123456,
       "isEquipped": true
     },
     "鲁莽药水": {
-      "step": 92,
+      "step": 97,
       "type": "int",
       "category": "物品",
       "itemId": 241288,
       "isEquipped": false
     },
     "圣光潜力": {
-      "step": 93,
+      "step": 98,
       "type": "int",
       "category": "物品",
       "itemId": 241308,
       "isEquipped": false
     },
     "剧毒狂怒之泉": {
-      "step": 94,
+      "step": 99,
       "type": "int",
       "category": "物品",
       "itemId": 270168,
@@ -679,11 +679,71 @@
         "spellIds": [
           55078
         ]
+      },
+      "boss1.harmful.55078.value": {
+        "step": 71,
+        "type": "int",
+        "category": "首领1减益",
+        "displayName": "血之疫病",
+        "spellId": 55078,
+        "scope": "boss1.harmful",
+        "metric": "value",
+        "spellIds": [
+          55078
+        ]
+      },
+      "boss2.harmful.55078.value": {
+        "step": 72,
+        "type": "int",
+        "category": "首领2减益",
+        "displayName": "血之疫病",
+        "spellId": 55078,
+        "scope": "boss2.harmful",
+        "metric": "value",
+        "spellIds": [
+          55078
+        ]
+      },
+      "boss3.harmful.55078.value": {
+        "step": 73,
+        "type": "int",
+        "category": "首领3减益",
+        "displayName": "血之疫病",
+        "spellId": 55078,
+        "scope": "boss3.harmful",
+        "metric": "value",
+        "spellIds": [
+          55078
+        ]
+      },
+      "boss4.harmful.55078.value": {
+        "step": 74,
+        "type": "int",
+        "category": "首领4减益",
+        "displayName": "血之疫病",
+        "spellId": 55078,
+        "scope": "boss4.harmful",
+        "metric": "value",
+        "spellIds": [
+          55078
+        ]
+      },
+      "boss5.harmful.55078.value": {
+        "step": 75,
+        "type": "int",
+        "category": "首领5减益",
+        "displayName": "血之疫病",
+        "spellId": 55078,
+        "scope": "boss5.harmful",
+        "metric": "value",
+        "spellIds": [
+          55078
+        ]
       }
     },
     "spells": {
       "49576.cooldown": {
-        "step": 71,
+        "step": 76,
         "type": "int",
         "displayName": "死亡之握",
         "spellId": 49576,
@@ -691,7 +751,7 @@
         "displayType": "冷却"
       },
       "51052.cooldown": {
-        "step": 72,
+        "step": 77,
         "type": "int",
         "displayName": "反魔法领域",
         "spellId": 51052,
@@ -699,7 +759,7 @@
         "displayType": "冷却"
       },
       "221562.cooldown": {
-        "step": 73,
+        "step": 78,
         "type": "int",
         "displayName": "窒息",
         "spellId": 221562,
@@ -707,7 +767,7 @@
         "displayType": "冷却"
       },
       "207167.cooldown": {
-        "step": 74,
+        "step": 79,
         "type": "int",
         "displayName": "致盲冰雨",
         "spellId": 207167,
@@ -715,7 +775,7 @@
         "displayType": "冷却"
       },
       "47528.cooldown": {
-        "step": 75,
+        "step": 80,
         "type": "int",
         "displayName": "心灵冰冻",
         "spellId": 47528,
@@ -723,7 +783,7 @@
         "displayType": "冷却"
       },
       "195292.cooldown": {
-        "step": 76,
+        "step": 81,
         "type": "int",
         "displayName": "死神的抚摩",
         "spellId": 195292,
@@ -731,7 +791,7 @@
         "displayType": "冷却"
       },
       "439843.cooldown": {
-        "step": 77,
+        "step": 82,
         "type": "int",
         "displayName": "死神印记",
         "spellId": 439843,
@@ -739,7 +799,7 @@
         "displayType": "冷却"
       },
       "46585.cooldown": {
-        "step": 78,
+        "step": 83,
         "type": "int",
         "displayName": "亡者复生",
         "spellId": 46585,
@@ -747,7 +807,7 @@
         "displayType": "冷却"
       },
       "55233.cooldown": {
-        "step": 79,
+        "step": 84,
         "type": "int",
         "displayName": "吸血鬼之血",
         "spellId": 55233,
@@ -755,7 +815,7 @@
         "displayType": "冷却"
       },
       "48792.cooldown": {
-        "step": 80,
+        "step": 85,
         "type": "int",
         "displayName": "冰封之韧",
         "spellId": 48792,
@@ -763,7 +823,7 @@
         "displayType": "冷却"
       },
       "49039.cooldown": {
-        "step": 81,
+        "step": 86,
         "type": "int",
         "displayName": "巫妖之躯",
         "spellId": 49039,
@@ -771,7 +831,7 @@
         "displayType": "冷却"
       },
       "108199.cooldown": {
-        "step": 82,
+        "step": 87,
         "type": "int",
         "displayName": "血魔之握",
         "spellId": 108199,
@@ -779,7 +839,7 @@
         "displayType": "冷却"
       },
       "1263569.cooldown": {
-        "step": 83,
+        "step": 88,
         "type": "int",
         "displayName": "憎恶附肢",
         "spellId": 1263569,
@@ -787,7 +847,7 @@
         "displayType": "冷却"
       },
       "1263824.cooldown": {
-        "step": 84,
+        "step": 89,
         "type": "int",
         "displayName": "吞噬",
         "spellId": 1263824,
@@ -795,7 +855,7 @@
         "displayType": "冷却"
       },
       "50842.cooldown": {
-        "step": 85,
+        "step": 90,
         "type": "int",
         "displayName": "血液沸腾",
         "spellId": 50842,
@@ -803,7 +863,7 @@
         "displayType": "冷却"
       },
       "50842.chargeCooldown": {
-        "step": 86,
+        "step": 91,
         "type": "int",
         "displayName": "血液沸腾充能",
         "spellId": 50842,
@@ -820,7 +880,7 @@
         "displayType": "充能层数"
       },
       "43265.cooldown": {
-        "step": 87,
+        "step": 92,
         "type": "int",
         "displayName": "枯萎凋零",
         "spellId": 43265,
@@ -828,7 +888,7 @@
         "displayType": "冷却"
       },
       "43265.chargeCooldown": {
-        "step": 88,
+        "step": 93,
         "type": "int",
         "displayName": "枯萎凋零充能",
         "spellId": 43265,
@@ -845,7 +905,7 @@
         "displayType": "充能层数"
       },
       "49028.cooldown": {
-        "step": 89,
+        "step": 94,
         "type": "int",
         "displayName": "符文刃舞",
         "spellId": 49028,
@@ -854,42 +914,43 @@
       }
     },
     "姓名板目标": {
-      "step": 95,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板焦点": {
-      "step": 96,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领1": {
-      "step": 97,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领2": {
-      "step": 98,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领3": {
-      "step": 99,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领4": {
       "step": 100,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领5": {
+    "姓名板焦点": {
       "step": 101,
       "type": "int",
       "category": "姓名板"
     },
+    "姓名板首领1": {
+      "step": 102,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领2": {
+      "step": 103,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领3": {
+      "step": 104,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 105,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 106,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
-      "start": 95,
+      "start": 100,
+      "mappingCount": 7,
       "healthPercent": 1,
       "range": 2,
       "combat": 3,
@@ -900,8 +961,7 @@
           "spellId": 55078
         }
       ],
-      "num": 4,
-      "mappingCount": 7
+      "num": 4
     }
   },
   "2": {

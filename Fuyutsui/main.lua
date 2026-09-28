@@ -99,7 +99,7 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
 
     -- auras 支持：
     --   旧：{ { spellId=... }, ... }  → 视为 player / HELPFUL
-    --   新：{ player={...}, target={ harmful={...}, helpful={...} }, focus={...} }
+    --   新：{ player={...}, target={ harmful={...}, helpful={...} }, focus={...}, boss1..boss5={ harmful={...} } }
     if type(t.auras) == "table" then
         local function AppendAuraList(list, unit, filter)
             if type(list) ~= "table" then return end
@@ -125,6 +125,14 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
         end
 
         local nested = t.auras.player or t.auras.target or t.auras.focus
+        if not nested then
+            for bossIndex = 1, 5 do
+                if t.auras["boss" .. bossIndex] then
+                    nested = true
+                    break
+                end
+            end
+        end
         if nested then
             AppendAuraList(t.auras.player, "player", "HELPFUL")
             if type(t.auras.target) == "table" then
@@ -134,6 +142,13 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
             if type(t.auras.focus) == "table" then
                 AppendAuraList(t.auras.focus.harmful, "focus", "HARMFUL")
                 AppendAuraList(t.auras.focus.helpful, "focus", "HELPFUL")
+            end
+            for bossIndex = 1, 5 do
+                local unit = "boss" .. bossIndex
+                local boss = t.auras[unit]
+                if type(boss) == "table" then
+                    AppendAuraList(boss.harmful, unit, "HARMFUL")
+                end
             end
         else
             AppendAuraList(t.auras, "player", "HELPFUL")
@@ -232,6 +247,13 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
         local supported = { healthPercent = true, role = true, dispel = true }
         for _, field in ipairs(stateFields) do
             if type(field) == "string" and supported[field] and not groups[field] then
+                groups.num = groups.num + 1
+                groups[field] = groups.num
+            end
+        end
+        -- 队伍启用时生命值和职责始终占位；与 config 转换器保持相同的追加顺序。
+        for _, field in ipairs({ "healthPercent", "role" }) do
+            if not groups[field] then
                 groups.num = groups.num + 1
                 groups[field] = groups.num
             end

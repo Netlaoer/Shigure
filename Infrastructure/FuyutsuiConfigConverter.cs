@@ -348,12 +348,13 @@ internal static class FuyutsuiConfigConverter
         var aurasObject = new JsonObject();
         var playerAuraBarNames = new List<string>();
 
-        // auras：主色块按 player → target → focus；层数条按 player → target harmful → focus harmful，排在 spell 条之后
+        // auras：主色块按 player → target → focus → boss1–5；层数条按相同单位顺序排在 spell 条之后。
         if (spec.GetTable("auras") is { } auras)
         {
             var nested = auras.GetTable("player") is not null
                 || auras.GetTable("target") is not null
-                || auras.GetTable("focus") is not null;
+                || auras.GetTable("focus") is not null
+                || Enumerable.Range(1, 5).Any(index => auras.GetTable($"boss{index}") is not null);
 
             if (nested)
             {
@@ -368,6 +369,15 @@ internal static class FuyutsuiConfigConverter
                 {
                     AppendAuraList(focus.GetTable("harmful"), "focus", "焦点减益", true, aurasObject, ref index, playerAuraBarNames, warnings, label);
                     AppendAuraList(focus.GetTable("helpful"), "focus", "焦点增益", false, aurasObject, ref index, playerAuraBarNames, warnings, label);
+                }
+
+                for (var bossIndex = 1; bossIndex <= 5; bossIndex++)
+                {
+                    if (auras.GetTable($"boss{bossIndex}") is { } boss)
+                    {
+                        AppendAuraList(boss.GetTable("harmful"), $"boss{bossIndex}", $"首领{bossIndex}减益", true,
+                            aurasObject, ref index, playerAuraBarNames, warnings, label);
+                    }
                 }
             }
             else
@@ -724,6 +734,11 @@ internal static class FuyutsuiConfigConverter
                 "目标增益" => "target.helpful",
                 "焦点减益" => "focus.harmful",
                 "焦点增益" => "focus.helpful",
+                "首领1减益" => "boss1.harmful",
+                "首领2减益" => "boss2.harmful",
+                "首领3减益" => "boss3.harmful",
+                "首领4减益" => "boss4.harmful",
+                "首领5减益" => "boss5.harmful",
                 _ => "player"
             };
             var valueKey = $"{scope}.{canonicalId}.{SpellFieldKey.AuraValue}";

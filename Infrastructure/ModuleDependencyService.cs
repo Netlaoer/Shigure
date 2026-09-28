@@ -232,6 +232,11 @@ internal sealed class ModuleDependencyService
             snapshot.Config.Spec.TargetHelpfulAuras,
             snapshot.Config.Spec.FocusHarmfulAuras,
             snapshot.Config.Spec.FocusHelpfulAuras,
+            snapshot.Config.Spec.Boss1HarmfulAuras,
+            snapshot.Config.Spec.Boss2HarmfulAuras,
+            snapshot.Config.Spec.Boss3HarmfulAuras,
+            snapshot.Config.Spec.Boss4HarmfulAuras,
+            snapshot.Config.Spec.Boss5HarmfulAuras,
             snapshot.Config.Spec.Nameplates?.Auras ?? []
         };
         if (auraGroups.SelectMany(entries => entries ?? [])
@@ -405,6 +410,11 @@ internal sealed class ModuleDependencyService
         TargetHelpfulAuras = spec.TargetHelpfulAuras.Select(CaptureAura).ToList(),
         FocusHarmfulAuras = spec.FocusHarmfulAuras.Select(CaptureAura).ToList(),
         FocusHelpfulAuras = spec.FocusHelpfulAuras.Select(CaptureAura).ToList(),
+        Boss1HarmfulAuras = spec.Boss1HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss2HarmfulAuras = spec.Boss2HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss3HarmfulAuras = spec.Boss3HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss4HarmfulAuras = spec.Boss4HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss5HarmfulAuras = spec.Boss5HarmfulAuras.Select(CaptureAura).ToList(),
         Spells = spec.Spells.Select(entry => new ModuleSpellSnapshot
         {
             Name = entry.Name,
@@ -507,6 +517,11 @@ internal sealed class ModuleDependencyService
         MergeAuras(local.TargetHelpfulAuras, incoming.TargetHelpfulAuras, "目标增益", counters);
         MergeAuras(local.FocusHarmfulAuras, incoming.FocusHarmfulAuras, "焦点减益", counters);
         MergeAuras(local.FocusHelpfulAuras, incoming.FocusHelpfulAuras, "焦点增益", counters);
+        MergeAuras(local.Boss1HarmfulAuras, incoming.Boss1HarmfulAuras ?? [], "首领1减益", counters);
+        MergeAuras(local.Boss2HarmfulAuras, incoming.Boss2HarmfulAuras ?? [], "首领2减益", counters);
+        MergeAuras(local.Boss3HarmfulAuras, incoming.Boss3HarmfulAuras ?? [], "首领3减益", counters);
+        MergeAuras(local.Boss4HarmfulAuras, incoming.Boss4HarmfulAuras ?? [], "首领4减益", counters);
+        MergeAuras(local.Boss5HarmfulAuras, incoming.Boss5HarmfulAuras ?? [], "首领5减益", counters);
         MergeNameplates(local, incoming.Nameplates, counters);
         MergeSpells(local.Spells, incoming.Spells, counters);
         // 队伍配置属于本地扫描布局；模块快照只为文件兼容保留，导入时不得比较或修改。

@@ -553,6 +553,11 @@ public sealed class ConditionFieldCatalog
             AddAuraClassifications(result, spec.TargetHelpfulAuras, "目标", "目标增益");
             AddAuraClassifications(result, spec.FocusHarmfulAuras, "焦点", "焦点减益");
             AddAuraClassifications(result, spec.FocusHelpfulAuras, "焦点", "焦点增益");
+            AddAuraClassifications(result, spec.Boss1HarmfulAuras, "首领1", "首领1减益");
+            AddAuraClassifications(result, spec.Boss2HarmfulAuras, "首领2", "首领2减益");
+            AddAuraClassifications(result, spec.Boss3HarmfulAuras, "首领3", "首领3减益");
+            AddAuraClassifications(result, spec.Boss4HarmfulAuras, "首领4", "首领4减益");
+            AddAuraClassifications(result, spec.Boss5HarmfulAuras, "首领5", "首领5减益");
         }
         catch
         {
@@ -596,7 +601,9 @@ public sealed class ConditionFieldCatalog
         => ClassStateCatalog.ClassifyField(name);
 
     private static string InferAuraClassification(string name)
-        => name.StartsWith("目标", StringComparison.Ordinal)
+        => name.StartsWith("首领", StringComparison.Ordinal) && name.Length >= 3 && name[2] is >= '1' and <= '5'
+            ? name[..3] + "减益"
+            : name.StartsWith("目标", StringComparison.Ordinal)
             ? "目标光环"
             : name.StartsWith("焦点", StringComparison.Ordinal)
                 ? "焦点光环"

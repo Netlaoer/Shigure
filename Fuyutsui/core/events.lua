@@ -564,6 +564,7 @@ function Fuyutsui:ENCOUNTER_START(_, encounterID, encounterName, difficultyID, g
         self:ResetExBossTimelinePixels()
     end
     self:SetEncounterState(encounterID, difficultyID)
+    self:RefreshBossAuraContainers()
 end
 
 function Fuyutsui:ENCOUNTER_END(_, encounterID, encounterName, difficultyID, groupSize, success)
@@ -574,6 +575,12 @@ function Fuyutsui:ENCOUNTER_END(_, encounterID, encounterName, difficultyID, gro
         self:ResetBigWigsTimelinePixels()
     end
     self:SetEncounterState(0, 0)
+    self:RefreshBossAuraContainers()
+end
+
+function Fuyutsui:INSTANCE_ENCOUNTER_ENGAGE_UNIT()
+    self:RefreshBossUnitStates()
+    self:RefreshBossAuraContainers()
 end
 
 function Fuyutsui:ENCOUNTER_TIMELINE_EVENT_ADDED(_, eventInfo)

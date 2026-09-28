@@ -92,6 +92,11 @@ internal static class ClassBlocksStore
         public List<AuraEntry> TargetHelpfulAuras { get; } = new();
         public List<AuraEntry> FocusHarmfulAuras { get; } = new();
         public List<AuraEntry> FocusHelpfulAuras { get; } = new();
+        public List<AuraEntry> Boss1HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss2HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss3HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss4HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss5HarmfulAuras { get; } = new();
         public List<SpellEntry> Spells { get; } = new();
         public GroupBlocks? Group { get; set; }
         public NameplateBlocks? Nameplates { get; set; }
@@ -591,7 +596,8 @@ internal static class ClassBlocksStore
         {
             var nested = auras.GetTable("player") is not null
                 || auras.GetTable("target") is not null
-                || auras.GetTable("focus") is not null;
+                || auras.GetTable("focus") is not null
+                || Enumerable.Range(1, 5).Any(index => auras.GetTable($"boss{index}") is not null);
             if (nested)
             {
                 AppendAuraList(auras.GetTable("player"), result.PlayerAuras);
@@ -605,6 +611,14 @@ internal static class ClassBlocksStore
                 {
                     AppendAuraList(focus.GetTable("harmful"), result.FocusHarmfulAuras);
                     AppendAuraList(focus.GetTable("helpful"), result.FocusHelpfulAuras);
+                }
+
+                for (var bossIndex = 1; bossIndex <= 5; bossIndex++)
+                {
+                    if (auras.GetTable($"boss{bossIndex}") is { } boss)
+                    {
+                        AppendAuraList(boss.GetTable("harmful"), GetBossHarmfulAuras(result, bossIndex));
+                    }
                 }
             }
             else
@@ -834,13 +848,18 @@ internal static class ClassBlocksStore
             || spec.TargetHarmfulAuras.Count > 0
             || spec.TargetHelpfulAuras.Count > 0
             || spec.FocusHarmfulAuras.Count > 0
-            || spec.FocusHelpfulAuras.Count > 0;
+            || spec.FocusHelpfulAuras.Count > 0
+            || Enumerable.Range(1, 5).Any(index => GetBossHarmfulAuras(spec, index).Count > 0);
         if (hasAuras)
         {
             sb.Append(indent).AppendLine("auras = {");
             WriteAuraUnit(sb, "player", null, spec.PlayerAuras, indent + "    ");
             WriteAuraSplitUnit(sb, "target", spec.TargetHarmfulAuras, spec.TargetHelpfulAuras, indent + "    ");
             WriteAuraSplitUnit(sb, "focus", spec.FocusHarmfulAuras, spec.FocusHelpfulAuras, indent + "    ");
+            for (var bossIndex = 1; bossIndex <= 5; bossIndex++)
+            {
+                WriteAuraSplitUnit(sb, $"boss{bossIndex}", GetBossHarmfulAuras(spec, bossIndex), [], indent + "    ");
+            }
             sb.Append(indent).AppendLine("},");
         }
 
@@ -911,7 +930,7 @@ internal static class ClassBlocksStore
         {
             sb.Append(indent).AppendLine("group = {");
             sb.Append(indent).Append("    state = {");
-            foreach (var field in group.State)
+            foreach (var field in GroupStateLayout.EnsureRequired(group.State))
             {
                 sb.Append(" \"").Append(Escape(field)).Append("\",");
             }
@@ -1038,6 +1057,16 @@ internal static class ClassBlocksStore
             }
         }
     }
+
+    private static List<AuraEntry> GetBossHarmfulAuras(SpecBlocks spec, int bossIndex) => bossIndex switch
+    {
+        1 => spec.Boss1HarmfulAuras,
+        2 => spec.Boss2HarmfulAuras,
+        3 => spec.Boss3HarmfulAuras,
+        4 => spec.Boss4HarmfulAuras,
+        5 => spec.Boss5HarmfulAuras,
+        _ => throw new ArgumentOutOfRangeException(nameof(bossIndex))
+    };
 
     private static void WriteAuraUnit(StringBuilder sb, string unit, string? filter, List<AuraEntry> list, string indent)
     {

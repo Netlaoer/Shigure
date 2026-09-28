@@ -95,6 +95,31 @@ Fuyutsui.ClassBlocks = {
                     { name = "血之疫病", spellId = 55078, isPlayer = true, },
                 },
             },
+            boss1 = {
+                harmful = {
+                    { name = "血之疫病", spellId = 55078, isPlayer = true, },
+                },
+            },
+            boss2 = {
+                harmful = {
+                    { name = "血之疫病", spellId = 55078, isPlayer = true, },
+                },
+            },
+            boss3 = {
+                harmful = {
+                    { name = "血之疫病", spellId = 55078, isPlayer = true, },
+                },
+            },
+            boss4 = {
+                harmful = {
+                    { name = "血之疫病", spellId = 55078, isPlayer = true, },
+                },
+            },
+            boss5 = {
+                harmful = {
+                    { name = "血之疫病", spellId = 55078, isPlayer = true, },
+                },
+            },
         },
         spells = {
             { spellId = 49576, name = "死亡之握" },

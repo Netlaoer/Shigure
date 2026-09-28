@@ -100,7 +100,12 @@ public sealed class ClassConfigEditorControl : UserControl
         ("target.harmful", "目标·敌对"),
         ("target.helpful", "目标·友善"),
         ("focus.harmful", "焦点·敌对"),
-        ("focus.helpful", "焦点·友善")
+        ("focus.helpful", "焦点·友善"),
+        ("boss1.harmful", "首领1·敌对"),
+        ("boss2.harmful", "首领2·敌对"),
+        ("boss3.harmful", "首领3·敌对"),
+        ("boss4.harmful", "首领4·敌对"),
+        ("boss5.harmful", "首领5·敌对")
     ];
 
     public ClassConfigEditorControl(
@@ -966,7 +971,7 @@ public sealed class ClassConfigEditorControl : UserControl
             BackColor = UiTheme.SurfaceRaised,
             FillColor = UiTheme.Surface
         };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
@@ -1013,15 +1018,17 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = AuraBuckets.Length,
-            RowCount = 1,
+            ColumnCount = 5,
+            RowCount = 2,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        foreach (var _ in AuraBuckets)
+        for (var i = 0; i < 5; i++)
         {
-            tabBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F / AuraBuckets.Length));
+            tabBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
         }
+        tabBar.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+        tabBar.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
 
         var tabs = new UiPillTab[AuraBuckets.Length];
         void ApplySelection()
@@ -1060,7 +1067,7 @@ public sealed class ClassConfigEditorControl : UserControl
             var tab = new UiPillTab(bucket.Text);
             tab.Click += (_, _) => SelectBucket(bucket.Key);
             tabs[i] = tab;
-            tabBar.Controls.Add(tab, i, 0);
+            tabBar.Controls.Add(tab, i % 5, i / 5);
         }
 
         ApplySelection();
@@ -1597,6 +1604,8 @@ public sealed class ClassConfigEditorControl : UserControl
             box.ForeColor = UiTheme.Text;
             box.CheckedChanged += (_, _) => { MarkDirty(); UpdateGroupPixelSummary(); };
         }
+        _groupHasHealthBox.Text = "必选";
+        _groupHasRoleBox.Text = "必选";
         _groupPixelSummary.ForeColor = UiTheme.Text;
         var groupCards = new Control[]
         {
@@ -2069,7 +2078,12 @@ public sealed class ClassConfigEditorControl : UserControl
                 spec.TargetHarmfulAuras,
                 spec.TargetHelpfulAuras,
                 spec.FocusHarmfulAuras,
-                spec.FocusHelpfulAuras
+                spec.FocusHelpfulAuras,
+                spec.Boss1HarmfulAuras,
+                spec.Boss2HarmfulAuras,
+                spec.Boss3HarmfulAuras,
+                spec.Boss4HarmfulAuras,
+                spec.Boss5HarmfulAuras
             };
             foreach (var auras in auraLists)
             {
@@ -3564,8 +3578,8 @@ public sealed class ClassConfigEditorControl : UserControl
         if (_currentSpec?.Group is { } group)
         {
             _groupEnabledBox.Checked = true;
-            _groupHasHealthBox.Checked = group.State.Contains("healthPercent");
-            _groupHasRoleBox.Checked = group.State.Contains("role");
+            _groupHasHealthBox.Checked = true;
+            _groupHasRoleBox.Checked = true;
             _groupHasDispelBox.Checked = group.State.Contains("dispel");
             foreach (var aura in group.Auras)
             {
@@ -3592,8 +3606,10 @@ public sealed class ClassConfigEditorControl : UserControl
     private void UpdateGroupEditorsEnabled()
     {
         var enabled = _groupEnabledBox.Checked;
-        _groupHasHealthBox.Enabled = enabled;
-        _groupHasRoleBox.Enabled = enabled;
+        _groupHasHealthBox.Checked = enabled;
+        _groupHasRoleBox.Checked = enabled;
+        _groupHasHealthBox.Enabled = false;
+        _groupHasRoleBox.Enabled = false;
         _groupHasDispelBox.Enabled = enabled;
         _groupAurasGrid.Enabled = enabled;
         _groupAurasGrid.ReadOnly = !enabled;
@@ -3634,6 +3650,11 @@ public sealed class ClassConfigEditorControl : UserControl
             "target.helpful" => _currentSpec.TargetHelpfulAuras,
             "focus.harmful" => _currentSpec.FocusHarmfulAuras,
             "focus.helpful" => _currentSpec.FocusHelpfulAuras,
+            "boss1.harmful" => _currentSpec.Boss1HarmfulAuras,
+            "boss2.harmful" => _currentSpec.Boss2HarmfulAuras,
+            "boss3.harmful" => _currentSpec.Boss3HarmfulAuras,
+            "boss4.harmful" => _currentSpec.Boss4HarmfulAuras,
+            "boss5.harmful" => _currentSpec.Boss5HarmfulAuras,
             _ => _currentSpec.PlayerAuras
         };
     }
@@ -3647,6 +3668,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
         _itemsGrid.EndEdit();
         _spellsGrid.EndEdit();
+        _aurasGrid.EndEdit();
         NormalizeFixedStateNames(_currentSpec);
         WriteBackStatesCategory(_lastStateCategory);
 
@@ -4255,8 +4277,8 @@ public sealed class ClassConfigEditorControl : UserControl
         var group = new ClassBlocksStore.GroupBlocks();
         var enabledFields = new Dictionary<string, bool>
         {
-            ["healthPercent"] = _groupHasHealthBox.Checked,
-            ["role"] = _groupHasRoleBox.Checked,
+            ["healthPercent"] = true,
+            ["role"] = true,
             ["dispel"] = _groupHasDispelBox.Checked
         };
         // 保留配置中的 state 顺序；新启用的字段追加到末尾。

@@ -46,6 +46,11 @@ public sealed class ModuleSpecSnapshot
     public List<ModuleAuraSnapshot> TargetHelpfulAuras { get; set; } = new();
     public List<ModuleAuraSnapshot> FocusHarmfulAuras { get; set; } = new();
     public List<ModuleAuraSnapshot> FocusHelpfulAuras { get; set; } = new();
+    public List<ModuleAuraSnapshot> Boss1HarmfulAuras { get; set; } = new();
+    public List<ModuleAuraSnapshot> Boss2HarmfulAuras { get; set; } = new();
+    public List<ModuleAuraSnapshot> Boss3HarmfulAuras { get; set; } = new();
+    public List<ModuleAuraSnapshot> Boss4HarmfulAuras { get; set; } = new();
+    public List<ModuleAuraSnapshot> Boss5HarmfulAuras { get; set; } = new();
     public List<ModuleSpellSnapshot> Spells { get; set; } = new();
     public ModuleGroupSnapshot? Group { get; set; }
     public ModuleNameplateSnapshot? Nameplates { get; set; }
@@ -64,6 +69,11 @@ public sealed class ModuleSpecSnapshot
         TargetHelpfulAuras = CloneEntries(TargetHelpfulAuras),
         FocusHarmfulAuras = CloneEntries(FocusHarmfulAuras),
         FocusHelpfulAuras = CloneEntries(FocusHelpfulAuras),
+        Boss1HarmfulAuras = CloneEntries(Boss1HarmfulAuras),
+        Boss2HarmfulAuras = CloneEntries(Boss2HarmfulAuras),
+        Boss3HarmfulAuras = CloneEntries(Boss3HarmfulAuras),
+        Boss4HarmfulAuras = CloneEntries(Boss4HarmfulAuras),
+        Boss5HarmfulAuras = CloneEntries(Boss5HarmfulAuras),
         Spells = (Spells ?? []).Where(entry => entry is not null).Select(entry => entry.Clone()).ToList(),
         Group = Group?.Clone(),
         Nameplates = Nameplates?.Clone()

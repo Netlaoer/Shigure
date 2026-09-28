@@ -218,7 +218,7 @@ local auraBarLaidOut = false
 local anyHorizontalBarLaidOut = false
 
 local BAR_EVENTS = { "SPELL_UPDATE_USES", "PLAYER_ENTERING_WORLD", "SPELL_UPDATE_CHARGES" }
-local UNIT_AURA_REBIND_ORDER = { "player", "target", "focus" }
+local UNIT_AURA_REBIND_ORDER = { "player", "target", "focus", "boss1", "boss2", "boss3", "boss4", "boss5" }
 
 --- 预留一条横向条的单元；成功返回 startIndex，空间不足返回 nil
 local function ReserveHorizontalBarUnits(maxValue, warnMsg)
@@ -939,12 +939,12 @@ local function MakeBarSlotInitializer(slotInfo)
     end
 end
 
-local AURA_BAR_UNIT_ORDER = { "player", "target", "focus" }
+local AURA_BAR_UNIT_ORDER = UNIT_AURA_REBIND_ORDER
 
 local function CollectAuraApplicationSlots(unit)
     local appSlots = {}
     for _, info in ipairs(CollectAuraSpellSlots(unit)) do
-        -- 玩家光环保留原有层数条；目标/焦点只为玩家施放的有害光环显示层数。
+        -- 玩家光环保留原有层数条；其他单位只为有害光环显示层数。
         local isTargetDebuff = unit ~= "player"
             and (info.filter == "HARMFUL|PLAYER" or info.filter == "HARMFUL")
         if info.maxApps and (unit == "player" or isTargetDebuff) then
@@ -991,12 +991,22 @@ local UNIT_AURA_CONTAINER_KEYS = {
     player = "PlayerAuraContainer",
     target = "TargetAuraContainer",
     focus = "FocusAuraContainer",
+    boss1 = "Boss1AuraContainer",
+    boss2 = "Boss2AuraContainer",
+    boss3 = "Boss3AuraContainer",
+    boss4 = "Boss4AuraContainer",
+    boss5 = "Boss5AuraContainer",
 }
 
 local UNIT_AURA_BAR_CONTAINER_KEYS = {
     player = "PlayerAuraBarContainer",
     target = "TargetAuraBarContainer",
     focus = "FocusAuraBarContainer",
+    boss1 = "Boss1AuraBarContainer",
+    boss2 = "Boss2AuraBarContainer",
+    boss3 = "Boss3AuraBarContainer",
+    boss4 = "Boss4AuraBarContainer",
+    boss5 = "Boss5AuraBarContainer",
 }
 
 function Fuyutsui:ReleaseUnitAuraContainers()
@@ -1145,7 +1155,7 @@ function Fuyutsui:LayoutAuraApplicationBars()
         Fuyutsui[key] = nil
     end
 
-    -- 层数条必须紧接计数条之后，按 player → target → focus 排布。
+    -- 层数条必须紧接计数条之后，按 player → target → focus → boss1–5 排布。
     nextAvailableIndex = countBarLayoutEndIndex
     anyHorizontalBarLaidOut = countBarLayoutEndIndex > BAR_START_INDEX
 

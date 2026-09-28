@@ -23,6 +23,12 @@ function Fuyutsui:RefreshBossReactionAndRangeStates()
     end
 end
 
+function Fuyutsui:RefreshBossAuraContainers()
+    for index = 1, BOSS_UNIT_COUNT do
+        self:UpdateUnitAuraContainer("boss" .. index)
+    end
+end
+
 function Fuyutsui:RefreshBossCastStateBlocks(refreshSafely)
     for index = 1, BOSS_UNIT_COUNT do
         local unit = "boss" .. index
