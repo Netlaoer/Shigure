@@ -347,6 +347,7 @@ internal sealed class CountFilterEditorControl : UserControl
         private readonly UiDropDown _modeBox = new();
         private readonly DataGridView _grid = new();
         private ToolStripDropDown? _valueDropDown;
+        private ToolStripDropDown? _comboDropDown;
         private bool _openFormulaDropDown;
         private bool _updating;
 
@@ -583,6 +584,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 ValueType = typeof(string),
                 DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
                 FlatStyle = FlatStyle.Flat,
+                ReadOnly = true,
                 SortMode = DataGridViewColumnSortMode.NotSortable
             });
             _grid.Columns.Add(new DataGridViewComboBoxColumn
@@ -596,6 +598,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 ValueType = typeof(CountConditionComparisonKind),
                 DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton,
                 FlatStyle = FlatStyle.Flat,
+                ReadOnly = true,
                 SortMode = DataGridViewColumnSortMode.NotSortable
             });
             _grid.Columns.Add(new DataGridViewTextBoxColumn
@@ -656,6 +659,26 @@ internal sealed class CountFilterEditorControl : UserControl
                 RenumberRows();
                 _owner.OnChanged();
             };
+            // 下拉列保持只读，单击直接弹出深色列表，避免先进入原生白底编辑框。
+            _grid.CellClick += (_, e) =>
+            {
+                if (e.RowIndex < 0
+                    || e.ColumnIndex < 0
+                    || _grid.Rows[e.RowIndex].Cells[e.ColumnIndex] is not DataGridViewComboBoxCell)
+                {
+                    return;
+                }
+
+                var rowIndex = e.RowIndex;
+                var columnIndex = e.ColumnIndex;
+                _grid.BeginInvoke(() =>
+                {
+                    if (!_grid.IsDisposed)
+                    {
+                        ShowComboDropDown(rowIndex, columnIndex);
+                    }
+                });
+            };
             _grid.EditingControlShowing += (_, e) =>
             {
                 if (e.Control is TextBox textBox
@@ -670,6 +693,15 @@ internal sealed class CountFilterEditorControl : UserControl
                         .Distinct(StringComparer.Ordinal)
                         .ToArray());
                     textBox.AutoCompleteCustomSource = source;
+                    var rowIndex = _grid.CurrentCell.RowIndex;
+                    var columnIndex = _grid.CurrentCell.ColumnIndex;
+                    _grid.BeginInvoke(() =>
+                    {
+                        if (!_grid.IsDisposed)
+                        {
+                            _grid.InvalidateCell(columnIndex, rowIndex);
+                        }
+                    });
                 }
             };
             _grid.CellMouseDown += (_, e) =>
@@ -689,6 +721,14 @@ internal sealed class CountFilterEditorControl : UserControl
             };
             _grid.CellBeginEdit += (_, e) =>
             {
+                if (e.RowIndex >= 0
+                    && e.ColumnIndex >= 0
+                    && _grid.Rows[e.RowIndex].Cells[e.ColumnIndex] is DataGridViewComboBoxCell)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+
                 if (_openFormulaDropDown
                     && e.RowIndex >= 0
                     && _grid.Columns[e.ColumnIndex].Name == ValueColumn
@@ -724,8 +764,19 @@ internal sealed class CountFilterEditorControl : UserControl
             };
             _grid.KeyDown += (_, e) =>
             {
-                var openDropDown = e.KeyCode == Keys.F4 || (e.KeyCode == Keys.Down && e.Alt);
-                if (_grid.CurrentCell is not FormulaValueCell cell || !openDropDown)
+                var openDropDown = e.KeyCode is Keys.F4 or Keys.Enter or Keys.Space
+                    || (e.KeyCode == Keys.Down && e.Alt);
+                if (_grid.CurrentCell is DataGridViewComboBoxCell comboCell && openDropDown)
+                {
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                    ShowComboDropDown(comboCell.RowIndex, comboCell.ColumnIndex);
+                    return;
+                }
+
+                if (_grid.CurrentCell is not FormulaValueCell cell
+                    || e.KeyCode is not (Keys.F4 or Keys.Down)
+                    || (e.KeyCode == Keys.Down && !e.Alt))
                 {
                     return;
                 }
@@ -776,7 +827,11 @@ internal sealed class CountFilterEditorControl : UserControl
                     ? $"公式动态数值: {text}"
                     : string.Empty;
             };
-            _grid.Disposed += (_, _) => CloseValueDropDown();
+            _grid.Disposed += (_, _) =>
+            {
+                CloseValueDropDown();
+                CloseComboDropDown();
+            };
             _grid.DataError += (_, _) => { };
         }
 
@@ -820,6 +875,11 @@ internal sealed class CountFilterEditorControl : UserControl
                     _ => new FormulaValueCell()
                 };
                 row.Cells[ValueColumn] = valueCell;
+                if (valueCell is DataGridViewComboBoxCell)
+                {
+                    valueCell.ReadOnly = true;
+                }
+
                 valueCell.Value = previousValue ?? DefaultValue(option.Kind);
             }
             finally
@@ -871,6 +931,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 return;
             }
 
+            CloseComboDropDown();
             CloseValueDropDown();
             _grid.CurrentCell = cell;
             var currentValue = cell.Value?.ToString()?.Trim() ?? string.Empty;
@@ -919,6 +980,80 @@ internal sealed class CountFilterEditorControl : UserControl
                     }
                 });
             _valueDropDown = dropDown;
+        }
+
+        private void ShowComboDropDown(int rowIndex, int columnIndex)
+        {
+            if (_grid.IsDisposed
+                || rowIndex < 0
+                || columnIndex < 0
+                || rowIndex >= _grid.Rows.Count
+                || _grid.Rows[rowIndex].Cells[columnIndex] is not DataGridViewComboBoxCell cell)
+            {
+                return;
+            }
+
+            CloseValueDropDown();
+            CloseComboDropDown();
+            if (_grid.IsCurrentCellInEditMode)
+            {
+                _grid.EndEdit();
+            }
+
+            var options = CreateComboOptions(cell);
+            if (options.Count == 0)
+            {
+                return;
+            }
+
+            _grid.CurrentCell = cell;
+            var cellBounds = _grid.GetCellDisplayRectangle(columnIndex, rowIndex, cutOverflow: true);
+            ToolStripDropDown? dropDown = null;
+            dropDown = UiDropDownPopup.Show(
+                _grid,
+                cellBounds,
+                options,
+                cell.Value,
+                selected =>
+                {
+                    cell.Value = selected.Value;
+                    _grid.InvalidateCell(cell);
+                },
+                closed: () =>
+                {
+                    if (ReferenceEquals(_comboDropDown, dropDown))
+                    {
+                        _comboDropDown = null;
+                    }
+                });
+            _comboDropDown = dropDown;
+        }
+
+        private static List<UiDropDownOption> CreateComboOptions(DataGridViewComboBoxCell cell)
+        {
+            var dataSource = cell.DataSource
+                ?? (cell.OwningColumn as DataGridViewComboBoxColumn)?.DataSource;
+            if (dataSource is not System.Collections.IEnumerable source)
+            {
+                return [];
+            }
+
+            return source
+                .Cast<object>()
+                .Select(item => item switch
+                {
+                    FieldOption field => new UiDropDownOption(field.Key, field.Text),
+                    ComparisonOption comparison => new UiDropDownOption(comparison.Kind, comparison.Text),
+                    ValueOption value => new UiDropDownOption(value.Value, value.Text),
+                    _ => new UiDropDownOption(item, item.ToString() ?? string.Empty)
+                })
+                .ToList();
+        }
+
+        private void CloseComboDropDown()
+        {
+            _comboDropDown?.Close(ToolStripDropDownCloseReason.AppClicked);
+            _comboDropDown = null;
         }
 
         private void CloseValueDropDown()
@@ -1089,5 +1224,42 @@ internal sealed class CountFilterEditorControl : UserControl
     }
 
     // 数值条件的值可手填数字，也可从下拉中选择公式动态数值名称。
-    private sealed class FormulaValueCell : DataGridViewTextBoxCell;
+    // 编辑时只覆盖文字区域，右侧下拉按钮保持可见、可点。
+    private sealed class FormulaValueCell : DataGridViewTextBoxCell
+    {
+        public override void PositionEditingControl(
+            bool setLocation,
+            bool setSize,
+            Rectangle cellBounds,
+            Rectangle cellClip,
+            DataGridViewCellStyle cellStyle,
+            bool singleVerticalBorderAdded,
+            bool singleHorizontalBorderAdded,
+            bool isFirstDisplayedColumn,
+            bool isFirstDisplayedRow)
+        {
+            if (DataGridView is { } grid && cellBounds.Width > 0 && cellBounds.Height > 0)
+            {
+                var buttonBounds = UiTheme.GetDropDownButtonBounds(
+                    grid,
+                    new Rectangle(Point.Empty, cellBounds.Size));
+                var editorWidth = Math.Max(1, buttonBounds.Left - UiTheme.Scale(grid, 4));
+                cellBounds.Width = editorWidth;
+                cellClip = Rectangle.Intersect(
+                    cellClip,
+                    new Rectangle(cellBounds.X, cellBounds.Y, editorWidth, cellBounds.Height));
+            }
+
+            base.PositionEditingControl(
+                setLocation,
+                setSize,
+                cellBounds,
+                cellClip,
+                cellStyle,
+                singleVerticalBorderAdded,
+                singleHorizontalBorderAdded,
+                isFirstDisplayedColumn,
+                isFirstDisplayedRow);
+        }
+    }
 }
