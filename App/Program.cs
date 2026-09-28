@@ -45,6 +45,7 @@ internal static class Program
         }
 
         ApplicationConfiguration.Initialize();
+        Application.SetColorMode(SystemColorMode.Dark);
 
         using var singleInstanceMutex = new Mutex(
             initiallyOwned: true,

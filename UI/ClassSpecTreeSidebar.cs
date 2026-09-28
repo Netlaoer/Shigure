@@ -503,6 +503,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
     private void PaintCollapseButton(object? sender, PaintEventArgs e)
     {
         var g = e.Graphics;
+        g.Clear(UiTheme.SurfaceRaised);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         var bounds = _collapseButton.ClientRectangle;
         var fill = _collapseButton.ClientRectangle.Contains(

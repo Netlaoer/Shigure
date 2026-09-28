@@ -114,6 +114,8 @@ internal sealed class UiCacheState
     public WindowLocation? FormulaEditorWindowLocation { get; set; }
     public WindowLocation? RuleTextEditorWindowLocation { get; set; }
     public string? SelectedSettingsPage { get; set; }
+    public int? SettingsSidebarWidth { get; set; }
+    public bool? SettingsSidebarCollapsed { get; set; }
     public string? MainWindowLayout { get; set; }
     public string? CloseButtonBehavior { get; set; }
     public int MainBarSizeVersion { get; set; }

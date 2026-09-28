@@ -79,6 +79,22 @@ public sealed class ClassMacrosEditorControl : UserControl
         };
 
         var iconStack = UiTheme.CreateIconStripStack(_classStrip);
+        iconStack.Dock = DockStyle.None;
+        iconStack.Margin = Padding.Empty;
+        var iconViewport = new Panel
+        {
+            AutoScroll = true,
+            Margin = Padding.Empty
+        };
+        iconViewport.Controls.Add(iconStack);
+        var iconCard = UiTheme.CreateIconStripCard(iconViewport);
+        var iconArea = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty
+        };
+        iconArea.Controls.Add(iconCard);
         var editor = BuildEditor();
         editor.Dock = DockStyle.Fill;
 
@@ -91,25 +107,52 @@ public sealed class ClassMacrosEditorControl : UserControl
             Margin = new Padding(0),
         };
         page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, ClassIconStrip.StripHeight + UiTheme.PageGap));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute,
+            ClassIconStrip.StripHeight + UiTheme.IconStripCardPadding * 2 + UiTheme.PageGap));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(iconStack, 0, 0);
+        page.Controls.Add(iconArea, 0, 0);
         page.Controls.Add(editor, 0, 1);
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
 
         void SyncIconStackRow()
         {
-            page.RowStyles[0].Height = UiTheme.MeasureIconStripStackHeight(this, _classStrip.ScaledHeight)
-                + UiTheme.PageGap;
+            var stripHeight = _classStrip.ScaledHeight;
+            var iconCount = _classStrip.Controls.Count;
+            var iconWidth = UiTheme.Scale(this, ClassIconStrip.StripPadding * 2
+                + iconCount * ClassIconStrip.CellSize
+                + Math.Max(0, iconCount - 1) * ClassIconStrip.CellGap);
+            var cardWidth = Math.Min(iconArea.ClientSize.Width,
+                iconWidth + iconCard.Padding.Horizontal);
+            var needsScroll = iconWidth > Math.Max(0, cardWidth - iconCard.Padding.Horizontal);
+            var cardHeight = stripHeight + iconCard.Padding.Vertical
+                + (needsScroll ? SystemInformation.HorizontalScrollBarHeight : 0);
+            var rowHeight = cardHeight + UiTheme.PageGap;
+            if (Math.Abs(page.RowStyles[0].Height - rowHeight) > 0.5F)
+            {
+                page.RowStyles[0].Height = rowHeight;
+            }
+            if (iconCard.Bounds != new Rectangle(0, 0, cardWidth, cardHeight))
+            {
+                iconCard.SetBounds(0, 0, cardWidth, cardHeight);
+            }
+            if (iconStack.Bounds != new Rectangle(0, 0, iconWidth, stripHeight))
+            {
+                iconStack.SetBounds(0, 0, iconWidth, stripHeight);
+            }
             if (iconStack.RowStyles.Count >= 1)
             {
-                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, _classStrip.ScaledHeight);
+                if (Math.Abs(iconStack.RowStyles[0].Height - stripHeight) > 0.5F)
+                {
+                    iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, stripHeight);
+                }
             }
         }
 
         HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
         _classStrip.HandleCreated += (_, _) => SyncIconStackRow();
+        iconArea.Resize += (_, _) => SyncIconStackRow();
+        iconViewport.Resize += (_, _) => SyncIconStackRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

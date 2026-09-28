@@ -27,6 +27,7 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
     private TableLayoutPanel? _bodyLayout;
+    private bool _autoCollapsedTree;
     private bool _splitterDragging;
     private int _splitterDragStartX;
     private int _splitterDragStartWidth;
@@ -165,6 +166,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
         _classTree.CollapseChanged += (_, _) =>
         {
+            _autoCollapsedTree = false;
             SyncSidebarColumnWidth();
             UpdateSplitterEnabled();
             var state = UiCacheStore.Load();
@@ -182,9 +184,8 @@ public sealed class ClassConfigEditorControl : UserControl
 
         ConfigureSidebarSplitter();
 
-        var editor = BuildEditor();
-        editor.Dock = DockStyle.Fill;
-        editor.Margin = new Padding(0);
+        var sidebarCard = WrapInEditorCard(_classTree);
+        var editorCard = WrapInEditorCard(BuildEditor());
 
         var body = new TableLayoutPanel
         {
@@ -194,19 +195,38 @@ public sealed class ClassConfigEditorControl : UserControl
             RowCount = 1,
             Margin = new Padding(0)
         };
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,
+            _classTree.PreferredWidth + sidebarCard.Padding.Horizontal));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitterThickness));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        body.Controls.Add(_classTree, 0, 0);
+        body.Controls.Add(sidebarCard, 0, 0);
         body.Controls.Add(CreateSplitGap(), 1, 0);
         body.Controls.Add(_sidebarSplitter, 2, 0);
         body.Controls.Add(CreateSplitGap(), 3, 0);
-        body.Controls.Add(editor, 4, 0);
+        body.Controls.Add(editorCard, 4, 0);
         _bodyLayout = body;
         UpdateSplitterEnabled();
+        body.Resize += (_, _) =>
+        {
+            var width = body.ClientSize.Width;
+            if (width > 0 && width < UiTheme.Scale(this, 870) && !_classTree.Collapsed)
+            {
+                _autoCollapsedTree = true;
+                _classTree.SetCollapsed(true);
+                SyncSidebarColumnWidth();
+                UpdateSplitterEnabled();
+            }
+            else if (width >= UiTheme.Scale(this, 940) && _autoCollapsedTree)
+            {
+                _autoCollapsedTree = false;
+                _classTree.SetCollapsed(false);
+                SyncSidebarColumnWidth();
+                UpdateSplitterEnabled();
+            }
+        };
 
         var page = new TableLayoutPanel
         {
@@ -230,6 +250,24 @@ public sealed class ClassConfigEditorControl : UserControl
             Margin = new Padding(0),
             BackColor = UiTheme.Surface
         };
+
+    private static UiCardPanel WrapInEditorCard(Control content)
+    {
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = new Padding(UiTheme.EditorShellPadding)
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.Dock = DockStyle.Fill;
+        content.Margin = Padding.Empty;
+        card.Controls.Add(content, 0, 0);
+        return card;
+    }
 
     private void ConfigureSidebarSplitter()
     {
@@ -313,7 +351,8 @@ public sealed class ClassConfigEditorControl : UserControl
             return;
         }
 
-        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, _classTree.PreferredWidth);
+        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute,
+            _classTree.PreferredWidth + UiTheme.EditorShellPadding * 2);
         _bodyLayout.PerformLayout();
     }
 
@@ -353,7 +392,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0)
@@ -392,7 +431,6 @@ public sealed class ClassConfigEditorControl : UserControl
         _toolTip.SetToolTip(_saveButton, "保存配置并同步游戏 (Ctrl+S)");
         actions.Controls.Add(_reloadButton);
         actions.Controls.Add(_saveButton);
-        actionRow.Controls.Add(BuildFooterInfo(), 0, 0);
         actionRow.Controls.Add(actions, 1, 0);
         root.Controls.Add(actionRow, 0, 1);
         return root;
@@ -434,7 +472,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0)
@@ -445,7 +483,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var tabBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 7,
             RowCount = 1,
             Margin = new Padding(0, 0, 0, 8),
@@ -480,11 +518,11 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             BuildStatesPage(),
             BuildAurasPage(),
-            BuildSpellsPage(),
-            BuildGroupPage(),
-            BuildNameplatesPage(),
-            BuildSpellsListPage(),
-            BuildItemsPage()
+            WrapInDarkSectionCard(BuildSpellsPage()),
+            WrapInDarkSectionCard(BuildGroupPage()),
+            WrapInDarkSectionCard(BuildNameplatesPage()),
+            WrapInDarkSectionCard(BuildSpellsListPage()),
+            WrapInDarkSectionCard(BuildItemsPage())
         };
         foreach (var page in pages)
         {
@@ -552,14 +590,32 @@ public sealed class ClassConfigEditorControl : UserControl
         return root;
     }
 
+    private static UiCardPanel WrapInDarkSectionCard(Control content)
+    {
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 1,
+            FillColor = UiTheme.Surface
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.Dock = DockStyle.Fill;
+        content.Margin = Padding.Empty;
+        card.Controls.Add(content, 0, 0);
+        return card;
+    }
+
     private Control BuildStatesPage()
     {
-        var panel = new TableLayoutPanel
+        var panel = new UiCardPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.SurfaceRaised,
+            FillColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -595,7 +651,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _statesGrid.DataError += (_, e) => e.ThrowException = false;
         _statesGrid.Disposed += (_, _) => CloseStateComboDropDown();
         panel.Controls.Add(_statesGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_statesGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_statesGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -606,7 +662,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
@@ -619,7 +675,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0, 0, 5, 0),
             Padding = new Padding(0)
         };
@@ -737,7 +793,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(5, 0, 0, 0),
             Padding = new Padding(0)
         };
@@ -841,6 +897,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
 
         split.Controls.Add(rightColumn, 1, 0);
+        UiTheme.ConfigureResponsiveSplit(split);
         return split;
     }
 
@@ -850,7 +907,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var tabBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             ColumnCount = categories.Length,
             RowCount = 1,
             Margin = new Padding(0),
@@ -901,12 +958,13 @@ public sealed class ClassConfigEditorControl : UserControl
 
     private Control BuildAurasPage()
     {
-        var panel = new TableLayoutPanel
+        var panel = new UiCardPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.SurfaceRaised,
+            FillColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -945,7 +1003,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
         _aurasGrid.UserAddedRow += (_, _) => MarkDirty();
         panel.Controls.Add(_aurasGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_aurasGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_aurasGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -954,7 +1012,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var tabBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             ColumnCount = AuraBuckets.Length,
             RowCount = 1,
             Margin = new Padding(0),
@@ -1016,7 +1074,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
@@ -1030,7 +1088,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0, 0, 5, 0),
             Padding = new Padding(0)
         };
@@ -1128,7 +1186,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _spellsGrid.DataError += (_, e) => e.ThrowException = false;
         spellCard.Controls.Add(_spellsGrid, 0, 1);
         leftColumn.Controls.Add(spellCard, 0, 1);
-        leftColumn.Controls.Add(BuildMoveButtons(_spellsGrid), 0, 2);
+        leftColumn.Controls.Add(BuildMoveButtons(_spellsGrid, UiTheme.Surface), 0, 2);
         split.Controls.Add(leftColumn, 0, 0);
 
         var rightColumn = new TableLayoutPanel
@@ -1136,7 +1194,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(5, 0, 0, 0),
             Padding = new Padding(0)
         };
@@ -1235,6 +1293,7 @@ public sealed class ClassConfigEditorControl : UserControl
         itemCard.Controls.Add(_itemsGrid, 0, 1);
         rightColumn.Controls.Add(itemCard, 0, 1);
         split.Controls.Add(rightColumn, 1, 0);
+        UiTheme.ConfigureResponsiveSplit(split, 65F);
         return split;
     }
 
@@ -1245,7 +1304,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
@@ -1258,7 +1317,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0, 0, 5, 0),
             Padding = new Padding(0)
         };
@@ -1376,7 +1435,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(5, 0, 0, 0),
             Padding = new Padding(0)
         };
@@ -1480,6 +1539,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
 
         split.Controls.Add(rightColumn, 1, 0);
+        UiTheme.ConfigureResponsiveSplit(split);
         return split;
     }
 
@@ -1503,7 +1563,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -1515,7 +1575,7 @@ public sealed class ClassConfigEditorControl : UserControl
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(4, 6, 4, 6),
             Margin = new Padding(0)
         };
@@ -1579,7 +1639,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _groupAurasGrid.UserAddedRow += (_, _) => { MarkDirty(); UpdateGroupPixelSummary(); };
         _groupAurasGrid.RowsRemoved += (_, _) => UpdateGroupPixelSummary();
         panel.Controls.Add(_groupAurasGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_groupAurasGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_groupAurasGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -1590,7 +1650,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -1602,7 +1662,7 @@ public sealed class ClassConfigEditorControl : UserControl
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(4, 6, 4, 6),
             Margin = new Padding(0)
         };
@@ -1662,7 +1722,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _nameplateAurasGrid.UserAddedRow += (_, _) => { MarkDirty(); UpdateNameplatePixelSummary(); };
         _nameplateAurasGrid.RowsRemoved += (_, _) => UpdateNameplatePixelSummary();
         panel.Controls.Add(_nameplateAurasGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_nameplateAurasGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_nameplateAurasGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -1769,14 +1829,14 @@ public sealed class ClassConfigEditorControl : UserControl
         return card;
     }
 
-    private Control BuildMoveButtons(DataGridView grid)
+    private Control BuildMoveButtons(DataGridView grid, Color? background = null)
     {
         var bar = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = background ?? UiTheme.SurfaceRaised
         };
         var up = UiTheme.CreateButton("▲", UiTheme.Field, UiTheme.Text);
         var down = UiTheme.CreateButton("▼", UiTheme.Field, UiTheme.Text);

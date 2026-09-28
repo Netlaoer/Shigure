@@ -168,6 +168,13 @@ public sealed class MainForm : Form, IMessageFilter
         _runtimeSession = runtimeSession;
         _uiCache = UiCacheStore.Load();
         _statusForm = new StatusForm();
+        _statusForm.VisibleChanged += (_, _) =>
+        {
+            if (!IsDisposed && !Disposing)
+            {
+                TopMost = !_statusForm.Visible;
+            }
+        };
         _roundedCornerResizeTimer = new System.Windows.Forms.Timer
         {
             Interval = RoundedCornerResizeDebounceMs
@@ -220,6 +227,7 @@ public sealed class MainForm : Form, IMessageFilter
             _gamepadCaptureTimer.Dispose();
             SaveUiCache();
         };
+        _statusForm.SidebarLayoutChanged += (_, _) => SaveUiCache();
         ApplyCachedWindowState();
         ApplyInitialOptions();
         WireSettingEvents();
@@ -904,6 +912,8 @@ public sealed class MainForm : Form, IMessageFilter
         const int settingsContentWidth = 1200;
         const int settingsActionButtonHeight = UiTheme.ActionButtonHeight;
         const int primaryControlWidth = 200;
+        var settingRows = new List<(TableLayoutPanel Row, Control Actions)>();
+        var settingCards = new List<UiCardPanel>();
 
         var scrollHost = new Panel
         {
@@ -938,7 +948,7 @@ public sealed class MainForm : Form, IMessageFilter
         {
             Text = text,
             AutoSize = true,
-            MaximumSize = new Size(720, 0),
+            MaximumSize = new Size(580, 0),
             ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,
             Margin = new Padding(0)
@@ -1049,6 +1059,7 @@ public sealed class MainForm : Form, IMessageFilter
             actions.Anchor = AnchorStyles.None;
             row.Controls.Add(text, 0, 0);
             row.Controls.Add(actions, 1, 0);
+            settingRows.Add((row, actions));
             return row;
         }
 
@@ -1093,6 +1104,7 @@ public sealed class MainForm : Form, IMessageFilter
             }
 
             stack.Controls.Add(card);
+            settingCards.Add(card);
         }
 
         _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.ButtonKind.Secondary);
@@ -1419,31 +1431,85 @@ public sealed class MainForm : Form, IMessageFilter
         UpdateSpellIconPackageCard();
         RefreshDefaultModuleSelector();
 
+        var syncingContentLayout = false;
         void SyncContentLayout()
         {
-            if (stack.Width != settingsContentWidth)
+            if (syncingContentLayout || scrollHost.IsDisposed)
             {
-                stack.Width = settingsContentWidth;
+                return;
             }
 
-            var viewWidth = scrollHost.ClientSize.Width;
-            var left = viewWidth > settingsContentWidth
-                ? (viewWidth - settingsContentWidth) / 2
-                : 0;
-            if (stack.Left != left)
+            syncingContentLayout = true;
+            try
             {
-                stack.Left = left;
-            }
+                var viewWidth = Math.Max(1, scrollHost.ClientSize.Width);
+                var contentWidth = Math.Min(settingsContentWidth, viewWidth);
+                var narrow = contentWidth < 920;
+                foreach (var (row, actions) in settingRows)
+                {
+                    var desiredColumns = narrow ? 1 : 2;
+                    if (row.ColumnCount == desiredColumns)
+                    {
+                        continue;
+                    }
 
-            if (stack.Top != 0)
-            {
-                stack.Top = 0;
-            }
+                    row.SuspendLayout();
+                    row.ColumnCount = desiredColumns;
+                    row.RowCount = narrow ? 2 : 1;
+                    row.ColumnStyles.Clear();
+                    row.RowStyles.Clear();
+                    if (narrow)
+                    {
+                        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                        row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        row.SetCellPosition(actions, new TableLayoutPanelCellPosition(0, 1));
+                        actions.Margin = new Padding(0, 12, 0, 0);
+                        actions.Anchor = AnchorStyles.Left;
+                    }
+                    else
+                    {
+                        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                        row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                        row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        row.SetCellPosition(actions, new TableLayoutPanelCellPosition(1, 0));
+                        actions.Margin = new Padding(24, 0, 0, 0);
+                        actions.Anchor = AnchorStyles.None;
+                    }
+                    row.ResumeLayout(true);
+                }
 
-            var minSize = new Size(settingsContentWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
+                foreach (var card in settingCards)
+                {
+                    if (card.MinimumSize.Width != contentWidth || card.MaximumSize.Width != contentWidth)
+                    {
+                        card.MaximumSize = Size.Empty;
+                        card.MinimumSize = new Size(contentWidth, 0);
+                        card.MaximumSize = new Size(contentWidth, 0);
+                    }
+                    if (card.Width != contentWidth)
+                    {
+                        card.Width = contentWidth;
+                    }
+                }
+
+                if (stack.Width != contentWidth)
+                {
+                    stack.Width = contentWidth;
+                }
+                var left = Math.Max(0, (viewWidth - contentWidth) / 2);
+                if (stack.Left != left || stack.Top != 0)
+                {
+                    stack.Location = new Point(left, 0);
+                }
+                if (scrollHost.AutoScrollMinSize != Size.Empty)
+                {
+                    scrollHost.AutoScrollMinSize = Size.Empty;
+                }
+            }
+            finally
             {
-                scrollHost.AutoScrollMinSize = minSize;
+                syncingContentLayout = false;
             }
         }
 
@@ -2939,6 +3005,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _statusForm.ApplyCachedBounds(_uiCache.SettingsWindowBounds);
         _statusForm.ApplyCachedPage(_uiCache.SelectedSettingsPage);
+        _statusForm.ApplyCachedSidebar(_uiCache.SettingsSidebarWidth, _uiCache.SettingsSidebarCollapsed);
     }
 
     private void MigrateMainBarWindowSizeIfNeeded()
@@ -3006,6 +3073,8 @@ public sealed class MainForm : Form, IMessageFilter
         }
 
         _uiCache.SelectedSettingsPage = _statusForm.SelectedPageKey;
+        _uiCache.SettingsSidebarWidth = _statusForm.SidebarExpandedWidth;
+        _uiCache.SettingsSidebarCollapsed = _statusForm.SidebarCollapsed;
 
         _uiCache.MainWindowLayout = _mainWindowLayout.ToString();
         _uiCache.CloseButtonBehavior = _closeButtonBehavior.ToString();
@@ -3833,7 +3902,7 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private sealed class TopBarIconButton : Button
+    private sealed class TopBarIconButton : UiButton
     {
         private string _iconName = string.Empty;
         private bool _suppressBaseText;
@@ -3900,7 +3969,7 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private sealed class StackedTextButton : Button
+    private sealed class StackedTextButton : UiButton
     {
         private string _displayText = string.Empty;
         private bool _suppressBaseText;

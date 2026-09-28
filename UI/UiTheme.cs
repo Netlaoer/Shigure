@@ -10,11 +10,13 @@ internal static class UiTheme
 {
     public const int PageGap = 12;
     public const int CardPadding = 16;
+    public const int EditorShellPadding = 8;
     public const int ActionButtonHeight = 36;
     public const int GridRowHeight = 40;
     public const int TabBarHeight = 42;
     public const int CardCornerRadius = 12;
     public const int ControlCornerRadius = 8;
+    public const int ResponsiveSplitBreakpoint = 900;
 
     /// <summary>配置/宏/模块页最小内容宽（1200 × 1.5）；外层可随窗口加宽。</summary>
     public const int EditorPageWidth = 1800;
@@ -49,6 +51,8 @@ internal static class UiTheme
     public const int ModuleMatchGapWidth = 12;
     /// <summary>模块顶栏名称/作者身份卡首选宽（仅标签+输入+内边距，无额外留白）。</summary>
     public const int ModuleIdentityCardWidth = 58 + ModuleMatchFieldWidth + CardPadding * 2;
+    /// <summary>模块顶栏身份卡缩小时保留标签和可编辑的输入宽度。</summary>
+    public const int ModuleIdentityCardMinWidth = 58 + 160 + CardPadding * 2;
     /// <summary>窗口拖拽时列宽重算防抖间隔（毫秒）。</summary>
     public const int LayoutResizeDebounceMs = 80;
     /// <summary>职业/专精图标条相邻格间距。</summary>
@@ -59,8 +63,8 @@ internal static class UiTheme
     public const int ClassSpecIconSize = 40;
     /// <summary>职业/专精图标格逻辑边长（iconSize + 8）。</summary>
     public const int ClassSpecIconCellSize = ClassSpecIconSize + 8;
-    /// <summary>图标条卡片内边距（历史常量；堆叠宿主不再使用卡片）。</summary>
-    public const int IconStripCardPadding = 4;
+    /// <summary>职业图标条卡片内边距。</summary>
+    public const int IconStripCardPadding = 8;
     /// <summary>同一宿主内职业行与专精行间距。</summary>
     public const int IconStripRowGap = 2;
 
@@ -84,7 +88,10 @@ internal static class UiTheme
 
     // Cursor 风格 charcoal 层次；Accent 保留 Shigure 青蓝。
     public static readonly Color Background = Color.FromArgb(20, 20, 20);       // #141414
-    public static readonly Color Surface = Color.FromArgb(30, 30, 30);          // #1E1E1E
+    public static readonly Color Surface = Color.FromArgb(24, 24, 24);          // #181818
+    /// <summary>设置窗口导航侧栏，比主内容底色亮约 20%。</summary>
+    public static readonly Color SettingsNavigation = Color.FromArgb(29, 29, 29); // #1D1D1D
+    public static readonly Color SettingsNavigationBorder = Color.FromArgb(43, 43, 43); // #2B2B2B
     public static readonly Color SurfaceRaised = Color.FromArgb(37, 37, 37);    // #252525
     public static readonly Color Field = Color.FromArgb(45, 45, 45);            // #2D2D2D
     public static readonly Color Hover = Color.FromArgb(55, 55, 55);            // #373737
@@ -92,7 +99,7 @@ internal static class UiTheme
     public static readonly Color Border = Color.FromArgb(58, 58, 58);           // #3A3A3A
     public static readonly Color RowAlt = Color.FromArgb(33, 33, 33);           // #212121
     public static readonly Color Text = Color.FromArgb(245, 245, 245);         // #F5F5F5
-    public static readonly Color Muted = Color.FromArgb(140, 140, 140);         // #8C8C8C
+    public static readonly Color Muted = Color.FromArgb(170, 170, 170);         // #AAAAAA
     public static readonly Color Accent = Color.FromArgb(82, 224, 209);         // #52E0D1
     public static readonly Color AccentSoft = Color.FromArgb(24, 63, 64);
     public static readonly Color Success = Color.FromArgb(103, 211, 145);
@@ -391,7 +398,7 @@ internal static class UiTheme
 
     public static Button CreateButton(string text, Color backColor, Color foreColor)
     {
-        var button = new Button();
+        var button = new UiButton();
         StyleButton(button, text, backColor, foreColor);
         return button;
     }
@@ -407,19 +414,12 @@ internal static class UiTheme
         button.Margin = new Padding(6, 0, 0, 0);
         button.UseVisualStyleBackColor = false;
         button.Cursor = Cursors.Hand;
-        button.TabStop = false;
+        button.TabStop = true;
         button.FlatAppearance.BorderSize = 1;
         button.FlatAppearance.BorderColor = backColor == Accent ? Accent : Border;
         button.FlatAppearance.MouseOverBackColor = backColor == Accent ? Color.FromArgb(112, 234, 221) : Hover;
         button.FlatAppearance.MouseDownBackColor = backColor == Accent ? Color.FromArgb(62, 194, 181) : Pressed;
         ApplyControlRoundedRegion(button, ControlCornerRadius);
-
-        if (backColor == Accent)
-        {
-            // WinForms ignores ForeColor for a disabled flat button and falls back to
-            // the system disabled-text color, which is nearly black on our dark theme.
-            button.Paint += (_, e) => PaintDisabledPrimaryButton(button, e);
-        }
 
         button.EnabledChanged += (_, _) =>
         {
@@ -429,33 +429,62 @@ internal static class UiTheme
             button.FlatAppearance.BorderColor = button.Enabled ? (backColor == Accent ? Accent : Border) : Border;
             button.Invalidate();
         };
+        var hovered = false;
+        var pressed = false;
+        button.MouseEnter += (_, _) => { hovered = true; button.Invalidate(); };
+        button.MouseLeave += (_, _) => { hovered = false; pressed = false; button.Invalidate(); };
+        button.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                pressed = true;
+                button.Invalidate();
+            }
+        };
+        button.MouseUp += (_, _) => { pressed = false; button.Invalidate(); };
+        button.Paint += (_, e) => PaintStyledButton(button, e, hovered, pressed);
     }
 
-    private static void PaintDisabledPrimaryButton(Button button, PaintEventArgs e)
+    private static void PaintStyledButton(Button button, PaintEventArgs e, bool hovered, bool pressed)
     {
-        if (button.Enabled || button.ClientSize.Width <= 1 || button.ClientSize.Height <= 1)
+        if (button.ClientSize.Width <= 1 || button.ClientSize.Height <= 1)
         {
             return;
         }
 
+        // 应用级深色模式也会重绘按钮；在 WinForms 绘制后恢复现有平面按钮外观。
+        var fill = !button.Enabled ? SurfaceRaised
+            : pressed ? button.FlatAppearance.MouseDownBackColor
+            : hovered ? button.FlatAppearance.MouseOverBackColor
+            : button.BackColor;
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         var bounds = new Rectangle(0, 0, button.ClientSize.Width - 1, button.ClientSize.Height - 1);
         using var path = CreateRoundedRectanglePath(bounds, Scale(button, ControlCornerRadius));
-        using var backgroundBrush = new SolidBrush(SurfaceRaised);
-        using var borderPen = new Pen(Border);
+        using var backgroundBrush = new SolidBrush(fill);
+        e.Graphics.Clear(button.Parent?.BackColor ?? Surface);
         e.Graphics.FillPath(backgroundBrush, path);
-        e.Graphics.DrawPath(borderPen, path);
+        if (button.FlatAppearance.BorderSize > 0)
+        {
+            using var borderPen = new Pen(button.FlatAppearance.BorderColor, button.FlatAppearance.BorderSize);
+            e.Graphics.DrawPath(borderPen, path);
+        }
         TextRenderer.DrawText(
             e.Graphics,
             button.Text,
             button.Font,
             button.ClientRectangle,
-            Muted,
+            button.Enabled ? button.ForeColor : Muted,
             TextFormatFlags.HorizontalCenter
             | TextFormatFlags.VerticalCenter
             | TextFormatFlags.SingleLine
             | TextFormatFlags.EndEllipsis
-            | TextFormatFlags.NoPadding);
+            | TextFormatFlags.NoPadding
+            | TextFormatFlags.NoPrefix);
+        if (button is UiButton { DisplayFocusCue: true } && button.Focused && !pressed)
+        {
+            using var focusPen = new Pen(Accent);
+            e.Graphics.DrawPath(focusPen, path);
+        }
     }
 
     public static Button CreateButton(string text, ButtonKind kind)
@@ -472,6 +501,72 @@ internal static class UiTheme
 
     public static int Scale(Control control, int logicalPixels)
         => Math.Max(1, (int)Math.Round(logicalPixels * control.DeviceDpi / 96F));
+
+    /// <summary>双栏编辑区在窄宽度下改为上下排布；表格保留自身的横向滚动。</summary>
+    public static void ConfigureResponsiveSplit(TableLayoutPanel split, float firstColumnPercent = 50F)
+    {
+        if (split.Controls.Count != 2)
+        {
+            throw new ArgumentException("响应式双栏必须包含两个控件。", nameof(split));
+        }
+
+        var second = split.GetControlFromPosition(1, 0)
+            ?? throw new ArgumentException("缺少右侧编辑区。", nameof(split));
+        var stacked = false;
+        var updating = false;
+        void UpdateLayout()
+        {
+            if (updating || split.IsDisposed || split.ClientSize.Width <= 0)
+            {
+                return;
+            }
+
+            var shouldStack = split.ClientSize.Width < Scale(split, ResponsiveSplitBreakpoint);
+            if (stacked == shouldStack)
+            {
+                return;
+            }
+
+            updating = true;
+            split.SuspendLayout();
+            try
+            {
+                if (shouldStack)
+                {
+                    split.RowCount = 2;
+                    split.RowStyles.Clear();
+                    split.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+                    split.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+                    split.SetCellPosition(second, new TableLayoutPanelCellPosition(0, 1));
+                    split.ColumnCount = 1;
+                    split.ColumnStyles.Clear();
+                    split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                }
+                else
+                {
+                    split.ColumnCount = 2;
+                    split.ColumnStyles.Clear();
+                    split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, firstColumnPercent));
+                    split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F - firstColumnPercent));
+                    split.SetCellPosition(second, new TableLayoutPanelCellPosition(1, 0));
+                    split.RowCount = 1;
+                    split.RowStyles.Clear();
+                    split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                }
+
+                stacked = shouldStack;
+            }
+            finally
+            {
+                split.ResumeLayout(true);
+                updating = false;
+            }
+        }
+
+        split.Resize += (_, _) => UpdateLayout();
+        split.HandleCreated += (_, _) => UpdateLayout();
+        UpdateLayout();
+    }
 
     /// <summary>
     /// 编辑页宿主：宽度始终贴合客户区（可小于 contentWidth）；仅当子控件固有宽度超出时出现横向滚动。
@@ -652,7 +747,7 @@ internal static class UiTheme
     }
 
     /// <summary>
-    /// 将职业/专精图标条自上而下堆叠（无卡片外壳）；图标条本身左起顺序排布。
+    /// 将职业/专精图标条自上而下堆叠；图标条本身左起顺序排布。
     /// </summary>
     public static TableLayoutPanel CreateIconStripStack(params Control[] strips)
     {
@@ -708,6 +803,27 @@ internal static class UiTheme
 
     public static int MeasureIconStripCardHeight(Control host, params int[] stripHeights)
         => MeasureIconStripStackHeight(host, stripHeights);
+
+    /// <summary>用一张卡片容纳整条职业图标，滚动留在卡片内部。</summary>
+    public static UiCardPanel CreateIconStripCard(Panel viewport)
+    {
+        ArgumentNullException.ThrowIfNull(viewport);
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.None,
+            ColumnCount = 1,
+            RowCount = 1,
+            Padding = new Padding(IconStripCardPadding),
+            Margin = Padding.Empty
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        viewport.Dock = DockStyle.Fill;
+        viewport.BackColor = SurfaceRaised;
+        viewport.Margin = Padding.Empty;
+        card.Controls.Add(viewport, 0, 0);
+        return card;
+    }
 
     public static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int radius)
     {
