@@ -966,7 +966,7 @@ public sealed class ModuleEditorControl : UserControl
         UiTheme.StyleTextBox(_recommendedTalentBox);
         // 与标签同处固定行高内 Dock.Fill；仅输入框下移 4px，标签位置不变。
         _recommendedTalentBox.Dock = DockStyle.Fill;
-        _recommendedTalentBox.Margin = new Padding(0, 4, 0, 0);
+        _recommendedTalentBox.Margin = new Padding(0, 10, 0, 0);
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
         row.Controls.Add(recommendedTalentRow, 0, 1);
         row.SetColumnSpan(recommendedTalentRow, columnCount);
@@ -2158,6 +2158,7 @@ public sealed class ModuleEditorControl : UserControl
             GetAuraFields(),
             GetNameplateAuraFields(),
             GetThresholdFields(),
+            GetFormulaValueNames(),
             CollectTakenNames(),
             null,
             null,
@@ -2208,6 +2209,7 @@ public sealed class ModuleEditorControl : UserControl
             GetAuraFields(),
             GetNameplateAuraFields(),
             GetThresholdFields(),
+            GetFormulaValueNames(),
             CollectTakenNames(ownName, ownValueName),
             existingUnit,
             existingCount,
@@ -2482,6 +2484,27 @@ public sealed class ModuleEditorControl : UserControl
             .Select(field => field.Name)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToList();
+    }
+
+    private IReadOnlyList<string> GetFormulaValueNames()
+    {
+        var names = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (DataGridViewRow row in _formulaAdjustmentsGrid.Rows)
+        {
+            if (row.IsNewRow)
+            {
+                continue;
+            }
+
+            if (TryGetAdjustmentField(CellText(row, "Field"), CellText(row, "Formula"), out var field)
+                && seen.Add(field))
+            {
+                names.Add(field);
+            }
+        }
+
+        return names;
     }
 
     // 名称查重集合: 其它单位/数量(含生命值名) + 当前职业/专精的状态字段与 group 字段; 排除正在编辑项自身的名称。

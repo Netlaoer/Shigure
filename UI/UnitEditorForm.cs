@@ -86,6 +86,7 @@ public sealed class UnitEditorForm : Form
         IReadOnlyList<ConditionField> auraFields,
         IReadOnlyList<ConditionField> nameplateAuraFields,
         IReadOnlyList<string> thresholdFields,
+        IReadOnlyList<string> formulaValueNames,
         IReadOnlyCollection<string> takenNames,
         ModuleUnit? existingUnit,
         ModuleCountField? existingCount,
@@ -95,7 +96,11 @@ public sealed class UnitEditorForm : Form
         _auraFields = auraFields;
         _nameplateAuraFields = nameplateAuraFields;
         _takenNames = new HashSet<string>(takenNames, StringComparer.OrdinalIgnoreCase);
-        _countFilterEditor = new CountFilterEditorControl(auraFields, nameplateAuraFields, thresholdFields);
+        _countFilterEditor = new CountFilterEditorControl(
+            auraFields,
+            nameplateAuraFields,
+            thresholdFields,
+            formulaValueNames);
         _countFilterEditor.Changed += (_, _) => UpdatePreview();
         InitializeComponent();
         Seed(existingUnit, existingCount, existingEnemyCount, existingAverageHealth);
