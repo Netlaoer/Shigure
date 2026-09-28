@@ -47,6 +47,8 @@ internal sealed class CountFilterEditorControl : UserControl
     private readonly IReadOnlyList<ConditionField> _allyAuras;
     private readonly IReadOnlyList<ConditionField> _enemyAuras;
     private readonly HashSet<string> _thresholdFields;
+    private readonly IReadOnlyList<string> _formulaValueNames;
+    private readonly HashSet<string> _formulaValueNameSet;
     private readonly FlowLayoutPanel _groupsPanel = new();
     private readonly Label _emptyHint = new();
     private readonly List<GroupEditor> _groups = new();
@@ -58,11 +60,17 @@ internal sealed class CountFilterEditorControl : UserControl
     public CountFilterEditorControl(
         IReadOnlyList<ConditionField> allyAuras,
         IReadOnlyList<ConditionField> enemyAuras,
-        IReadOnlyList<string> thresholdFields)
+        IReadOnlyList<string> thresholdFields,
+        IReadOnlyList<string> formulaValueNames)
     {
         _allyAuras = allyAuras;
         _enemyAuras = enemyAuras;
         _thresholdFields = new HashSet<string>(thresholdFields, StringComparer.Ordinal);
+        _formulaValueNames = formulaValueNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        _formulaValueNameSet = new HashSet<string>(_formulaValueNames, StringComparer.Ordinal);
         Dock = DockStyle.Fill;
         Margin = new Padding(0);
         BackColor = UiTheme.Surface;
@@ -329,12 +337,17 @@ internal sealed class CountFilterEditorControl : UserControl
         }
     }
 
+    private bool IsFormulaValueName(string name)
+        => name.Length > 0 && _formulaValueNameSet.Contains(name);
+
     private sealed class GroupEditor
     {
         private readonly CountFilterEditorControl _owner;
         private readonly Label _title = new();
         private readonly UiDropDown _modeBox = new();
         private readonly DataGridView _grid = new();
+        private ToolStripDropDown? _valueDropDown;
+        private bool _openFormulaDropDown;
         private bool _updating;
 
         public TableLayoutPanel Root { get; }
@@ -646,24 +659,124 @@ internal sealed class CountFilterEditorControl : UserControl
             _grid.EditingControlShowing += (_, e) =>
             {
                 if (e.Control is TextBox textBox
-                    && _grid.CurrentCell?.OwningColumn?.Name == ValueColumn)
+                    && _grid.CurrentCell?.OwningColumn?.Name == ValueColumn
+                    && _grid.CurrentCell is FormulaValueCell)
                 {
                     textBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
                     textBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
                     var source = new AutoCompleteStringCollection();
-                    source.AddRange(_owner._thresholdFields.ToArray());
+                    source.AddRange(_owner._thresholdFields
+                        .Concat(_owner._formulaValueNames)
+                        .Distinct(StringComparer.Ordinal)
+                        .ToArray());
                     textBox.AutoCompleteCustomSource = source;
                 }
             };
+            _grid.CellMouseDown += (_, e) =>
+            {
+                _openFormulaDropDown = false;
+                if (e.RowIndex < 0
+                    || e.ColumnIndex < 0
+                    || _grid.Rows[e.RowIndex].Cells[e.ColumnIndex] is not FormulaValueCell cell)
+                {
+                    return;
+                }
+
+                var buttonBounds = UiTheme.GetDropDownButtonBounds(
+                    _grid,
+                    new Rectangle(0, 0, cell.Size.Width, cell.Size.Height));
+                _openFormulaDropDown = buttonBounds.Contains(e.X, e.Y);
+            };
+            _grid.CellBeginEdit += (_, e) =>
+            {
+                if (_openFormulaDropDown
+                    && e.RowIndex >= 0
+                    && _grid.Columns[e.ColumnIndex].Name == ValueColumn
+                    && _grid.Rows[e.RowIndex].Cells[e.ColumnIndex] is FormulaValueCell)
+                {
+                    e.Cancel = true;
+                }
+            };
+            _grid.CellMouseUp += (_, e) =>
+            {
+                if (!_openFormulaDropDown || e.RowIndex < 0 || e.ColumnIndex < 0)
+                {
+                    return;
+                }
+
+                _openFormulaDropDown = false;
+                var rowIndex = e.RowIndex;
+                var columnIndex = e.ColumnIndex;
+                _grid.BeginInvoke(() =>
+                {
+                    if (_grid.IsDisposed)
+                    {
+                        return;
+                    }
+
+                    if (_grid.IsCurrentCellInEditMode)
+                    {
+                        _grid.EndEdit();
+                    }
+
+                    ShowFormulaValueDropDown(rowIndex, columnIndex);
+                });
+            };
+            _grid.KeyDown += (_, e) =>
+            {
+                var openDropDown = e.KeyCode == Keys.F4 || (e.KeyCode == Keys.Down && e.Alt);
+                if (_grid.CurrentCell is not FormulaValueCell cell || !openDropDown)
+                {
+                    return;
+                }
+
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                if (_grid.IsCurrentCellInEditMode)
+                {
+                    _grid.EndEdit();
+                }
+
+                ShowFormulaValueDropDown(cell.RowIndex, cell.ColumnIndex);
+            };
             _grid.CellPainting += (_, e) =>
             {
-                if (e.RowIndex >= 0
-                    && e.ColumnIndex >= 0
-                    && _grid.Rows[e.RowIndex].Cells[e.ColumnIndex] is DataGridViewComboBoxCell)
+                if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                {
+                    return;
+                }
+
+                var cell = _grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                if (cell is FormulaValueCell)
+                {
+                    UiTheme.PaintDataGridViewComboBoxCell(_grid, e);
+                    return;
+                }
+
+                if (cell is DataGridViewComboBoxCell)
                 {
                     UiTheme.PaintDataGridViewComboBoxCell(_grid, e);
                 }
             };
+            _grid.CellFormatting += (_, e) =>
+            {
+                if (e.RowIndex < 0 || _grid.Columns[e.ColumnIndex].Name != ValueColumn)
+                {
+                    return;
+                }
+
+                var cell = _grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                if (cell is not FormulaValueCell)
+                {
+                    return;
+                }
+
+                var text = cell.Value?.ToString()?.Trim() ?? string.Empty;
+                cell.ToolTipText = _owner.IsFormulaValueName(text)
+                    ? $"公式动态数值: {text}"
+                    : string.Empty;
+            };
+            _grid.Disposed += (_, _) => CloseValueDropDown();
             _grid.DataError += (_, _) => { };
         }
 
@@ -704,7 +817,7 @@ internal sealed class CountFilterEditorControl : UserControl
                     CountConditionFieldKind.Role => CreateValueComboCell(RoleValues),
                     CountConditionFieldKind.Dispel => CreateValueComboCell(DispelValues),
                     CountConditionFieldKind.Combat => CreateValueComboCell(CombatValues),
-                    _ => new DataGridViewTextBoxCell()
+                    _ => new FormulaValueCell()
                 };
                 row.Cells[ValueColumn] = valueCell;
                 valueCell.Value = previousValue ?? DefaultValue(option.Kind);
@@ -725,8 +838,11 @@ internal sealed class CountFilterEditorControl : UserControl
             }
 
             var rawValue = row.Cells[ValueColumn].Value?.ToString()?.Trim() ?? string.Empty;
-            var typedValue = TryReadInt(row.Cells[ValueColumn].Value, out var constant);
-            var isStateField = !typedValue && _owner._thresholdFields.Contains(rawValue);
+            var isFormulaValue = _owner.IsFormulaValueName(rawValue);
+            var constant = 0;
+            var typedValue = !isFormulaValue && TryReadInt(row.Cells[ValueColumn].Value, out constant);
+            var isStateField = isFormulaValue
+                || (!typedValue && _owner._thresholdFields.Contains(rawValue));
             if (!typedValue && !isStateField)
             {
                 return null;
@@ -742,6 +858,73 @@ internal sealed class CountFilterEditorControl : UserControl
                 Value = typedValue ? constant : 0,
                 ValueField = isStateField ? rawValue : null
             };
+        }
+
+        private void ShowFormulaValueDropDown(int rowIndex, int columnIndex)
+        {
+            if (_grid.IsDisposed
+                || rowIndex < 0
+                || columnIndex < 0
+                || rowIndex >= _grid.Rows.Count
+                || _grid.Rows[rowIndex].Cells[columnIndex] is not FormulaValueCell cell)
+            {
+                return;
+            }
+
+            CloseValueDropDown();
+            _grid.CurrentCell = cell;
+            var currentValue = cell.Value?.ToString()?.Trim() ?? string.Empty;
+            var manualValue = currentValue.Length > 0 && int.TryParse(currentValue, out var number)
+                ? number.ToString()
+                : "0";
+            var options = new List<UiDropDownOption>
+            {
+                new(manualValue, "手动输入数字", LeadingText: manualValue)
+            };
+            options.AddRange(_owner._formulaValueNames.Select(name => new UiDropDownOption(name, name)));
+
+            var cellBounds = _grid.GetCellDisplayRectangle(columnIndex, rowIndex, cutOverflow: true);
+            ToolStripDropDown? dropDown = null;
+            dropDown = UiDropDownPopup.Show(
+                _grid,
+                cellBounds,
+                options,
+                _owner.IsFormulaValueName(currentValue) ? currentValue : manualValue,
+                selected =>
+                {
+                    var value = selected.Value?.ToString() ?? string.Empty;
+                    cell.Value = value;
+                    _grid.InvalidateCell(cell);
+                    _owner.OnChanged();
+                    if (string.Equals(selected.Display, "手动输入数字", StringComparison.Ordinal))
+                    {
+                        _grid.BeginInvoke(() =>
+                        {
+                            if (_grid.IsDisposed || cell.DataGridView is null || cell.ReadOnly)
+                            {
+                                return;
+                            }
+
+                            _grid.CurrentCell = cell;
+                            _grid.BeginEdit(selectAll: true);
+                        });
+                    }
+                },
+                preferredWidth: 240,
+                closed: () =>
+                {
+                    if (ReferenceEquals(_valueDropDown, dropDown))
+                    {
+                        _valueDropDown = null;
+                    }
+                });
+            _valueDropDown = dropDown;
+        }
+
+        private void CloseValueDropDown()
+        {
+            _valueDropDown?.Close(ToolStripDropDownCloseReason.AppClicked);
+            _valueDropDown = null;
         }
 
         private void ApplyColumnLayout()
@@ -904,4 +1087,7 @@ internal sealed class CountFilterEditorControl : UserControl
     {
         public override string ToString() => Text;
     }
+
+    // 数值条件的值可手填数字，也可从下拉中选择公式动态数值名称。
+    private sealed class FormulaValueCell : DataGridViewTextBoxCell;
 }

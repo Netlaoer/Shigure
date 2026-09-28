@@ -386,7 +386,7 @@ public static class UnitSelector
         }
 
         var expected = condition.ValueKind == CountConditionValueKind.StateField
-            ? state.GetInt(condition.ValueField ?? string.Empty)
+            ? ReadReferencedValue(state, condition.ValueField ?? string.Empty)
             : condition.Value;
         if (condition.Field == CountConditionFieldKind.Aura && actual == 0)
         {
@@ -403,6 +403,38 @@ public static class UnitSelector
             CountConditionComparisonKind.LessThanOrEqual => actual <= expected,
             _ => false
         };
+    }
+
+    // 公式动态数值写在 $dynamicvalues；数量和单位值名称分别在 $counts / $unithealth。
+    private static int ReadReferencedValue(GameState state, string field)
+    {
+        var key = field.Trim();
+        if (TryReadNamedInt(state, "$dynamicvalues", key, out var number)
+            || TryReadNamedInt(state, "$counts", key, out number)
+            || TryReadNamedInt(state, "$unithealth", key, out number))
+        {
+            return number;
+        }
+
+        return state.GetInt(key);
+    }
+
+    private static bool TryReadNamedInt(GameState state, string dictionaryKey, string field, out int value)
+    {
+        value = 0;
+        if (field.Length == 0 || !state.Values.TryGetValue(dictionaryKey, out var obj))
+        {
+            return false;
+        }
+
+        if (obj is IReadOnlyDictionary<string, int> ints && ints.TryGetValue(field, out value))
+        {
+            return true;
+        }
+
+        return obj is IReadOnlyDictionary<string, object?> values
+            && values.TryGetValue(field, out var raw)
+            && TryInt(raw, out value);
     }
 
     private static bool TryReadCountConditionValue(
