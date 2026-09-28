@@ -106,6 +106,7 @@ internal sealed class UiCacheState
     public WindowBounds? SettingsWindowBounds { get; set; }
     public WindowSize? ConditionEditorWindowSize { get; set; }
     public WindowSize? UnitEditorWindowSize { get; set; }
+    public int UnitEditorLayoutVersion { get; set; }
     public WindowSize? FormulaEditorWindowSize { get; set; }
     public WindowSize? RuleTextEditorWindowSize { get; set; }
     public WindowLocation? ConditionEditorWindowLocation { get; set; }

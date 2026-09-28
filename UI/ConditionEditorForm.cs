@@ -187,6 +187,8 @@ public sealed class ConditionEditorForm : Form
     private readonly ListBox _subList = new();
     private ToolStripDropDown? _conditionComboDropDown;
     private bool _updatingGrid;
+    private string? _advancedConditionText;
+    private string? _advancedGridSnapshot;
 
     public string ConditionText { get; private set; } = string.Empty;
     public int? DelayMs { get; private set; }
@@ -1240,6 +1242,28 @@ public sealed class ConditionEditorForm : Form
 
         rightButtons.Controls.Add(okButton);
         rightButtons.Controls.Add(cancelButton);
+        var advancedButton = UiTheme.CreateButton("高级编辑", UiTheme.ButtonKind.Secondary);
+        UiTheme.StyleActionButton(advancedButton, 144);
+        void FitAdvancedButton()
+        {
+            var textSize = TextRenderer.MeasureText(
+                advancedButton.Text,
+                advancedButton.Font,
+                Size.Empty,
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+            advancedButton.Width = Math.Max(
+                UiTheme.Scale(advancedButton, 144),
+                textSize.Width + advancedButton.Padding.Horizontal + UiTheme.Scale(advancedButton, 32));
+            advancedButton.Height = Math.Max(
+                advancedButton.Height,
+                textSize.Height + advancedButton.Padding.Vertical + UiTheme.Scale(advancedButton, 8));
+        }
+        advancedButton.HandleCreated += (_, _) => FitAdvancedButton();
+        advancedButton.FontChanged += (_, _) => FitAdvancedButton();
+        FitAdvancedButton();
+        advancedButton.Margin = Padding.Empty;
+        advancedButton.Click += (_, _) => EditConditionText();
+        row.Controls.Add(advancedButton, 0, 0);
         row.Controls.Add(rightButtons, 1, 0);
 
         AcceptButton = okButton;
@@ -1247,11 +1271,70 @@ public sealed class ConditionEditorForm : Form
         return row;
     }
 
+    private string CurrentConditionText()
+    {
+        var visualText = ConditionExpression.Build(CollectTerms());
+        if (_advancedConditionText is null)
+        {
+            return visualText;
+        }
+
+        if (!string.Equals(visualText, _advancedGridSnapshot, StringComparison.Ordinal))
+        {
+            _advancedConditionText = null;
+            _advancedGridSnapshot = null;
+            return visualText;
+        }
+
+        return _advancedConditionText;
+    }
+
+    private void EditConditionText()
+    {
+        CloseConditionComboDropDown();
+        _conditionsGrid.EndEdit();
+        using var editor = new ConditionTextEditorForm(CurrentConditionText());
+        if (editor.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        var settingTerms = _conditionsGrid.Rows.Cast<DataGridViewRow>()
+            .Select(row => (Field: SelectedField(row), Value: ReadRowValue(row)))
+            .Where(item => IsRuleSettingField(item.Field))
+            .Select(item => new ConditionTerm(false, item.Field!.Name, "==", item.Value))
+            .ToArray();
+
+        _conditionsGrid.Rows.Clear();
+        foreach (var term in ConditionExpression.Parse(editor.ConditionText))
+        {
+            AddRow(term);
+        }
+
+        foreach (var setting in settingTerms)
+        {
+            AddRow(setting);
+        }
+
+        if (_conditionsGrid.Rows.Count == 0)
+        {
+            AddRow(null);
+        }
+
+        RefreshConnectors();
+        _advancedConditionText = editor.ConditionText;
+        _advancedGridSnapshot = ConditionExpression.Build(CollectTerms());
+        UpdatePreview();
+    }
+
     // 提交前对两类静默丢失给出确认: 不完整行被忽略、或结果为空会把条件清成"始终命中"。
     private void TryConfirm()
     {
         _conditionsGrid.EndEdit();
-        var incomplete = _conditionsGrid.Rows.Cast<DataGridViewRow>().Count(IsRowIncomplete);
+        var text = CurrentConditionText();
+        var incomplete = _advancedConditionText is null
+            ? _conditionsGrid.Rows.Cast<DataGridViewRow>().Count(IsRowIncomplete)
+            : 0;
         if (incomplete > 0
             && MessageBox.Show(
                 $"有 {incomplete} 行不完整(字段或值为空), 将被忽略。继续？",
@@ -1262,7 +1345,6 @@ public sealed class ConditionEditorForm : Form
             return;
         }
 
-        var text = ConditionExpression.Build(CollectTerms());
         if (!TryReadDelay(out var delayMs))
         {
             return;
@@ -2019,7 +2101,7 @@ public sealed class ConditionEditorForm : Form
         _ = TryReadDelay(out var delayMs, showWarning: false);
         _ = TryReadLogicDelay(out var logicDelayMs, showWarning: false);
         _ = TryReadContinueLogic(out var continueLogic, showWarning: false);
-        var full = ComposePreview(ConditionExpression.Build(CollectTerms()), delayMs, logicDelayMs, continueLogic);
+        var full = ComposePreview(CurrentConditionText(), delayMs, logicDelayMs, continueLogic);
         _previewLabel.Text = full.Length == 0 ? "预览: (无条件, 始终命中)" : $"预览: {full}";
         // 单行预览会被省略号截断, 悬停看完整表达式。
         _previewToolTip.SetToolTip(_previewLabel, full.Length == 0 ? string.Empty : full);

@@ -10,15 +10,12 @@ public sealed class UnitEditorForm : Form
 {
     private const int RowWidth = 800;
     private const int LegacyClientWidth = RowWidth + 36;
-    private const int DefaultClientWidth = LegacyClientWidth * 120 / 100;
-    private const int LabelWidth = 132;
-    private const int ControlLeft = LabelWidth + 10;
-    // 页头双栏（类别/统计对象、名称/值名称）：等宽标签列 + 等宽输入，保证标签完整可见且间距一致。
-    private const int HeaderLabelWidth = 100;
-    private const int HeaderGap = 8;
-    private const int HeaderControlLeft = HeaderLabelWidth + HeaderGap;
-    private const int HeaderHalfWidth = RowWidth / 2;
-    private const int HeaderControlWidth = HeaderHalfWidth - HeaderControlLeft;
+    private const int DefaultClientWidth = 960;
+    private const int DefaultClientHeight = 760;
+    private const int LabelWidth = 136;
+    // 页头双栏（类别/统计对象、名称/值名称）：等宽标签列 + 百分比输入列，随窗体拉宽。
+    private const int FieldHeight = 36;
+    private const int ParamRowHeight = FieldHeight + 16;
 
     private static readonly TargetFieldItem[] TargetFieldOptions =
     [
@@ -66,18 +63,19 @@ public sealed class UnitEditorForm : Form
     private readonly UiDropDown _targetFieldBox = new();
     private readonly UiDropDown _selectionModeBox = new();
     private readonly UiDropDown _targetAuraBox = new();
-    private readonly FlowLayoutPanel _paramPanel = new();
+    private readonly TableLayoutPanel _paramPanel = new();
     private readonly Label _previewLabel = new();
     private readonly ToolTip _toolTip = new();
     private Button? _okButton;
+    private TableLayoutPanel _rootPanel = null!;
 
     private Label _selectorLabel = null!;
-    private Panel _categoryRow = null!;
-    private Panel _nameRow = null!;
-    private Panel _unitTargetRow = null!;
-    private Panel _targetAuraRow = null!;
+    private TableLayoutPanel _categoryRow = null!;
+    private TableLayoutPanel _nameRow = null!;
+    private TableLayoutPanel _unitTargetRow = null!;
+    private TableLayoutPanel _targetAuraRow = null!;
     private UiCardPanel _countFilterSection = null!;
-    private bool _fittingLayout;
+    private int _labelColumnWidth = LabelWidth;
 
     public ModuleUnit? ResultUnit { get; private set; }
     public ModuleCountField? ResultCount { get; private set; }
@@ -117,6 +115,24 @@ public sealed class UnitEditorForm : Form
         var defaultWidth = Width;
         var cache = UiCacheStore.Load();
         var cached = cache.UnitEditorWindowSize;
+        // 旧版默认高度为 1200：只迁移与旧默认值相近的缓存，保留用户手动调整的尺寸。
+        if (cache.UnitEditorLayoutVersion == 0)
+        {
+            var chromeHeight = Math.Max(0, Height - ClientSize.Height);
+            if (cached is { Height: > 0 }
+                && Math.Abs(cached.Height - (1200 + chromeHeight)) <= 24)
+            {
+                cached = new WindowSize
+                {
+                    Width = cached.Width,
+                    Height = DefaultClientHeight + chromeHeight
+                };
+                cache.UnitEditorWindowSize = cached;
+            }
+
+            cache.UnitEditorLayoutVersion = 1;
+            UiCacheStore.Save(cache);
+        }
         // 旧版本把宽度锁在最小宽度上。那种缓存改用加宽后的默认宽度，之后的拖动结果仍会记住。
         if (cached is { Width: > 0 } && cached.Width <= MinimumSize.Width + 2)
         {
@@ -136,6 +152,7 @@ public sealed class UnitEditorForm : Form
     protected override void OnResizeEnd(EventArgs e)
     {
         base.OnResizeEnd(e);
+        _countFilterEditor.FinishResize();
         UiTheme.SaveCachedDialogPlacement(
             this,
             (c, size) => c.UnitEditorWindowSize = size,
@@ -154,22 +171,73 @@ public sealed class UnitEditorForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
-        LayoutCategoryRow();
-        LayoutNameRow();
-        FitParamContent();
+        UpdateLabelColumnWidths();
+        UpdatePreviewRowHeight();
+        ApplyParamRowStyles();
         _nameBox.Focus();
         _nameBox.SelectAll();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        UpdateLabelColumnWidths();
+        UpdatePreviewRowHeight();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        UpdateLabelColumnWidths();
+        UpdatePreviewRowHeight();
+    }
+
+    private void UpdatePreviewRowHeight()
+    {
+        if (_rootPanel is not null)
+        {
+            _rootPanel.RowStyles[2].Height = Math.Max(
+                _rootPanel.RowStyles[2].Height,
+                Font.Height + 30);
+        }
+    }
+
+    private void UpdateLabelColumnWidths()
+    {
+        if (_unitTargetRow is null)
+        {
+            return;
+        }
+
+        // 按当前字体和 DPI 留足中文标签的宽度；只在显示或 DPI 改变时重新布局。
+        var measured = TextRenderer.MeasureText(
+            "查找的单位",
+            Font,
+            Size.Empty,
+            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
+        var width = Math.Max(LabelWidth, measured + UiTheme.Scale(this, 24));
+        if (_labelColumnWidth == width)
+        {
+            return;
+        }
+
+        _labelColumnWidth = width;
+        _unitTargetRow.ColumnStyles[0].Width = width;
+        _unitTargetRow.ColumnStyles[2].Width = width;
+        _targetAuraRow.ColumnStyles[0].Width = width;
+        ApplyHeaderRowLayout(_categoryRow, split: IsAverageHealthCategory);
+        ApplyHeaderRowLayout(_nameRow, split: IsUnitCategory);
     }
 
     private void InitializeComponent()
     {
         Text = "编辑单位与统计";
-        Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
+        Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        // 默认宽度比原先锁定宽度增加 20%；宽高都可拖动，关闭时缓存。
-        UiTheme.ConfigureResizableDialog(this, DefaultClientWidth, 1200, LegacyClientWidth, 600);
+        // 默认展示完整编辑流程，避免筛选区在初次打开时留下大块空白。
+        UiTheme.ConfigureResizableDialog(this, DefaultClientWidth, DefaultClientHeight, LegacyClientWidth, 600);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
 
@@ -181,9 +249,11 @@ public sealed class UnitEditorForm : Form
             ColumnCount = 1,
             RowCount = 4
         };
+        _rootPanel = root;
         // 页头两行固定行高，避免 Percent 50/50 随窗体拉伸。
-        const int headerRowHeight = 56;
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, headerRowHeight * 2));
+        const int headerRowHeight = 58;
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute,
+            headerRowHeight * 2 + 16 + UiTheme.PageGap));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
@@ -208,7 +278,8 @@ public sealed class UnitEditorForm : Form
         var headerCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(4),
+            BackColor = UiTheme.Surface,
+            Padding = new Padding(12, 8, 12, 8),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
             RowCount = 2
@@ -221,17 +292,17 @@ public sealed class UnitEditorForm : Form
         root.Controls.Add(headerCard, 0, 0);
 
         _paramPanel.Dock = DockStyle.Fill;
-        _paramPanel.BackColor = Color.Transparent;
-        _paramPanel.FlowDirection = FlowDirection.TopDown;
-        _paramPanel.WrapContents = false;
-        _paramPanel.AutoScroll = true;
+        _paramPanel.BackColor = UiTheme.SurfaceRaised;
+        _paramPanel.ColumnCount = 1;
+        _paramPanel.RowCount = 3;
         _paramPanel.Margin = new Padding(0);
-        _paramPanel.Padding = new Padding(4, 6, 4, 6);
-        _paramPanel.Resize += (_, _) => FitParamContent();
+        _paramPanel.Padding = new Padding(8, 10, 8, 8);
+        _paramPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         BuildParamRows();
         var paramsCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(4),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
@@ -248,6 +319,7 @@ public sealed class UnitEditorForm : Form
         var previewCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(UiTheme.CardPadding, 6, UiTheme.CardPadding, 6),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
@@ -285,11 +357,23 @@ public sealed class UnitEditorForm : Form
         _targetAuraRow = BuildLabeledRow("目标光环", _targetAuraBox);
         _countFilterSection = BuildFilterSection("列表筛选", _countFilterEditor);
 
-        _paramPanel.Controls.AddRange([
-            _unitTargetRow,
-            _targetAuraRow,
-            _countFilterSection
-        ]);
+        _paramPanel.Controls.Add(_unitTargetRow, 0, 0);
+        _paramPanel.Controls.Add(_targetAuraRow, 0, 1);
+        _paramPanel.Controls.Add(_countFilterSection, 0, 2);
+        ApplyParamRowStyles();
+    }
+
+    private void ApplyParamRowStyles()
+    {
+        // 隐藏行压成 0 高，可见的目标行固定高度，筛选区吃掉剩余高度。
+        _paramPanel.RowStyles.Clear();
+        _paramPanel.RowStyles.Add(new RowStyle(
+            SizeType.Absolute,
+            _unitTargetRow.Visible ? ParamRowHeight + 8 : 0));
+        _paramPanel.RowStyles.Add(new RowStyle(
+            SizeType.Absolute,
+            _targetAuraRow.Visible ? ParamRowHeight + 8 : 0));
+        _paramPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
     }
 
     private void PopulateTargetAuras()
@@ -321,21 +405,21 @@ public sealed class UnitEditorForm : Form
         }
     }
 
-    private static UiCardPanel BuildFilterSection(string title, params Control[] rows)
+    private static UiCardPanel BuildFilterSection(string title, Control editor)
     {
         var section = new UiCardPanel
         {
-            Width = RowWidth + 8,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(4, 4, 4, 6),
-            Margin = new Padding(0, 3, 0, 7),
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.SurfaceRaised,
+            FillColor = UiTheme.Surface,
+            Padding = new Padding(12, 10, 12, 12),
+            Margin = new Padding(0, 4, 0, 0),
             ColumnCount = 1,
             RowCount = 2
         };
         section.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-        section.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        section.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var titleLabel = new Label
         {
@@ -344,30 +428,16 @@ public sealed class UnitEditorForm : Form
             ForeColor = UiTheme.Text,
             Text = title,
             TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(4, 0, 0, 0),
-            Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold, GraphicsUnit.Point),
+            Padding = new Padding(0),
+            Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Bold, GraphicsUnit.Point),
             Margin = new Padding(0)
         };
 
-        var body = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            BackColor = Color.Transparent,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            Margin = new Padding(0),
-            Padding = new Padding(0)
-        };
-
-        foreach (var row in rows)
-        {
-            body.Controls.Add(row);
-        }
+        editor.Dock = DockStyle.Fill;
+        editor.Margin = new Padding(0);
 
         section.Controls.Add(titleLabel, 0, 0);
-        section.Controls.Add(body, 0, 1);
+        section.Controls.Add(editor, 0, 1);
         return section;
     }
 
@@ -376,6 +446,7 @@ public sealed class UnitEditorForm : Form
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10),
             Margin = new Padding(0),
             ColumnCount = 2,
@@ -407,6 +478,33 @@ public sealed class UnitEditorForm : Form
         actions.Controls.Add(_okButton);
         actions.Controls.Add(cancelButton);
         row.Controls.Add(actions, 1, 0);
+
+        void FitActionRow()
+        {
+            foreach (var button in new[] { _okButton, cancelButton })
+            {
+                var textSize = TextRenderer.MeasureText(
+                    button.Text,
+                    button.Font,
+                    Size.Empty,
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                button.Size = new Size(
+                    Math.Max(84, textSize.Width + button.Padding.Horizontal + Math.Max(40, button.Font.Height + 8)),
+                    Math.Max(40, textSize.Height + button.Padding.Vertical + UiTheme.Scale(button, 8)));
+            }
+
+            row.ColumnStyles[1].Width = Math.Max(184, _okButton.Width + cancelButton.Width + 16);
+            if (row.Parent is TableLayoutPanel root)
+            {
+                root.RowStyles[3].Height = Math.Max(56, Math.Max(_okButton.Height, cancelButton.Height) + 20);
+            }
+        }
+
+        _okButton.HandleCreated += (_, _) => FitActionRow();
+        _okButton.FontChanged += (_, _) => FitActionRow();
+        cancelButton.HandleCreated += (_, _) => FitActionRow();
+        cancelButton.FontChanged += (_, _) => FitActionRow();
+        FitActionRow();
         AcceptButton = _okButton;
         CancelButton = cancelButton;
         return row;
@@ -424,7 +522,7 @@ public sealed class UnitEditorForm : Form
             _selectorLabel.Text = "统计对象";
         }
 
-        LayoutCategoryRow();
+        ApplyHeaderRowLayout(_categoryRow, split: hasSelector);
 
         if (!hasSelector)
         {
@@ -487,7 +585,7 @@ public sealed class UnitEditorForm : Form
         _valueNameBox.Visible = visible;
         _valueNameBox.Enabled = visible;
         // 仅队友单位显示双栏；其它类别名称独占整行，与类别下拉的单栏布局一致。
-        LayoutNameRow();
+        ApplyHeaderRowLayout(_nameRow, split: visible);
         if (!visible)
         {
             _valueNameBox.Text = string.Empty;
@@ -502,6 +600,7 @@ public sealed class UnitEditorForm : Form
         _countFilterSection.Visible = true;
         _unitTargetRow.Visible = IsUnitCategory;
         _targetAuraRow.Visible = IsUnitCategory && SelectedTargetField() == UnitTargetFieldKind.Aura;
+        ApplyParamRowStyles();
 
         var hasSelector = IsAverageHealthCategory;
         _selectorBox.Visible = hasSelector;
@@ -510,6 +609,7 @@ public sealed class UnitEditorForm : Form
             _selectorLabel.Visible = hasSelector;
         }
 
+        ApplyHeaderRowLayout(_categoryRow, split: hasSelector);
         UpdatePreview();
     }
 
@@ -924,231 +1024,216 @@ public sealed class UnitEditorForm : Form
         => _nameplateAuraFields.FirstOrDefault(field => TryReadAuraSpellId(field, out var id) && id == spellId)
             ?.DisplayName.Split(" / ", 2, StringSplitOptions.TrimEntries)[0];
 
-    private static Panel BuildLabeledRow(string label, Control control, int height = 44)
+    private static TableLayoutPanel BuildLabeledRow(string label, Control control, int height = ParamRowHeight)
     {
-        var panel = new Panel
+        var panel = new TableLayoutPanel
         {
-            Width = RowWidth,
+            Dock = DockStyle.Fill,
             Height = height,
             BackColor = UiTheme.SurfaceRaised,
-            Margin = new Padding(0, 1, 0, 5)
+            Margin = new Padding(0, 0, 0, 8),
+            Padding = new Padding(0, 8, 0, 8),
+            ColumnCount = 2,
+            RowCount = 1
         };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelWidth));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var labelControl = new Label
         {
             Text = label,
+            Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(0, height > 50 ? 4 : Math.Max(0, (height - 24) / 2), LabelWidth, 24),
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            Margin = new Padding(0)
         };
 
-        control.Bounds = new Rectangle(ControlLeft, 3, RowWidth - ControlLeft, height - 6);
-        panel.Resize += (_, _) =>
-        {
-            control.Bounds = new Rectangle(
-                ControlLeft,
-                3,
-                Math.Max(80, panel.ClientSize.Width - ControlLeft),
-                height - 6);
-        };
-        panel.Controls.Add(control);
-        panel.Controls.Add(labelControl);
+        control.Dock = DockStyle.Fill;
+        control.Margin = Padding.Empty;
+        panel.Controls.Add(labelControl, 0, 0);
+        panel.Controls.Add(control, 1, 0);
         return panel;
     }
 
-    private Panel BuildParamSplitRow(string labelA, Control controlA, string labelB, Control controlB)
+    private static TableLayoutPanel BuildParamSplitRow(string labelA, Control controlA, string labelB, Control controlB)
     {
-        var panel = new Panel
+        var panel = new TableLayoutPanel
         {
-            Width = RowWidth,
-            Height = 44,
+            Dock = DockStyle.Fill,
+            Height = ParamRowHeight,
             BackColor = UiTheme.SurfaceRaised,
-            Margin = new Padding(0, 1, 0, 5)
+            Margin = new Padding(0, 0, 0, 8),
+            Padding = new Padding(0, 8, 0, 8),
+            ColumnCount = 4,
+            RowCount = 1
         };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelWidth));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelWidth));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var labelAControl = new Label
         {
             Text = labelA,
+            Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(0, 10, LabelWidth, 24),
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            Margin = new Padding(0)
         };
-        controlA.Bounds = new Rectangle(ControlLeft, 8, 230, 28);
+        controlA.Dock = DockStyle.Fill;
+        controlA.Margin = new Padding(0, 0, 12, 0);
 
         var labelBControl = new Label
         {
             Text = labelB,
+            Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(ControlLeft + 246, 10, 90, 24),
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            Margin = new Padding(0)
         };
-        controlB.Bounds = new Rectangle(ControlLeft + 340, 8, RowWidth - (ControlLeft + 340), 28);
-        panel.Resize += (_, _) =>
-        {
-            controlB.Bounds = new Rectangle(
-                ControlLeft + 340,
-                8,
-                Math.Max(80, panel.ClientSize.Width - (ControlLeft + 340)),
-                28);
-        };
+        controlB.Dock = DockStyle.Fill;
+        controlB.Margin = new Padding(0);
 
-        panel.Controls.Add(controlA);
-        panel.Controls.Add(labelAControl);
-        panel.Controls.Add(controlB);
-        panel.Controls.Add(labelBControl);
+        panel.Controls.Add(labelAControl, 0, 0);
+        panel.Controls.Add(controlA, 1, 0);
+        panel.Controls.Add(labelBControl, 2, 0);
+        panel.Controls.Add(controlB, 3, 0);
         return panel;
     }
 
     private Control BuildSplitRow(string labelA, Control controlA, string labelB, Control controlB)
     {
-        var panel = new Panel
+        var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
-            Margin = new Padding(0)
+            Margin = new Padding(0),
+            Padding = new Padding(0, 11, 0, 11),
+            ColumnCount = 4,
+            RowCount = 1
         };
         _categoryRow = panel;
-        panel.Resize += (_, _) => LayoutCategoryRow();
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var labelAControl = new Label
         {
             Text = labelA,
+            Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(0, 5, HeaderLabelWidth, 28),
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            Margin = new Padding(0)
         };
-        controlA.Bounds = new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28);
+        controlA.Dock = DockStyle.Fill;
+        controlA.Margin = new Padding(0, 0, 12, 0);
 
         _selectorLabel = new Label
         {
             Text = labelB,
+            Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(HeaderHalfWidth, 5, HeaderLabelWidth, 28),
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            Margin = new Padding(0)
         };
-        controlB.Bounds = new Rectangle(
-            HeaderHalfWidth + HeaderControlLeft, 5, HeaderControlWidth, 28);
+        controlB.Dock = DockStyle.Fill;
+        controlB.Margin = new Padding(0);
 
-        panel.Controls.Add(controlA);
-        panel.Controls.Add(labelAControl);
-        panel.Controls.Add(controlB);
-        panel.Controls.Add(_selectorLabel);
+        panel.Controls.Add(labelAControl, 0, 0);
+        panel.Controls.Add(controlA, 1, 0);
+        panel.Controls.Add(_selectorLabel, 2, 0);
+        panel.Controls.Add(controlB, 3, 0);
+        ApplyHeaderRowLayout(panel, split: false);
         return panel;
     }
 
     private Control BuildNameRow()
     {
-        var panel = new Panel
+        var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
-            Margin = new Padding(0)
+            Margin = new Padding(0),
+            Padding = new Padding(0, 11, 0, 11),
+            ColumnCount = 4,
+            RowCount = 1
         };
         _nameRow = panel;
-        panel.Resize += (_, _) => LayoutNameRow();
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var nameLabel = new Label
         {
             Text = "名称",
+            Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             TextAlign = ContentAlignment.MiddleLeft,
-            Bounds = new Rectangle(0, 5, HeaderLabelWidth, 28),
-            AutoEllipsis = true
+            AutoEllipsis = true,
+            Margin = new Padding(0)
         };
         UiTheme.StyleTextBox(_nameBox);
-        _nameBox.Bounds = new Rectangle(HeaderControlLeft, 5, HeaderControlWidth, 28);
+        _nameBox.AutoSize = false;
+        _nameBox.Dock = DockStyle.Fill;
+        _nameBox.Margin = new Padding(0, 0, 12, 0);
         _nameBox.TextChanged += (_, _) => UpdatePreview();
 
         _valueNameLabel.Text = "值名称";
+        _valueNameLabel.Dock = DockStyle.Fill;
         _valueNameLabel.ForeColor = UiTheme.Muted;
         _valueNameLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _valueNameLabel.Bounds = new Rectangle(HeaderHalfWidth, 5, HeaderLabelWidth, 28);
         _valueNameLabel.AutoEllipsis = true;
+        _valueNameLabel.Margin = new Padding(0);
         UiTheme.StyleTextBox(_valueNameBox);
-        _valueNameBox.Bounds = new Rectangle(
-            HeaderHalfWidth + HeaderControlLeft, 5, HeaderControlWidth, 28);
+        _valueNameBox.AutoSize = false;
+        _valueNameBox.Dock = DockStyle.Fill;
+        _valueNameBox.Margin = new Padding(0);
         _valueNameBox.TextChanged += (_, _) => UpdatePreview();
         const string valueTip = "可选：把所选单位的目标字段值暴露为同名数值条件字段";
         _toolTip.SetToolTip(_valueNameBox, valueTip);
         _toolTip.SetToolTip(_valueNameLabel, valueTip);
 
-        panel.Controls.Add(_nameBox);
-        panel.Controls.Add(nameLabel);
-        panel.Controls.Add(_valueNameBox);
-        panel.Controls.Add(_valueNameLabel);
+        panel.Controls.Add(nameLabel, 0, 0);
+        panel.Controls.Add(_nameBox, 1, 0);
+        panel.Controls.Add(_valueNameLabel, 2, 0);
+        panel.Controls.Add(_valueNameBox, 3, 0);
+        ApplyHeaderRowLayout(panel, split: true);
         return panel;
     }
 
-    private void LayoutCategoryRow()
-        => LayoutDualFields(_categoryRow, _categoryBox, _selectorLabel, _selectorBox, IsAverageHealthCategory);
-
-    private void LayoutNameRow()
-        => LayoutDualFields(_nameRow, _nameBox, _valueNameLabel, _valueNameBox, IsUnitCategory && _valueNameBox.Visible);
-
-    private static void LayoutDualFields(
-        Control? host,
-        Control primary,
-        Control? secondaryLabel,
-        Control secondary,
-        bool split)
+    private void ApplyHeaderRowLayout(TableLayoutPanel? panel, bool split)
     {
-        if (host is null || host.ClientSize.Width < HeaderControlLeft + 80)
+        if (panel is null)
         {
             return;
         }
 
-        var width = host.ClientSize.Width;
-        var y = primary.Top > 0 ? primary.Top : 5;
-        var height = Math.Max(primary.Height, 28);
-        if (!split)
-        {
-            primary.SetBounds(HeaderControlLeft, y, Math.Max(80, width - HeaderControlLeft), height);
-            return;
-        }
-
-        var half = width / 2;
-        var controlWidth = Math.Max(80, half - HeaderControlLeft);
-        primary.SetBounds(HeaderControlLeft, y, controlWidth, height);
-        secondaryLabel?.SetBounds(half, secondaryLabel.Top > 0 ? secondaryLabel.Top : y, HeaderLabelWidth, Math.Max(secondaryLabel.Height, 28));
-        secondary.SetBounds(half + HeaderControlLeft, secondary.Top > 0 ? secondary.Top : y, controlWidth, height);
-    }
-
-    private void FitParamContent()
-    {
-        if (_fittingLayout || _paramPanel.IsDisposed)
-        {
-            return;
-        }
-
-        // 留出余量，避免子控件刚好顶满时 FlowLayoutPanel 冒出横向滚动条并来回触发布局。
-        var width = _paramPanel.ClientSize.Width - _paramPanel.Padding.Horizontal - 4;
-        if (width < 320)
-        {
-            return;
-        }
-
-        _fittingLayout = true;
+        panel.SuspendLayout();
         try
         {
-            _unitTargetRow.Width = width;
-            _targetAuraRow.Width = width;
-            var editorWidth = Math.Max(
-                320,
-                width - _countFilterSection.Padding.Horizontal - _countFilterSection.Margin.Horizontal);
-            _countFilterSection.Width = width;
-            if (_countFilterEditor.Width != editorWidth)
+            panel.ColumnStyles.Clear();
+            if (split)
             {
-                _countFilterEditor.Width = editorWidth;
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _labelColumnWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _labelColumnWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            }
+            else
+            {
+                // 单栏：标签固定宽，输入占满剩余；后两列折叠为 0。
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _labelColumnWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 0));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 0));
             }
         }
         finally
         {
-            _fittingLayout = false;
+            panel.ResumeLayout(true);
         }
     }
 
