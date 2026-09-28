@@ -21,7 +21,7 @@ public sealed class MainForm : Form, IMessageFilter
     private const int GamepadCaptureIntervalMs = 50;
     private const int DefaultMainBarLongEdge = 476;
     private const int DefaultMainBarShortEdge = 64;
-    private const int MinimumMainBarLongEdge = 294;
+    private const int MinimumMainBarLongEdge = 350;
     private const int MinimumMainBarShortEdge = 56;
     private const int MainBarSizeVersion = 1;
     private const int TopBarButtonGap = 12;
@@ -30,6 +30,8 @@ public sealed class MainForm : Form, IMessageFilter
     /// <summary>圆形程序图标相对容器略偏左，向右微调以利水平居中（展开/折叠共用）。</summary>
     private const int HeaderIconNudgeX = 2;
     private const string HeaderIconResourcePath = "Assets.arasaka-icon-transparent.png";
+    private const string RetailGameIconResourcePath = "Assets.GameLogos.retail.png";
+    private const string ForeverGameIconResourcePath = "Assets.GameLogos.forever.png";
     private const string ModuleWebsiteUrl = "https://www.shigure.club";
     private static readonly Color DefaultHeaderIconColor = Color.White;
     private static readonly IReadOnlyDictionary<int, Color> ClassIconColors = new Dictionary<int, Color>
@@ -65,6 +67,9 @@ public sealed class MainForm : Form, IMessageFilter
     private Button _setDefaultModuleButton = null!;
     private Label _configSourceLabel = null!;
     private Button _updateConfigButton = null!;
+    private Label _profileStatusLabel = null!;
+    private Button _automaticProfileButton = null!;
+    private readonly List<(string AddonName, Button Button)> _profileButtons = [];
     private Label _spellIconPackageStatusLabel = null!;
     private Button _downloadSpellIconPackageButton = null!;
     private readonly ToolTip _settingsToolTip = new();
@@ -88,6 +93,7 @@ public sealed class MainForm : Form, IMessageFilter
 
     private readonly List<TopBarIconButton> _enableButtons = [];
     private readonly List<PictureBox> _headerIcons = [];
+    private readonly List<PictureBox> _gameIcons = [];
     private readonly List<Label> _titleLabels = [];
     private readonly List<Label> _runtimeStatusLabels = [];
     private Control _horizontalTopBar = null!;
@@ -140,6 +146,7 @@ public sealed class MainForm : Form, IMessageFilter
     private bool _shutdownCompleted;
     private string? _lastFrontmostProcessName;
     private bool _switchingProfile;
+    private string? _manualAddonName;
     private bool _borderlessCaptureAccessRequested;
 
     private sealed record ProjectConfigUpdateResult(
@@ -173,7 +180,8 @@ public sealed class MainForm : Form, IMessageFilter
         _moduleDependencyService = new ModuleDependencyService(_activeProfile.Current.AddonRoot);
         _runtimeSession = runtimeSession;
         _uiCache = UiCacheStore.Load();
-        _statusForm = new StatusForm();
+        _manualAddonName = _profiles.FindByAddon(_uiCache.SelectedAddonName)?.AddonName;
+        _statusForm = new StatusForm(() => _activeProfile.Current);
         _statusForm.VisibleChanged += (_, _) =>
         {
             if (!IsDisposed && !Disposing)
@@ -504,6 +512,10 @@ public sealed class MainForm : Form, IMessageFilter
         _trayEnabledIcon?.Dispose();
         _roundedCornerResizeTimer.Dispose();
         _wowProcessMonitorTimer.Dispose();
+        foreach (var gameIcon in _gameIcons)
+        {
+            gameIcon.Image?.Dispose();
+        }
         base.OnFormClosed(e);
     }
 
@@ -521,41 +533,29 @@ public sealed class MainForm : Form, IMessageFilter
             return;
         }
         var profile = _profiles.Find(processName);
-        if (profile is null || _classConfigEditor.HasUnsavedChanges || _classMacrosEditor.HasUnsavedChanges)
+        if (profile is null)
+        {
+            return;
+        }
+        if (_manualAddonName is not null
+            && !string.Equals(profile.AddonName, _manualAddonName, StringComparison.OrdinalIgnoreCase))
+        {
+            _lastFrontmostProcessName = processName;
+            return;
+        }
+        if (HasUnsavedProfileEdits())
         {
             return;
         }
         _switchingProfile = true;
+        UpdateProfileButtons();
         try
         {
-            if (!string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase))
-            {
-                AppendLog($"切换到 {profile.ProcessName} / {profile.AddonName}");
-                try
-                {
-                    await WaitForPendingConfigUpdatesAsync();
-                }
-                catch
-                {
-                    // 上次配置更新的调用方已收到错误；仍可切换版本。
-                }
-                await _runtimeSession.StopAsync();
-                _activeProfile.Current = profile;
-                _addonSyncService = CreateAddonSyncService(profile);
-                _moduleDependencyService = new ModuleDependencyService(profile.AddonRoot);
-                _moduleStore.UseDirectory(profile.ModuleDirectory);
-                _moduleEditor.ReloadCatalogs();
-                _classConfigEditor.ReloadFromAddon();
-                _classMacrosEditor.ReloadFromAddon();
-                await GenerateRuntimeDataAtStartupIfMissingAsync();
-                await ImportModuleDependenciesAsync(reloadStore: true, showFeedback: false);
-            }
             AppendLog($"检测到 {profile.ProcessName}，正在更新 {profile.AddonName} 配置");
-            await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
+            await ActivateProfileAsync(profile, updateWhenUnchanged: true);
             if (!_shutdownStarted)
             {
                 _lastFrontmostProcessName = processName;
-                await StartRuntimeAsync();
                 AppendLog($"{profile.ProcessName} 配置更新已完成");
             }
         }
@@ -573,6 +573,147 @@ public sealed class MainForm : Form, IMessageFilter
         finally
         {
             _switchingProfile = false;
+            UpdateProfileButtons();
+        }
+    }
+
+    private bool HasUnsavedProfileEdits()
+        => _classConfigEditor.HasUnsavedChanges || _classMacrosEditor.HasUnsavedChanges;
+
+    private async Task ActivateProfileAsync(GameProfile profile, bool updateWhenUnchanged)
+    {
+        var changed = !string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase);
+        if (changed)
+        {
+            AppendLog($"切换到 {profile.ProcessName} / {profile.AddonName}");
+            try
+            {
+                await WaitForPendingConfigUpdatesAsync();
+            }
+            catch
+            {
+                // 上次配置更新的调用方已收到错误；仍可切换版本。
+            }
+            await _runtimeSession.StopAsync();
+            _activeProfile.Current = profile;
+            UpdateGameIcon();
+            _addonSyncService = CreateAddonSyncService(profile);
+            _moduleDependencyService = new ModuleDependencyService(profile.AddonRoot);
+            _moduleStore.UseDirectory(profile.ModuleDirectory);
+            _moduleEditor.ReloadCatalogs();
+            _classConfigEditor.ReloadFromAddon();
+            _classMacrosEditor.ReloadFromAddon();
+            await GenerateRuntimeDataAtStartupIfMissingAsync();
+            await ImportModuleDependenciesAsync(reloadStore: true, showFeedback: false);
+        }
+        if (changed || updateWhenUnchanged)
+        {
+            await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
+        }
+        if (!_shutdownStarted)
+        {
+            await StartRuntimeAsync();
+        }
+        UpdateProfileButtons();
+    }
+
+    private async Task SelectManualProfileAsync(GameProfile requestedProfile)
+    {
+        if (_shutdownStarted || _switchingProfile)
+        {
+            return;
+        }
+        var foregroundName = _processLocator.FindFrontmostProcessName();
+        var foregroundProfile = _profiles.Find(foregroundName);
+        var profile = foregroundProfile is not null
+            && string.Equals(foregroundProfile.AddonName, requestedProfile.AddonName, StringComparison.OrdinalIgnoreCase)
+                ? foregroundProfile
+                : requestedProfile;
+        if (!string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase)
+            && HasUnsavedProfileEdits())
+        {
+            MessageBox.Show("配置或宏页面存在未保存修改。请先保存或放弃修改，再切换版本。",
+                "无法切换版本", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        _manualAddonName = requestedProfile.AddonName;
+        _uiCache.SelectedAddonName = _manualAddonName;
+        SaveUiCache();
+        _switchingProfile = true;
+        UpdateProfileButtons();
+        try
+        {
+            await ActivateProfileAsync(profile, updateWhenUnchanged: false);
+            _lastFrontmostProcessName = foregroundName;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"手动切换版本失败: {ex.Message}");
+            MessageBox.Show(ex.Message, "切换版本失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _switchingProfile = false;
+            UpdateProfileButtons();
+        }
+    }
+
+    private async Task SelectAutomaticProfileAsync()
+    {
+        if (_shutdownStarted || _switchingProfile)
+        {
+            return;
+        }
+        var foregroundName = _processLocator.FindFrontmostProcessName();
+        var profile = _profiles.Find(foregroundName) ?? _profiles.Default;
+        if (!string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase)
+            && HasUnsavedProfileEdits())
+        {
+            MessageBox.Show("配置或宏页面存在未保存修改。请先保存或放弃修改，再切换版本。",
+                "无法切换版本", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        _manualAddonName = null;
+        _uiCache.SelectedAddonName = null;
+        SaveUiCache();
+        UpdateProfileButtons();
+        _switchingProfile = true;
+        UpdateProfileButtons();
+        try
+        {
+            await ActivateProfileAsync(profile, updateWhenUnchanged: false);
+            _lastFrontmostProcessName = foregroundName;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"自动切换版本失败: {ex.Message}");
+            MessageBox.Show(ex.Message, "切换版本失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _switchingProfile = false;
+            UpdateProfileButtons();
+        }
+    }
+
+    private void UpdateProfileButtons()
+    {
+        if (_profileStatusLabel is null || _automaticProfileButton is null)
+        {
+            return;
+        }
+        var profile = _activeProfile.Current;
+        _profileStatusLabel.Text = $"当前：{profile.ProcessName} / {profile.AddonName}；" +
+            (_manualAddonName is null ? "自动跟随前台游戏" : "手动选择");
+        _automaticProfileButton.Enabled = !_switchingProfile;
+        StyleLayoutButton(_automaticProfileButton, _manualAddonName is null);
+        foreach (var (addonName, button) in _profileButtons)
+        {
+            button.Enabled = !_switchingProfile;
+            StyleLayoutButton(button,
+                string.Equals(addonName, _manualAddonName, StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -700,6 +841,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _currentHeaderIconColor = null;
         UpdateHeaderIconColor(null);
+        UpdateGameIcon();
         return host;
     }
 
@@ -749,13 +891,17 @@ public sealed class MainForm : Form, IMessageFilter
         };
 
         brand.Controls.Add(headerIcon);
+        var gameIcon = CreateGameIcon(vertical: false);
+        brand.Controls.Add(gameIcon);
         brand.Controls.Add(titleLabel);
         _horizontalButtons = BuildTopBarButtons(vertical: false);
 
         RegisterTopBarPresentation(headerIcon, titleLabel, runtimeStatusLabel);
+        _gameIcons.Add(gameIcon);
         EnableDrag(bar);
         EnableDrag(brand);
         EnableHeaderIconCollapseToggle(headerIcon);
+        EnableDrag(gameIcon);
         EnableDrag(titleLabel);
         EnableDrag(runtimeStatusLabel);
 
@@ -818,13 +964,17 @@ public sealed class MainForm : Form, IMessageFilter
         runtimeStatusLabel.Rotated = true;
 
         brand.Controls.Add(headerIcon);
+        var gameIcon = CreateGameIcon(vertical: true);
+        brand.Controls.Add(gameIcon);
         brand.Controls.Add(titleLabel);
         _verticalButtons = BuildTopBarButtons(vertical: true);
 
         RegisterTopBarPresentation(headerIcon, titleLabel, runtimeStatusLabel);
+        _gameIcons.Add(gameIcon);
         EnableDrag(bar);
         EnableDrag(brand);
         EnableHeaderIconCollapseToggle(headerIcon);
+        EnableDrag(gameIcon);
         EnableDrag(titleLabel);
         EnableDrag(runtimeStatusLabel);
 
@@ -868,6 +1018,43 @@ public sealed class MainForm : Form, IMessageFilter
         _headerIcons.Add(icon);
         _titleLabels.Add(title);
         _runtimeStatusLabels.Add(status);
+    }
+
+    private static PictureBox CreateGameIcon(bool vertical)
+    {
+        return new PictureBox
+        {
+            Size = new Size(44, 36),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.Transparent,
+            Anchor = vertical ? AnchorStyles.Top : AnchorStyles.Left,
+            Margin = vertical ? new Padding(0, 6, 0, 0) : new Padding(8, 0, 0, 0)
+        };
+    }
+
+    private void UpdateGameIcon()
+    {
+        var forever = string.Equals(_activeProfile.Current.AddonName, "Shingen", StringComparison.OrdinalIgnoreCase);
+        var resourcePath = forever ? ForeverGameIconResourcePath : RetailGameIconResourcePath;
+        foreach (var gameIcon in _gameIcons)
+        {
+            var previous = gameIcon.Image;
+            gameIcon.Image = LoadGameIcon(resourcePath);
+            gameIcon.AccessibleName = forever ? "Forever 游戏图标" : "Retail 游戏图标";
+            previous?.Dispose();
+        }
+    }
+
+    private static Bitmap? LoadGameIcon(string resourcePath)
+    {
+        using var stream = typeof(MainForm).Assembly.GetManifestResourceStream($"{typeof(MainForm).Namespace}.{resourcePath}");
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var image = Image.FromStream(stream);
+        return new Bitmap(image);
     }
 
     private static PictureBox CreateHeaderIcon()
@@ -1156,6 +1343,36 @@ public sealed class MainForm : Form, IMessageFilter
             settingCards.Add(card);
         }
 
+        _profileStatusLabel = CreateRowDescription(string.Empty);
+        var profileActions = CreateActionsHost();
+        _automaticProfileButton = UiTheme.CreateButton("自动", UiTheme.ButtonKind.Secondary);
+        SizeActionControl(_automaticProfileButton, 88, rightGap: 8);
+        _automaticProfileButton.Click += async (_, _) => await SelectAutomaticProfileAsync();
+        profileActions.Controls.Add(_automaticProfileButton);
+        foreach (var profile in _profiles.DistinctAddons)
+        {
+            var buttonText = profile.AddonName.Equals("Fuyutsui", StringComparison.OrdinalIgnoreCase)
+                ? "Retail Fuyutsui"
+                : profile.AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+                    ? "Forever Shingen"
+                    : $"{profile.ProcessName} · {profile.AddonName}";
+            var button = UiTheme.CreateButton(
+                buttonText,
+                UiTheme.ButtonKind.Secondary);
+            SizeActionControl(button, 184, rightGap: 8);
+            button.Click += async (_, _) => await SelectManualProfileAsync(profile);
+            profileActions.Controls.Add(button);
+            _profileButtons.Add((profile.AddonName, button));
+        }
+        AddSettingsGroup(
+            "游戏版本",
+            first: true,
+            CreateSettingRow(
+                "当前版本",
+                _profileStatusLabel,
+                profileActions));
+        UpdateProfileButtons();
+
         _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_toggleKeyButton, primaryControlWidth);
         _toggleKeyButton.TextAlign = ContentAlignment.MiddleCenter;
@@ -1190,7 +1407,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         AddSettingsGroup(
             "输入与运行",
-            first: true,
+            first: false,
             CreateSettingRow(
                 "触发键",
                 CreateRowDescription("点击后按下新的键盘键或鼠标侧键；修改后运行循环会自动重启"),
@@ -3598,6 +3815,11 @@ public sealed class MainForm : Form, IMessageFilter
         foreach (var title in _titleLabels)
         {
             title.Visible = visible;
+        }
+
+        foreach (var gameIcon in _gameIcons)
+        {
+            gameIcon.Visible = visible;
         }
 
         foreach (var status in _runtimeStatusLabels)

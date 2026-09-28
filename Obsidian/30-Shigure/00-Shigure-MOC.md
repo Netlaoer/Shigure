@@ -36,7 +36,7 @@ verified_at: 2026-08-10
 # Shigure 功能地图
 
 > [!abstract] AI 快速摘要
-> Shigure 是一个仅面向 Windows 的 .NET 10 WinForms 消费端。它按 `wow_process.txt` 中的进程名选择 Windows Z 顺序最靠前的候选可见窗口，截取 Fuyutsui 像素并以 `PostMessage` 回送按键。仓库内 `Fuyutsui/` 是配置、宏和游戏插件部署的唯一权威源；项目使用手工构造器注入，没有第三方 NuGet 依赖，也没有测试项目。
+> Shigure 是一个仅面向 Windows 的 .NET 10 WinForms 消费端。它按 `wow_process.txt` 中的进程名选择 Windows Z 顺序最靠前的候选可见窗口，截取 Fuyutsui 像素并以 `PostMessage` 回送按键。仓库内 `Retail/Fuyutsui/` 是配置、宏和游戏插件部署的唯一权威源；项目使用手工构造器注入，没有第三方 NuGet 依赖，也没有测试项目。
 
 ## 图谱位置
 
@@ -88,7 +88,7 @@ Program.Main
 | 实时战斗状态 | Fuyutsui 像素输出 | `PixelScanner` | 不持久化 |
 | 状态步骤映射 | ClassBlocks Lua，经转换器生成 | `ConfigService` / `StateBuilder` | `config/*.json` |
 | 法术宏到键位 | ClassMacros Lua，经转换器生成 | `KeymapService` | `keymap/*.json` |
-| 游戏插件副本 | 项目内置 `Fuyutsui/` | WoW AddOn 加载器 | `Interface/AddOns/Fuyutsui` |
+| 游戏插件副本 | 项目内置 `Retail/Fuyutsui/` | WoW AddOn 加载器 | `Interface/AddOns/Fuyutsui` |
 | 行为规则 | 模块编辑器或手工 JSON | `ModuleStore` / `ModuleLogic` | `{MyDocuments}/Shigure/module` |
 | UI 缓存与偏好 | WinForms 界面 | WinForms 界面 | `cache/` |
 | 运行状态 | `ShigureRuntime` 单循环 | `StatusForm` | `RenderSnapshot`，不持久化 |
@@ -98,7 +98,7 @@ Program.Main
 - 顶行协议有效步骤为 `1..510`；步骤 1 是锚点，2/3 是职业/专精。
 - `ModuleDefinition.CurrentUnitMappingVersion` 当前是 **4**；v4 将团队扩展到 40 槽，并把旧保留单位 31..35 迁移到 41..45。
 - 扫描器和按键发送器共享 `WowProcessLocator`：按进程名筛选、按 Z 顺序取首个可见窗口；发送前还会核对本轮扫描句柄，窗口切换时等待重新扫描。
-- 项目内置 `Fuyutsui/` 是权威源，游戏 AddOns 目录只是单向部署副本，不从游戏目录反向合并。
+- 项目内置 `Retail/Fuyutsui/` 是权威源，游戏 AddOns 目录只是单向部署副本，不从游戏目录反向合并。
 - 模块、条件和公式都是受限数据解释器，不执行 C#；模块仍可直接指定要发送的 Hotkey。
 - 主运行状态由 `ShigureRuntime` 的单一循环拥有；UI 命令通过并发队列进入该循环。
 - `module.Enabled` 当前不参与运行时模块筛选；只有规则和数值调整的 `Enabled` 被执行器检查。

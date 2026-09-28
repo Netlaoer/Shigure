@@ -19,10 +19,10 @@ related:
   - "[[20-Fuyutsui/03-Fuyutsui-状态块与编码入口]]"
   - "[[30-Shigure/03-Shigure-配置合并与GameState构建]]"
 source_files:
-  - Fuyutsui/core/player.lua
-  - Fuyutsui/core/stateblocks.lua
-  - Fuyutsui/core/events.lua
-  - Fuyutsui/core/curves.lua
+  - Retail/Fuyutsui/core/player.lua
+  - Retail/Fuyutsui/core/stateblocks.lua
+  - Retail/Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/core/curves.lua
 source_symbols:
   - Fuyutsui:GetCharacterInfo
   - Fuyutsui:GetCharacterSpecInfo
@@ -141,12 +141,12 @@ PLAYER_ENTERING_WORLD / 专精变化
 
 ## 源码索引
 
-- `Fuyutsui/core/player.lua:12-55`：角色与专精重建入口。
-- `Fuyutsui/core/player.lua:57-132`：有效性、战斗、施法、生命与资源。
-- `Fuyutsui/core/player.lua:134-262`：辅助推荐、队伍/遭遇元数据、配置与条布局。
-- `Fuyutsui/core/player.lua:264-421`：职业扩展、姿态、聊天框和坐骑施法。
-- `Fuyutsui/core/stateblocks.lua:12-30,44-291`：资源名称、getter schema 与状态写出。
-- `Fuyutsui/core/events.lua:81-188,419-442`：事件状态机和分频刷新。
+- `Retail/Fuyutsui/core/player.lua:12-55`：角色与专精重建入口。
+- `Retail/Fuyutsui/core/player.lua:57-132`：有效性、战斗、施法、生命与资源。
+- `Retail/Fuyutsui/core/player.lua:134-262`：辅助推荐、队伍/遭遇元数据、配置与条布局。
+- `Retail/Fuyutsui/core/player.lua:264-421`：职业扩展、姿态、聊天框和坐骑施法。
+- `Retail/Fuyutsui/core/stateblocks.lua:12-30,44-291`：资源名称、getter schema 与状态写出。
+- `Retail/Fuyutsui/core/events.lua:81-188,419-442`：事件状态机和分频刷新。
 
 ## 知识图谱
 

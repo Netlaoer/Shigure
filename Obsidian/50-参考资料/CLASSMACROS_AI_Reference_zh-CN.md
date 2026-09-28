@@ -19,9 +19,9 @@ authority: "source-derived"
 up:
   - "[[50-参考资料/00-参考资料-MOC|参考资料 MOC]]"
 source_files:
-  - "Fuyutsui/core/classmacros.lua"
-  - "Fuyutsui/core/macro.lua"
-  - "Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/classmacros.lua"
+  - "Retail/Fuyutsui/core/macro.lua"
+  - "Retail/Fuyutsui/main.lua"
 source_symbols:
   - "ClassMacros"
   - "Fuyutsui:ClearMacros"
@@ -104,7 +104,7 @@ macro.lua:CreateMacro(dynamic, static, special)
 
 - 总槽位数 = `26 × 45 = 1170`。
 - 按钮名：`s1`、`s2`、…（与 `macroKind` 下标一致）。
-- 当前键池定义直接见 `Fuyutsui/core/macro.lua`（ID 1 = `CTRL-NUMPAD1`，以此类推）。
+- 当前键池定义直接见 `Retail/Fuyutsui/core/macro.lua`（ID 1 = `CTRL-NUMPAD1`，以此类推）。
 
 **AI 改宏时**：关心的是解析后的 `dynamic` 占用多少槽、以及 static/special 数组下标对应的全局热键；不必手算，除非要核对外部程序按键映射。
 

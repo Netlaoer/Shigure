@@ -242,7 +242,7 @@ Shigure 扫描所有槽并在外部匹配固定 RGB
 
 当前仓库已经注册并留出了以下处理函数，但函数体为空：
 
-- `Fuyutsui/core/events.lua` 中的 `ENCOUNTER_TIMELINE_EVENT_ADDED`；
+- `Retail/Fuyutsui/core/events.lua` 中的 `ENCOUNTER_TIMELINE_EVENT_ADDED`；
 - `ENCOUNTER_TIMELINE_EVENT_REMOVED`；
 - `ENCOUNTER_TIMELINE_EVENT_STATE_CHANGED`。
 

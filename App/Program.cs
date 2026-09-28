@@ -10,7 +10,7 @@ internal static class Program
         if (args.Contains("--update-config", StringComparer.OrdinalIgnoreCase))
         {
             var baseDirectory = Directory.GetCurrentDirectory();
-            if (!Directory.Exists(Path.Combine(baseDirectory, "Fuyutsui", "class")))
+            if (!File.Exists(Path.Combine(baseDirectory, "game_profiles.json")))
             {
                 baseDirectory = AppPaths.BaseDirectory;
             }
@@ -26,7 +26,7 @@ internal static class Program
         if (args.Contains("--update-keymap", StringComparer.OrdinalIgnoreCase))
         {
             var baseDirectory = Directory.GetCurrentDirectory();
-            if (!Directory.Exists(Path.Combine(baseDirectory, "Fuyutsui", "core")))
+            if (!File.Exists(Path.Combine(baseDirectory, "game_profiles.json")))
             {
                 baseDirectory = AppPaths.BaseDirectory;
             }
@@ -73,7 +73,14 @@ internal static class Program
             var baseDirectory = AppPaths.BaseDirectory;
             var profiles = GameProfiles.Load(baseDirectory);
             var processLocator = new WowProcessLocator(baseDirectory, profiles);
-            var initialProfile = profiles.Find(processLocator.FindFrontmostProcessName()) ?? profiles.Default;
+            var foregroundProfile = profiles.Find(processLocator.FindFrontmostProcessName());
+            var savedProfile = profiles.FindByAddon(UiCacheStore.Load().SelectedAddonName);
+            var initialProfile = savedProfile is null
+                ? foregroundProfile ?? profiles.Default
+                : foregroundProfile is not null
+                  && string.Equals(foregroundProfile.AddonName, savedProfile.AddonName, StringComparison.OrdinalIgnoreCase)
+                    ? foregroundProfile
+                    : savedProfile;
             var activeProfile = new ActiveGameProfile(initialProfile);
             var moduleStore = new ModuleStore(initialProfile.ModuleDirectory);
             ShowModuleMigrationHint(baseDirectory, moduleStore);

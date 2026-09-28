@@ -18,9 +18,9 @@ related:
   - "[[50-参考资料/BLOCK_AI_Reference_zh-CN|block.lua AI 技术参考]]"
   - "[[40-跨项目/02-Shigure-ClassBlocks到config同步契约|ClassBlocks 到 config 同步契约]]"
 source_files:
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/core/block.lua"
-  - "Fuyutsui/class/*.lua"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/block.lua"
+  - "Retail/Fuyutsui/class/*.lua"
 source_symbols:
   - "Fuyutsui:LoadPlayerBlocks"
   - "Fuyutsui:CreateTexture"

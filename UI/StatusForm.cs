@@ -37,6 +37,7 @@ internal sealed record StatusListIcon(long Id, bool IsItem);
 
 public sealed class StatusForm : Form
 {
+    private readonly Func<GameProfile> _resolveProfile;
     private const string AboutLogoResourcePath = "Assets.arasaka-icon-transparent.png";
     private const int SettingsContentWidth = 1200;
     private const int AboutLogoSize = 220;
@@ -335,6 +336,8 @@ public sealed class StatusForm : Form
     private Panel _macrosHost = null!;
     private Panel _moduleHost = null!;
     private Panel _aboutHost = null!;
+    private Label _aboutModulePathLabel = null!;
+    private Label _aboutConfigPathLabel = null!;
     private Button _maximizeButton = null!;
     private bool _usesDwmRoundedCorners;
     private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
@@ -345,8 +348,9 @@ public sealed class StatusForm : Form
     internal bool SidebarCollapsed => _sidebarCollapsed;
     internal event EventHandler? SidebarLayoutChanged;
 
-    public StatusForm()
+    internal StatusForm(Func<GameProfile> resolveProfile)
     {
+        _resolveProfile = resolveProfile;
         _roundedCornerResizeTimer = new System.Windows.Forms.Timer
         {
             Interval = 50
@@ -1545,6 +1549,13 @@ public sealed class StatusForm : Form
     private void SelectView(SettingsPage page)
     {
         _selectedPage = page;
+        if (page == SettingsPage.About)
+        {
+            var profile = _resolveProfile();
+            UpdateAboutPath(_aboutModulePathLabel, profile.ModuleDirectory);
+            UpdateAboutPath(_aboutConfigPathLabel,
+                ConfigService.ResolveConfigPath(profile.RuntimeDirectory));
+        }
         foreach (var (button, view, itemPage) in _navItems)
         {
             var selected = itemPage == page;
@@ -2177,10 +2188,11 @@ public sealed class StatusForm : Form
         AddAboutRow(details, "类型", "冲锋枪");
         AddAboutRow(details, "介绍", "它一分钟打出去的子弹比荒坂偷的税还要多。");
         AddAboutRow(details, "用途", "有时人们只想把子弹全打出去，在硝烟过后品味眼前的一片狼藉。");
-        var modulePath = ModuleStore.ResolveModuleDirectory();
-        var configPath = ConfigService.ResolveConfigPath(AppPaths.BaseDirectory);
-        AddAboutRow(details, "模块目录", FormatAboutPath(modulePath), modulePath);
-        AddAboutRow(details, "配置目录", FormatAboutPath(configPath), configPath);
+        var profile = _resolveProfile();
+        var modulePath = profile.ModuleDirectory;
+        var configPath = ConfigService.ResolveConfigPath(profile.RuntimeDirectory);
+        _aboutModulePathLabel = AddAboutRow(details, "模块目录", FormatAboutPath(modulePath), modulePath);
+        _aboutConfigPathLabel = AddAboutRow(details, "配置目录", FormatAboutPath(configPath), configPath);
         infoCard.Controls.Add(details, 0, 1);
         var logo = new AboutLogoBox(GetEmbeddedResourceName(AboutLogoResourcePath), AboutLogoSize, AboutLogoOpacity)
         {
@@ -2549,7 +2561,13 @@ public sealed class StatusForm : Form
         }
     }
 
-    private void AddAboutRow(TableLayoutPanel panel, string name, string value, string? tooltip = null)
+    private void UpdateAboutPath(Label label, string path)
+    {
+        label.Text = FormatAboutPath(path);
+        _toolTip.SetToolTip(label, path);
+    }
+
+    private Label AddAboutRow(TableLayoutPanel panel, string name, string value, string? tooltip = null)
     {
         var row = panel.RowCount++;
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -2578,6 +2596,7 @@ public sealed class StatusForm : Form
         };
         _toolTip.SetToolTip(valueLabel, tooltip ?? value);
         panel.Controls.Add(valueLabel, 1, row);
+        return valueLabel;
     }
 
     private sealed class AboutScaleIcon : Control

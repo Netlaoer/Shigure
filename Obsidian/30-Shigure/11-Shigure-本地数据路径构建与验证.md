@@ -41,7 +41,7 @@ verified_at: 2026-08-10
 # Shigure 本地数据、路径、构建与验证
 
 > [!abstract] AI 快速摘要
-> Shigure 的业务根目录通常是正式 EXE 所在目录；随机副本子进程通过环境变量仍指回该目录。程序从这里读取内置 `Fuyutsui/`、`config`、`keymap`、`cache` 和 `wow_process.txt`；模块从我的文档目录 `{MyDocuments}/Shigure/module` 读取。项目插件是权威源，目标游戏中的 Fuyutsui 只是由部署服务维护的运行副本。项目是无第三方 NuGet 引用的 `net10.0-windows` WinForms WinExe，仓库没有测试项目。
+> Shigure 的业务根目录通常是正式 EXE 所在目录；随机副本子进程通过环境变量仍指回该目录。程序从这里读取内置 `Retail/`、`Forever/` 和 `wow_process.txt`；UI 缓存从我的文档目录读取；模块从我的文档目录 `{MyDocuments}/Shigure/module` 读取。项目插件是权威源，目标游戏中的 Fuyutsui 只是由部署服务维护的运行副本。项目是无第三方 NuGet 引用的 `net10.0-windows` WinForms WinExe，仓库没有测试项目。
 
 ## 图谱位置
 
@@ -70,13 +70,13 @@ verified_at: 2026-08-10
 
 | 位置 | 内容/所有者 | 读取者 | 写入者 |
 |---|---|---|---|
-| `config/common.json` | 协议固定字段 | `ConfigService` | 打包内容/人工维护 |
-| `config/<class>.json` | 13 职业和专精步骤映射、法术元数据 | `ConfigService`, `StateBuilder` | `FuyutsuiConfigConverter` |
-| `keymap/*.json` | unit/spell/macroCondition→hotkey | `KeymapService`, `KeymapCatalog` | `FuyutsuiKeymapConverter` |
+| `Retail/config/common.json`、`Forever/config/common.json` | 协议固定字段 | `ConfigService` | 打包内容/人工维护 |
+| `Retail/config/<class>.json`、`Forever/config/<class>.json` | 13 职业和专精步骤映射、法术元数据 | `ConfigService`, `StateBuilder` | `FuyutsuiConfigConverter` |
+| `Retail/keymap/*.json`、`Forever/keymap/*.json` | unit/spell/macroCondition→hotkey | `KeymapService`, `KeymapCatalog` | `FuyutsuiKeymapConverter` |
 | `{MyDocuments}/Shigure/module/**/*.json` | 匹配、规则、动态值和公式 | `ModuleStore` | 模块编辑器/人工 |
-| `cache/` | 窗口和 UI 偏好 | UI 基础设施 | MainForm/各 UI |
-| `Fuyutsui/class/*.lua` | 内置 ClassBlocks 权威源 | ClassBlocks Store/转换器 | ClassBlocks 编辑器/人工 |
-| `Fuyutsui/core/classmacros.lua` | 内置宏权威源 | ClassMacros Store/转换器 | 宏编辑器/人工 |
+| `{MyDocuments}/Shigure/cache/` | 窗口和 UI 偏好 | UI 基础设施 | MainForm/各 UI |
+| `Retail/Fuyutsui/class/*.lua` | 内置 ClassBlocks 权威源 | ClassBlocks Store/转换器 | ClassBlocks 编辑器/人工 |
+| `Retail/Fuyutsui/core/classmacros.lua` | 内置宏权威源 | ClassMacros Store/转换器 | 宏编辑器/人工 |
 | `wow_process.txt` | 目标进程名列表 | `WowProcessLocator` | 人工；运行中每次定位重新读取 |
 | 游戏 `Interface/AddOns/Fuyutsui` | WoW 运行副本 | WoW AddOn 加载器 | `FuyutsuiAddonSyncService` 单向部署 |
 | 专属系统临时根 | 随机 EXE 和顶层运行依赖 | OS loader | `RandomizedExecutableLauncher` |
@@ -85,7 +85,7 @@ verified_at: 2026-08-10
 
 ## 内置源与游戏部署目标
 
-内置插件源固定为 `AppPaths.BaseDirectory/Fuyutsui`，因此随机副本不会从临时目录读取插件。`Shigure.csproj` 必须把整个目录复制到输出和发布目录。
+内置插件源位于 `AppPaths.BaseDirectory/Retail/Fuyutsui` 或 `AppPaths.BaseDirectory/Forever/Shingen`。`Shigure.csproj` 将两个版本目录复制到输出和发布目录。
 
 游戏部署目标则动态计算：`wow_process.txt` 进程名 → 候选 PID → Windows Z 顺序最靠前的候选可见窗口 → 进程 EXE 路径 → 向上寻找 `Interface/AddOns` → 目标 `Fuyutsui`。如果只找到 `Interface`，部署会创建 `AddOns/Fuyutsui`；如果祖先都没有 Interface，则使用游戏 EXE 同级的预期路径。找不到候选可见窗口时返回“跳过同步”，不会把项目源切换到别处。
 
@@ -98,7 +98,7 @@ verified_at: 2026-08-10
 - 开启 nullable 与 implicit usings。
 - 应用版本在项目文件中为 1.2.1，并被模块编辑器保存到模块元数据。
 - 项目没有 `PackageReference`；核心只依赖 .NET/WinForms/System.Drawing 和 Win32 P/Invoke。
-- 项目文件声明嵌入 UI assets，并把 `Fuyutsui/**`、配置、Keymap 和 `wow_process.txt` 按规则复制到输出；Fuyutsui 同时明确复制到 publish。模块不随构建/发布复制，由我的文档目录 `{MyDocuments}/Shigure/module` 提供。
+- 项目文件声明嵌入 UI assets，并把 `Retail/Fuyutsui/**`、配置、Keymap 和 `wow_process.txt` 按规则复制到输出；Fuyutsui 同时明确复制到 publish。模块不随构建/发布复制，由我的文档目录 `{MyDocuments}/Shigure/module` 提供。
 - 实际发布内容以 `Shigure.csproj` 中的规则为准；随机启动器只复制正式输出目录**顶层**运行依赖到临时目录。
 
 ## 当前验证能力
@@ -108,7 +108,7 @@ verified_at: 2026-08-10
 1. **静态核对**：只检查源码、项目文件和受版本控制的数据，排除 `bin/obj`。
 2. **构建**：在已安装 .NET 10 SDK 的 Windows 环境，从仓库根运行 `dotnet build .\Shigure.slnx`。
 3. **数据健全性**：确认 13 职业 JSON 齐全、模块 JSON 可加载、职业级 Keymap 不超过/完整覆盖 1170 位置、ClassBlocks 最终步骤不超过 510。
-4. **部署验证**：发布目录含完整 `Fuyutsui/`；打开目标游戏后启动 Shigure，核对缺失/不同文件被复制、相同文件跳过、额外文件保留。
+4. **部署验证**：发布目录含完整 `Retail/Fuyutsui/`；打开目标游戏后启动 Shigure，核对缺失/不同文件被复制、相同文件跳过、额外文件保留。
 5. **端到端扫描**：让 WoW 重载已部署的 Fuyutsui，检查步骤 1、职业/专精、计数条和八行吸收。
 6. **决策/输出**：用无风险场景检查模块匹配、规则短路、三触发模式、延迟以及目标窗口消息权限。
 7. **round-trip 备份验证**：对项目 Lua 编辑前先备份，比较保存前后目标 table、生成 JSON 和游戏部署副本。
@@ -134,7 +134,7 @@ verified_at: 2026-08-10
 | 配置模式意外回退 | `config/` 是否存在；存在即要求全套 13 职业，否则不会回退单文件 |
 | 指定 Keymap 未生效 | 相对/绝对解析、扩展名改写、默认回退和当前专精 |
 | 模块突然消失 | 单文件 JSON 解析失败被静默跳过 |
-| 找不到项目 Fuyutsui | 发布目录是否包含 `Fuyutsui/`，`AppPaths.BaseDirectory` 是否仍指向正式目录 |
+| 找不到项目 Fuyutsui | 发布目录是否包含 `Retail/Fuyutsui/`，`AppPaths.BaseDirectory` 是否仍指向正式目录 |
 | 无法部署到游戏 | `wow_process.txt`、候选可见窗口、进程路径查询、目标目录权限 |
 | 文档与输出 DLL 行为冲突 | 生成物可能陈旧；以当前源码重新构建验证 |
 

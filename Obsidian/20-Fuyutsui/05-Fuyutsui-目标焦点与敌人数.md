@@ -19,12 +19,12 @@ related:
   - "[[20-Fuyutsui/08-Fuyutsui-光环容器本地集成]]"
   - "[[30-Shigure/03-Shigure-配置合并与GameState构建]]"
 source_files:
-  - Fuyutsui/core/target.lua
-  - Fuyutsui/core/stateblocks.lua
-  - Fuyutsui/core/block.lua
-  - Fuyutsui/core/spells.lua
-  - Fuyutsui/core/events.lua
-  - Fuyutsui/core/core.lua
+  - Retail/Fuyutsui/core/target.lua
+  - Retail/Fuyutsui/core/stateblocks.lua
+  - Retail/Fuyutsui/core/block.lua
+  - Retail/Fuyutsui/core/spells.lua
+  - Retail/Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/core/core.lua
 source_symbols:
   - Fuyutsui:GetUnitRange
   - Fuyutsui:UpdateUnitFullInfo
@@ -194,14 +194,14 @@ NAME_PLATE_UNIT_REMOVED
 
 ## 源码索引
 
-- `Fuyutsui/core/target.lua:10-69`：距离 API、单位名映射、缓存、单位身份匹配和类型编码。
-- `Fuyutsui/core/target.lua:71-145`：类型、射程、施法、死亡和生命通用更新。
-- `Fuyutsui/core/target.lua:148-195`：target/focus 包装入口。
-- `Fuyutsui/core/target.lua:197-265`：姓名板缓存、仇恨与敌人数。
-- `Fuyutsui/core/stateblocks.lua:235-261`：目标/焦点类型、驱散类型及其他 getter。
-- `Fuyutsui/core/block.lua:738-807,907-947`：目标/焦点驱散过滤、颜色编号与槽创建。
-- `Fuyutsui/core/spells.lua:152-207`：防御/进攻驱散类型名称和当前能力集合。
-- `Fuyutsui/core/events.lua:204-250,361-389,425-435`：相关事件与 0.2 秒轮询。
+- `Retail/Fuyutsui/core/target.lua:10-69`：距离 API、单位名映射、缓存、单位身份匹配和类型编码。
+- `Retail/Fuyutsui/core/target.lua:71-145`：类型、射程、施法、死亡和生命通用更新。
+- `Retail/Fuyutsui/core/target.lua:148-195`：target/focus 包装入口。
+- `Retail/Fuyutsui/core/target.lua:197-265`：姓名板缓存、仇恨与敌人数。
+- `Retail/Fuyutsui/core/stateblocks.lua:235-261`：目标/焦点类型、驱散类型及其他 getter。
+- `Retail/Fuyutsui/core/block.lua:738-807,907-947`：目标/焦点驱散过滤、颜色编号与槽创建。
+- `Retail/Fuyutsui/core/spells.lua:152-207`：防御/进攻驱散类型名称和当前能力集合。
+- `Retail/Fuyutsui/core/events.lua:204-250,361-389,425-435`：相关事件与 0.2 秒轮询。
 
 ## 知识图谱
 

@@ -21,11 +21,11 @@ related:
   - "[[20-Fuyutsui/09-Fuyutsui-动作条键位扫描]]"
   - "[[40-跨项目/03-Shigure-ClassMacros到keymap与按键契约]]"
 source_files:
-  - Fuyutsui/core/commands.lua
-  - Fuyutsui/core/core.lua
-  - Fuyutsui/core/quickbutton.lua
-  - Fuyutsui/core/spells.lua
-  - Fuyutsui/core/stateblocks.lua
+  - Retail/Fuyutsui/core/commands.lua
+  - Retail/Fuyutsui/core/core.lua
+  - Retail/Fuyutsui/core/quickbutton.lua
+  - Retail/Fuyutsui/core/spells.lua
+  - Retail/Fuyutsui/core/stateblocks.lua
 source_symbols:
   - Fuyutsui:SlashCommand
   - Fuyutsui:InsertSpellCommand
@@ -199,14 +199,14 @@ SlashCommand
 
 ## 源码索引
 
-- `Fuyutsui/core/core.lua:74-81`：注册 `/fu` 与 `/fuyutsui`。
-- `Fuyutsui/core/core.lua:171-185`：角色配置默认值。
-- `Fuyutsui/core/commands.lua:5-80`：角色配置读取、规范化与状态同步。
-- `Fuyutsui/core/commands.lua:72-119`：按技能名称或 spellId 查询 `spellsList` 并写入插入法术。
-- `Fuyutsui/core/commands.lua:121-267`：全部命令路由与帮助文本。
-- `Fuyutsui/core/quickbutton.lua:5-32`：`show`/`hide` 的持久化与可见性刷新。
-- `Fuyutsui/core/spells.lua:64-100`：插入法术的写入、timer 和施法成功清理。
-- `Fuyutsui/core/stateblocks.lua:135-139,292-297`：配置 getter 与兼容分类刷新。
+- `Retail/Fuyutsui/core/core.lua:74-81`：注册 `/fu` 与 `/fuyutsui`。
+- `Retail/Fuyutsui/core/core.lua:171-185`：角色配置默认值。
+- `Retail/Fuyutsui/core/commands.lua:5-80`：角色配置读取、规范化与状态同步。
+- `Retail/Fuyutsui/core/commands.lua:72-119`：按技能名称或 spellId 查询 `spellsList` 并写入插入法术。
+- `Retail/Fuyutsui/core/commands.lua:121-267`：全部命令路由与帮助文本。
+- `Retail/Fuyutsui/core/quickbutton.lua:5-32`：`show`/`hide` 的持久化与可见性刷新。
+- `Retail/Fuyutsui/core/spells.lua:64-100`：插入法术的写入、timer 和施法成功清理。
+- `Retail/Fuyutsui/core/stateblocks.lua:135-139,292-297`：配置 getter 与兼容分类刷新。
 
 ## 知识图谱
 

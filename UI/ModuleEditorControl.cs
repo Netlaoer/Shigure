@@ -4289,7 +4289,7 @@ public sealed class ModuleEditorControl : UserControl
 
     private void OpenModuleFolder()
     {
-        var moduleDirectory = ModuleStore.ResolveModuleDirectory();
+        var moduleDirectory = _moduleStore.ModuleDirectory;
         var filePath = _selectedModule?.FilePath;
         try
         {

@@ -52,8 +52,9 @@ Modules/        模块模型/存储/匹配/规则执行、条件求值(FormulaEv
 Input/          keymap 读取、按键发送、Win32 API
 Infrastructure/ 配置读取(ConfigService)、JSON 辅助、UI 缓存、路径、Fuyutsui 插件文件读写
 UI/             WinForms 界面、编辑器、主题
-Fuyutsui/       内置插件权威源；构建/发布时完整复制，运行时部署到游戏 AddOns
-config/ keymap/   运行时 JSON 数据(构建时复制到输出, 见 .csproj 的 None+CopyToOutputDirectory)
+Retail/        正式服插件 Fuyutsui 与 config/keymap；构建/发布时完整复制
+Forever/       永久服插件 Shingen 与 config/keymap；构建/发布时完整复制
+Retail/config/ Retail/keymap/、Forever/config/ Forever/keymap/  运行时 JSON 数据(构建时复制到输出)
 module   运行时模块数据位于我的文档目录 {MyDocuments}/Shigure/module(启动时自动创建, 不随构建复制)
 cache    UI 缓存位于我的文档目录 {MyDocuments}/Shigure/cache(首次写入时自动创建)
 wow_process.txt 目标游戏进程名列表；构建时复制，运行期间每次定位都会重新读取
@@ -69,9 +70,9 @@ wow_process.txt 目标游戏进程名列表；构建时复制，运行期间每�
 - 选择优先级：`ModuleStore.FindSelectedOrBestMatch` —— 先用 UI/参数选定的 `ModuleId`；否则取 `Match` 命中字段最多者（`ModuleMatch.Specificity` 越大越优先），并列按名称。`Match` 字段留空 = 任意。`PartyType` 数字会归一化为 `"1-40"`。
 - 动态单位/数量/动态数值的语义见 [README.md](README.md#动态单位与数量字段)；列表与编辑器的人类可读摘要统一走 [UI/UnitSummary.cs](UI/UnitSummary.cs)`.Describe(...)`（单一来源，勿再复制一份描述逻辑）。
 
-## Fuyutsui 插件集成（配置/宏页面）
+## 插件集成（配置/宏页面）
 
-设置窗口的「配置」和「宏」两个页签编辑的是程序基准目录内 `Fuyutsui/` 的 Lua 文件，**不直接读取游戏插件目录**。项目插件是唯一权威源：保存后重新生成 Shigure 的 config/keymap，并把当前 Lua 部署到游戏；启动和「更新配置」会全量校验并部署整个插件。
+设置窗口的「配置」和「宏」两个页签编辑的是程序基准目录内当前版本插件（`Retail/Fuyutsui/` 或 `Forever/Shingen/`）的 Lua 文件，**不直接读取游戏插件目录**。项目插件是唯一权威源：保存后重新生成 Shigure 的 config/keymap，并把当前 Lua 部署到游戏；启动和「更新配置」会全量校验并部署整个插件。
 
 ### 定位与部署
 

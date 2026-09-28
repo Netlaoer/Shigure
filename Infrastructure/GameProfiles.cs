@@ -2,12 +2,10 @@ using System.Text.Json;
 
 namespace Shigure;
 
-internal sealed record GameProfile(string ProcessName, string AddonName, string BaseDirectory)
+internal sealed record GameProfile(string ProcessName, string AddonName, string Version, string BaseDirectory)
 {
-    public string AddonRoot => Path.Combine(BaseDirectory, AddonName);
-    public string RuntimeDirectory => AddonName.Equals("Fuyutsui", StringComparison.OrdinalIgnoreCase)
-        ? BaseDirectory
-        : Path.Combine(BaseDirectory, "profiles", AddonName);
+    public string RuntimeDirectory => Path.Combine(BaseDirectory, Version);
+    public string AddonRoot => Path.Combine(RuntimeDirectory, AddonName);
     public string ModuleDirectory => AddonName.Equals("Fuyutsui", StringComparison.OrdinalIgnoreCase)
         ? ModuleStore.ResolveModuleDirectory()
         : Path.Combine(AppPaths.UserDataDirectory, "module-" + AddonName);
@@ -15,7 +13,7 @@ internal sealed record GameProfile(string ProcessName, string AddonName, string 
 
 internal sealed class GameProfiles
 {
-    private sealed record ProfileEntry(string Process, string Addon);
+    private sealed record ProfileEntry(string Process, string Addon, string? Version);
     private sealed record ProfileFile(ProfileEntry[] Profiles);
 
     private readonly Dictionary<string, GameProfile> _byProcess;
@@ -36,6 +34,12 @@ internal sealed class GameProfiles
     public GameProfile? Find(string? processName)
         => processName is not null && _byProcess.TryGetValue(processName, out var profile) ? profile : null;
 
+    public GameProfile? FindByAddon(string? addonName)
+        => addonName is null
+            ? null
+            : _byProcess.Values.FirstOrDefault(profile =>
+                string.Equals(profile.AddonName, addonName, StringComparison.OrdinalIgnoreCase));
+
     public static GameProfiles Load(string baseDirectory)
     {
         var path = Path.Combine(baseDirectory, "game_profiles.json");
@@ -46,7 +50,7 @@ internal sealed class GameProfiles
                 : ["Wow"];
             var fallback = legacyNames.Select(name => name.Trim())
                 .Where(name => name.Length > 0 && !name.StartsWith('#') && !name.StartsWith(';'))
-                .Select(name => new ProfileEntry(name, "Fuyutsui"))
+                .Select(name => new ProfileEntry(name, "Fuyutsui", "Retail"))
                 .ToArray();
             return Create(baseDirectory, fallback);
         }
@@ -67,6 +71,16 @@ internal sealed class GameProfiles
         {
             var process = entry.Process?.Trim() ?? string.Empty;
             var addon = entry.Addon?.Trim() ?? string.Empty;
+            var version = entry.Version?.Trim();
+            version ??= addon.Equals("Shingen", StringComparison.OrdinalIgnoreCase) ? "Forever" : "Retail";
+            if (version.Equals("Retail", StringComparison.OrdinalIgnoreCase))
+            {
+                version = "Retail";
+            }
+            else if (version.Equals("Forever", StringComparison.OrdinalIgnoreCase))
+            {
+                version = "Forever";
+            }
             if (process.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
                 process = process[..^4];
@@ -74,11 +88,13 @@ internal sealed class GameProfiles
             if (process.Length == 0 || addon.Length == 0
                 || process.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
                 || addon.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-                || addon is "." or ".." || byProcess.ContainsKey(process))
+                || addon is "." or ".."
+                || version is not ("Retail" or "Forever")
+                || byProcess.ContainsKey(process))
             {
                 throw new InvalidDataException("game_profiles.json 包含无效或重复的进程/插件名称。");
             }
-            byProcess.Add(process, new GameProfile(process, addon, baseDirectory));
+            byProcess.Add(process, new GameProfile(process, addon, version, baseDirectory));
         }
         if (byProcess.Count == 0)
         {

@@ -39,19 +39,19 @@ Shigure 是一个 Windows WinForms 桌面程序。它从目标窗口读取 Fuyut
 - 扫描最多 1020 格的顶部状态行、左侧计数条和队伍治疗吸收数据；可选择支持窗口遮挡的 Windows 图形捕获（WGC）或原版屏幕截图。
 - 按职业、专精、队伍类型和英雄天赋自动匹配模块，也可手动锁定符合条件的模块。
 - 使用可视化编辑器维护规则、主/子条件、动态单位、数量字段、条件动态数值和公式动态数值。
-- 以内置 `Fuyutsui/` 为权威源编辑职业配置与宏，并按 SHA-256 将插件部署到已运行游戏的 `Interface\AddOns\Fuyutsui`。
+- 以对应版本的内置插件目录为权威源编辑职业配置与宏，并按 SHA-256 将插件部署到已运行游戏的 `Interface\AddOns\{插件名}`。
 - 支持 `switch`、`click`、`hold` 三种触发模式，以及除 `ALT` 外的键盘按键、`XBUTTON1`、`XBUTTON2`。
 
 ## 界面
 
 - 置顶浮动条：显示程序名、当前职业图标颜色和逻辑状态，提供 `开启/关闭`、`设置`、`✕` 按钮。窗口可拖动和缩放，显示后自动启动运行循环。
-- `通用`：设置触发键、发送模式和画面捕获方式；“性能”区域可分别调整画面扫描和模块规则计算的间隔；从项目 Fuyutsui 更新配置并同步游戏插件；按实时环境选择模块，或按职业、专精、英雄天赋和队伍类型指定默认模块；从 GitHub 按需下载或更新技能/物品图标数据包。WGC 是默认方式，游戏窗口被其他窗口遮挡时仍可读取；窗口最小化或捕获停止时会暂停扫描。原版方式读取显示器实际画面，因此会受到遮挡影响。
-- `配置`：直接编辑项目 `Fuyutsui/class/*.lua` 中的 `ClassBlocks`，包括状态、光环、冷却（技能冷却与当前专精物品冷却）和队伍字段；启用队伍时生命值与职责固定开启，驱散可选；玩家、目标、焦点、首领1–5及姓名板光环可用“玩家施放”控制是否追加 `PLAYER` 筛选，首领1–5只配置敌对减益，未勾选（或 Lua 中省略 `isPlayer`）时为 false；技能列表页可编辑 `Fuyutsui.spellsList` 中索引 1–100 的法术 ID、索引和名称，也可从技能数据库添加；物品列表页编辑职业级 `Fuyutsui.itemsList`（`[itemId] = { index, name }`，允许同名、禁止同 ID），并可从全量物品数据库添加。旧版稀疏索引格式只读，需先迁移到 `states/auras/spells/items/group` 格式。
+- `通用`：顶部可手动选择 `Retail Fuyutsui`、`Forever Shingen`，或恢复自动跟随前台游戏；选择会保存到本机设置。还可设置触发键、发送模式和画面捕获方式；“性能”区域可分别调整画面扫描和模块规则计算的间隔；更新当前插件配置并同步游戏；按实时环境选择模块，或按职业、专精、英雄天赋和队伍类型指定默认模块；从 GitHub 按需下载或更新技能/物品图标数据包。WGC 是默认方式，游戏窗口被其他窗口遮挡时仍可读取；窗口最小化或捕获停止时会暂停扫描。原版方式读取显示器实际画面，因此会受到遮挡影响。
+- `配置`：直接编辑当前版本插件 `class/*.lua` 中的 `ClassBlocks`，包括状态、光环、冷却（技能冷却与当前专精物品冷却）和队伍字段；启用队伍时生命值与职责固定开启，驱散可选；玩家、目标、焦点、首领1–5及姓名板光环可用“玩家施放”控制是否追加 `PLAYER` 筛选，首领1–5只配置敌对减益，未勾选（或 Lua 中省略 `isPlayer`）时为 false；技能列表页可编辑 `spellsList` 中索引 1–100 的法术 ID、索引和名称，也可从技能数据库添加；物品列表页编辑职业级 `itemsList`（`[itemId] = { index, name }`，允许同名、禁止同 ID），并可从全量物品数据库添加。旧版稀疏索引格式只读，需先迁移到 `states/auras/spells/items/group` 格式。
 - “特殊”状态中的“倒数”监听玩家倒计时事件：开始时显示剩余秒数并每秒减 1，取消或归零时显示 0。
 - 安装并启用 EXBoss 时，“特殊”状态可添加“EX首领技能类型”“EX首领技能事件”“EX首领技能倒计时”三个像素字段。类型输出 `0=无/未知、1=其他、2=坦克、3=治疗、4=点名、5=机制、6=特殊`；事件将 EXBossData 的全部唯一 `eventID` 按数值升序组成表并输出其一基键（当前 247 项，范围 `1–247`）；倒计时输出距离下一条 EXBoss 技能预计施放的整数秒（向上取整并限制为 `0–255`）。三个状态均按像素协议除以 `255` 后绘制，Shigure 扫描后还原为整数。Fuyutsui 会从 EXBoss 的固定 AI 调度/完成事件维护完整倒计时，并用通用“五秒剩余”事件兼容其它可提供稳定 `eventID` 的计时器；未安装 EXBoss 时三项保持为 `0`。
 - 同一分类还可添加“EX小怪技能类型”“EX小怪技能事件”“EX小怪技能倒计时”。类型编码与首领一致；事件将 `EXBOSS_TRASH_CD_DATA` 的唯一 `spellID` 按数值升序组成独立的一基键表（当前 136 项，范围 `1–136`），不会占用或改变首领事件键。小怪计时来自 EXBoss 的小怪 CD 五秒通知，并在观察到对应技能开始施法时及时移除；多个小怪事件同时存在时输出倒计时最近的一项。未安装 EXBoss 时三项保持为 `0`。
 - 团队首领战优先使用 BigWigs 时，可添加“BigWigs首领技能类型”“BigWigs首领技能事件”“BigWigs首领技能倒计时”三个像素字段。类型输出 `0=无/未安装、1=精确计时、2=近似CD、3=点名计时、4=施法计时、5=即时警告`；事件使用当前 BigWigs 团本模块的数字技能键目录（193 项，按 `spellID` 升序分配 `1–193`）；倒计时输出当前最近事件的剩余整数秒并限制为 `0–255`。桥接仅接收 `raid` 场景，排除 LittleWigs 与小怪模块；未安装 BigWigs 时三项保持为 `0`，不会影响 EX 字段。
-- `宏`：编辑项目 `Fuyutsui/core/classmacros.lua` 中各职业的职业级动态宏、静态宏和特殊宏。动态宏每项占用 40 个团队点名槽位；特殊宏的技能名必须手工填写，不从宏正文解析，生成映射时固定为无目标、无宏条件。
+- `宏`：编辑当前版本插件 `core/classmacros.lua` 中各职业的职业级动态宏、静态宏和特殊宏。动态宏每项占用 40 个团队点名槽位；特殊宏的技能名必须手工填写，不从宏正文解析，生成映射时固定为无目标、无宏条件。
 - `模块`：新建、编辑、删除本地模块，维护作者、推荐天赋、匹配条件、动态字段和有序规则。规则支持拖拽、上移、下移、复制与插入。
 - `状态`：分栏显示基础状态、`auras`、`spells` 和模块计算出的动态单位/数值。
 - `队伍`：显示 `group` 中当前队伍成员及扫描字段摘要。
@@ -65,7 +65,7 @@ Shigure 是一个 Windows WinForms 桌面程序。它从目标窗口读取 Fuyut
 
 - Windows 10 版本 1903 或更高版本；WGC 会额外执行运行时支持检查
 - .NET 10 SDK
-- 使用运行和插件部署功能时需要打开目标游戏窗口；Fuyutsui 无需手动安装，Shigure 会在启动或“更新配置”时部署项目内版本
+- 使用运行和插件部署功能时需要打开目标游戏窗口；内置插件无需手动安装，Shigure 会在启动或“更新配置”时部署项目内版本
 
 ### WGC 无黄色提示边框
 
@@ -109,7 +109,7 @@ dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic
 - `click`：每次按下只执行一轮逻辑。
 - `hold`：按住时运行，松开后停止。
 
-程序会直接从当前 EXE 所在目录运行。`Fuyutsui/` 对应根目录的 `config/`、`keymap/`，`Shingen/` 对应 `profiles/Shingen/config/`、`profiles/Shingen/keymap/`。Fuyutsui 模块位于 `{MyDocuments}/Shigure/module`，Shingen 模块位于 `{MyDocuments}/Shigure/module-Shingen`；UI 缓存位于 `{MyDocuments}/Shigure/cache`。
+程序会直接从当前 EXE 所在目录运行。Retail 文件集中在 `Retail/`（`Fuyutsui/`、`config/`、`keymap/`），Forever 文件集中在 `Forever/`（`Shingen/`、`config/`、`keymap/`）。Fuyutsui 模块位于 `{MyDocuments}/Shigure/module`，Shingen 模块位于 `{MyDocuments}/Shigure/module-Shingen`；UI 缓存位于 `{MyDocuments}/Shigure/cache`。
 
 ## 构建
 
@@ -117,7 +117,7 @@ dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic
 dotnet build .\Shigure.csproj
 ```
 
-应用图标为 `Assets\arasaka-icon.ico`。项目会把 `Fuyutsui/**`、`Shingen/**`、两套 `config/keymap` JSON 及 `game_profiles.json` 复制到输出/发布目录；应用、职业、专精和少量程序专用图标作为嵌入资源打包。完整技能/物品图标库不随发布版分发，用户可在“设置 → 通用 → 下载数据包”中从 GitHub 最新正式 Release 下载到 `data\SpellIcons.shgpack`。缺少数据包时技能图标与添加技能的 spellId 联想保持关闭，但仍可手工编辑技能。仅技能旧包仍可加载技能；物品搜索库关闭，手工编辑物品保持可用。
+应用图标为 `Assets\arasaka-icon.ico`。项目会把 `Retail/**`、`Forever/**` 及 `game_profiles.json` 复制到输出/发布目录；应用、职业、专精和少量程序专用图标作为嵌入资源打包。完整技能/物品图标库不随发布版分发，用户可在“设置 → 通用 → 下载数据包”中从 GitHub 最新正式 Release 下载到 `data\SpellIcons.shgpack`。缺少数据包时技能图标与添加技能的 spellId 联想保持关闭，但仍可手工编辑技能。仅技能旧包仍可加载技能；物品搜索库关闭，手工编辑物品保持可用。
 
 ## 项目结构
 
@@ -130,10 +130,8 @@ Modules\                模块模型、匹配、条件、公式和动态字段
 Input\                  keymap 读取、按键发送和 Win32 API
 Infrastructure\         配置服务、Lua 读写、Fuyutsui 转换和路径定位
 Assets\                 应用图标、品牌资源、职业图和专精图
-Fuyutsui\               权威插件源码、配置/宏编辑源及游戏部署源
-config\                 由 Fuyutsui 职业配置生成的扫描映射
-keymap\                 由 Fuyutsui 职业宏生成的按键映射
-module\                 模块示例模板（运行时模块保存在我的文档目录 `{MyDocuments}/Shigure/module`）
+Retail\                 正式服文件：Fuyutsui 插件、config、keymap
+Forever\                永久服文件：Shingen 插件、config、keymap
 SpellIconPackage\       本地技能/物品图标数据包清单、构建与修复工具（Git 忽略）
 Tools\                  辅助脚本
 ```
@@ -143,28 +141,28 @@ Tools\                  辅助脚本
 
 ## 游戏版本与配置同步
 
-在 `game_profiles.json` 中按进程填写插件目录名，例如：
+在 `game_profiles.json` 中按进程填写版本目录和插件目录名，例如：
 
 ```json
 {
   "profiles": [
-    { "process": "Wow", "addon": "Fuyutsui" },
-    { "process": "WowT", "addon": "Fuyutsui" },
-    { "process": "WowClassic", "addon": "Shingen" }
+    { "process": "Wow", "version": "Retail", "addon": "Fuyutsui" },
+    { "process": "WowT", "version": "Retail", "addon": "Fuyutsui" },
+    { "process": "WowClassic", "version": "Forever", "addon": "Shingen" }
   ]
 }
 ```
 
-前台游戏为 `WowClassic` 时，设置窗口编辑项目中的 `Shingen/`，部署目标为该游戏的 `Interface\AddOns\Shingen`；`config/keymap` 和模块也使用 Shingen 的独立目录。切换前如有未保存的配置或宏，先保存或放弃修改，程序随后自动切换。修改 `game_profiles.json` 后重启 Shigure。`dotnet run --project .\Shigure.csproj -- --update-config` 与 `--update-keymap` 会分别为两套插件生成 JSON。
+前台游戏为 `WowClassic` 时，设置窗口编辑项目中的 `Forever/Shingen/`，部署目标为该游戏的 `Interface\AddOns\Shingen`；`config/keymap` 和模块也使用 Forever 的独立目录。通用页顶部可手动选择版本，选择会保留到下次启动；按“自动”可恢复按前台游戏切换。切换前如有未保存的配置或宏，先保存或放弃修改。修改 `game_profiles.json` 后重启 Shigure。`dotnet run --project .\Shigure.csproj -- --update-config` 与 `--update-keymap` 会分别为两套插件生成 JSON。
 
 项目中的插件目录是各自版本的权威源。`通用` 页的“更新配置”会读取当前版本：
 
-- `Fuyutsui\class\*.lua` → `config/*.json`
-- `Fuyutsui\core\classmacros.lua` → `keymap/*.json`
-- `Shingen\class\*.lua` → `profiles/Shingen/config/*.json`
-- `Shingen\core\classmacros.lua` → `profiles/Shingen/keymap/*.json`
+- `Retail/Fuyutsui/class/*.lua` → `Retail/config/*.json`
+- `Retail/Fuyutsui/core/classmacros.lua` → `Retail/keymap/*.json`
+- `Forever/Shingen/class/*.lua` → `Forever/config/*.json`
+- `Forever/Shingen/core/classmacros.lua` → `Forever/keymap/*.json`
 
-如果 EXE 所在目录的 `config/` 或 `keymap/` 缺失或文件不完整，启动 Shigure 时会先从上述 Fuyutsui 源文件自动补齐；新建 `config/` 时也会生成运行时必需的 `common.json`。转换完成后会刷新模块编辑器的字段/keymap 目录并重启运行循环，同时递归同步整个插件到当前游戏的 `Interface\AddOns\Fuyutsui`。启动 Shigure 时也会执行同一全量同步：缺失文件会创建，SHA-256 不同的文件会覆盖，相同文件会跳过，游戏目录中的额外文件会保留。
+如果当前版本目录的 `config/` 或 `keymap/` 缺失或文件不完整，启动 Shigure 时会先从对应插件源文件自动补齐；新建 `config/` 时也会生成运行时必需的 `common.json`。转换完成后会刷新模块编辑器的字段/keymap 目录并重启运行循环，同时递归同步整个插件到当前游戏的 `Interface\AddOns\{插件名}`。启动 Shigure 时也会执行同一全量同步：缺失文件会创建，SHA-256 不同的文件会覆盖，相同文件会跳过，游戏目录中的额外文件会保留。
 
 `配置` 页和 `宏` 页保存时先写入项目内 Lua、重新生成 config/keymap，再只把当前修改的 Lua 文件部署到游戏目录。找不到游戏或目标文件不可写时，本地保存不会回滚；界面和日志会提示游戏同步未完成，可在游戏启动后再次点击“更新配置”。
 
@@ -229,7 +227,7 @@ Shigure 按四套颜色方案解码，红通道是方案序号、绿通道是套
 
 模块以 `模块名.json` 保存在我的文档目录 `{MyDocuments}/Shigure/module`。名称不能重复；加载时会递归扫描子目录，以兼容旧版布局。模块页保存时会写入当前 Shigure 版本。版本不一致或为空的模块仍可把有效的依赖快照导入本地配置和宏，但不会参与模块选择和运行；编辑器列表中显示为红色，可在检查并显式保存后升级到当前版本。职业和专精均已指定时，模块还会携带该专精的 `ClassBlocks`（包括姓名板配置）、职业 `spellsList` 与 `itemsList`，以及该职业的职业级动态宏、静态宏和特殊宏。
 
-启动和“刷新模块”会把模块携带而本地缺少的配置与宏追加到项目 `Fuyutsui/`。光环、姓名板光环、法术和技能列表都以 `spellId` 判断同一条目，不再按名称回退：光环任一 ID 重合即合并 ID 集合，`maxApps` 仅补本地空值，`isPlayer` 不同时保留本地并提示冲突；本地尚未启用姓名板而模块带有姓名板配置时，会创建姓名板配置并导入其光环。法术的布尔属性采用 true 补齐 false，最大充能和施法次数仅补本地空值；双方都有不同值时保留本地并提示冲突。技能列表快照不保存来源索引；同一 spellId 保留本地索引和名称，缺失 spellId 按模块快照追加，并自动分配当前职业 `1–255` 中最小的可用索引。索引已满时拒绝该模块依赖导入。物品冷却以 `itemId` 判断同一条目，`isEquipped` 用 true 补齐 false，空名称补齐，名称不同则保留本地并提示冲突；名称已被其他 itemId 占用或与状态字段重名则跳过追加。物品列表同一 itemId 保留本地索引和名称，缺失 itemId 按模块快照追加。队伍依赖快照只为模块文件兼容保留，读取时不比较、不导入，也不修改本地队伍配置。发生新增后会自动重建 `config/keymap`、同步游戏插件并按需重启运行。导入前会按每项动态宏 40 个槽位、静态/特殊宏各 1 个槽位检查职业级宏总容量；合并结果超过 1143 个槽位时，整个模块不会进入模块列表或运行时，本地 Lua 也不会被修改。模块文件仍保留在模块目录，清理宏后可刷新重试。
+启动和“刷新模块”会把模块携带而本地缺少的配置与宏追加到当前版本的插件目录。光环、姓名板光环、法术和技能列表都以 `spellId` 判断同一条目，不再按名称回退：光环任一 ID 重合即合并 ID 集合，`maxApps` 仅补本地空值，`isPlayer` 不同时保留本地并提示冲突；本地尚未启用姓名板而模块带有姓名板配置时，会创建姓名板配置并导入其光环。法术的布尔属性采用 true 补齐 false，最大充能和施法次数仅补本地空值；双方都有不同值时保留本地并提示冲突。技能列表快照不保存来源索引；同一 spellId 保留本地索引和名称，缺失 spellId 按模块快照追加，并自动分配当前职业 `1–255` 中最小的可用索引。索引已满时拒绝该模块依赖导入。物品冷却以 `itemId` 判断同一条目，`isEquipped` 用 true 补齐 false，空名称补齐，名称不同则保留本地并提示冲突；名称已被其他 itemId 占用或与状态字段重名则跳过追加。物品列表同一 itemId 保留本地索引和名称，缺失 itemId 按模块快照追加。队伍依赖快照只为模块文件兼容保留，读取时不比较、不导入，也不修改本地队伍配置。发生新增后会自动重建 `config/keymap`、同步游戏插件并按需重启运行。导入前会按每项动态宏 40 个槽位、静态/特殊宏各 1 个槽位检查职业级宏总容量；合并结果超过 1143 个槽位时，整个模块不会进入模块列表或运行时，本地 Lua 也不会被修改。模块文件仍保留在模块目录，清理宏后可刷新重试。
 
 模块匹配字段：
 

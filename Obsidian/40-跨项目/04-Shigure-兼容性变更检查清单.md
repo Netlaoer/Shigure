@@ -20,9 +20,9 @@ related:
   - "[[40-跨项目/03-Shigure-ClassMacros到keymap与按键契约|ClassMacros 到 keymap 与按键契约]]"
   - "[[50-参考资料/OPTIMIZATION_zh-CN|Fuyutsui 历史优化审计]]"
 source_files:
-  - "Fuyutsui/Fuyutsui.toc"
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/core/block.lua"
+  - "Retail/Fuyutsui/Fuyutsui.toc"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/block.lua"
   - "Shigure.csproj"
   - "Runtime/PixelScanner.cs"
   - "Modules/ModuleStore.cs"
@@ -108,7 +108,7 @@ verified_at: "2026-08-10"
 - [ ] 判断变更是向后兼容、需要迁移，还是必须同时发布。
 - [ ] 记录当前 Fuyutsui `## Version`、接口版本和 Shigure 程序版本。
 - [ ] 确认没有把用户本地 `module/`、`cache/` 或游戏目录内容误当仓库默认数据覆盖。
-- [ ] 确认修改的是项目/发布目录中的 `Fuyutsui/` 权威源，而不是游戏 AddOns 运行副本。
+- [ ] 确认修改的是项目/发布目录中的 `Retail/Fuyutsui/` 权威源，而不是游戏 AddOns 运行副本。
 
 ### 像素协议
 
@@ -156,7 +156,7 @@ verified_at: "2026-08-10"
 - [ ] 设置 `SHIGURE_RANDOMIZED_PROCESS=1` 时可进行可控调试；正常启动时随机副本仍能回溯原始数据目录。
 - [ ] 三种触发模式中受影响路径行为符合预期。
 - [ ] config/keymap 更新任务串行完成后，运行会话正确重启。
-- [ ] 发布目录保留完整 `Fuyutsui/` 和 `wow_process.txt`，随机副本仍通过原始业务根读取它们。
+- [ ] 发布目录保留完整 `Retail/Fuyutsui/` 和 `wow_process.txt`，随机副本仍通过原始业务根读取它们。
 - [ ] 状态、队伍、逻辑和日志页展示同一轮快照，没有旧会话覆盖新会话。
 
 ### WoW 联调
@@ -210,10 +210,10 @@ verified_at: "2026-08-10"
 
 | 检查面 | 当前入口 |
 |---|---|
-| 加载与版本 | `Fuyutsui/Fuyutsui.toc`、`Shigure.csproj` |
-| 像素生产/消费 | `Fuyutsui/core/block.lua`、`Runtime/PixelScanner.cs` |
-| ClassBlocks 双实现 | `Fuyutsui/main.lua`、`Infrastructure/FuyutsuiConfigConverter.cs` |
-| ClassMacros 双实现 | `Fuyutsui/core/macro.lua`、`Infrastructure/FuyutsuiKeymapConverter.cs` |
+| 加载与版本 | `Retail/Fuyutsui/Fuyutsui.toc`、`Shigure.csproj` |
+| 像素生产/消费 | `Retail/Fuyutsui/core/block.lua`、`Runtime/PixelScanner.cs` |
+| ClassBlocks 双实现 | `Retail/Fuyutsui/main.lua`、`Infrastructure/FuyutsuiConfigConverter.cs` |
+| ClassMacros 双实现 | `Retail/Fuyutsui/core/macro.lua`、`Infrastructure/FuyutsuiKeymapConverter.cs` |
 | 状态消费 | `Runtime/StateBuilder.cs`、`Modules/ModuleStore.cs` |
 | 单位迁移 | `Modules/ReservedUnit.cs`、`ModuleStore.cs` |
 | 会话与路径 | `App/RuntimeSessionCoordinator.cs`、`RandomizedExecutableLauncher.cs`、`Infrastructure/AppPaths.cs` |

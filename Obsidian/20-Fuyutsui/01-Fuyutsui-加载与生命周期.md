@@ -18,10 +18,10 @@ related:
   - "[[20-Fuyutsui/02-Fuyutsui-事件与刷新调度]]"
   - "[[20-Fuyutsui/03-Fuyutsui-状态块与编码入口]]"
 source_files:
-  - Fuyutsui/Fuyutsui.toc
-  - Fuyutsui/core/core.lua
-  - Fuyutsui/core/player.lua
-  - Fuyutsui/main.lua
+  - Retail/Fuyutsui/Fuyutsui.toc
+  - Retail/Fuyutsui/core/core.lua
+  - Retail/Fuyutsui/core/player.lua
+  - Retail/Fuyutsui/main.lua
 source_symbols:
   - Fuyutsui:OnInitialize
   - Fuyutsui:OnEnable
@@ -49,7 +49,7 @@ verified_at: 2026-08-09
 
 ## 精确加载顺序
 
-`Fuyutsui/Fuyutsui.toc:26-59` 当前顺序：
+`Retail/Fuyutsui/Fuyutsui.toc:26-59` 当前顺序：
 
 1. `embeds.xml`、`LibRangeCheck-3.0`。
 2. `core/core.lua`。
@@ -62,7 +62,7 @@ verified_at: 2026-08-09
 
 ### 不存在的旁路文件
 
-当前 toc 在 `core/keybinds.lua` 后直接加载职业文件，仓库也没有 `Fuyutsui/auracontainer.lua`。旧资料中“加载 `auracontainer.lua` 中央 Buff 演示 UI”的描述不能用于当前运行时。真实光环接线见 [[20-Fuyutsui/08-Fuyutsui-光环容器本地集成]]。
+当前 toc 在 `core/keybinds.lua` 后直接加载职业文件，仓库也没有 `Retail/Fuyutsui/auracontainer.lua`。旧资料中“加载 `auracontainer.lua` 中央 Buff 演示 UI”的描述不能用于当前运行时。真实光环接线见 [[20-Fuyutsui/08-Fuyutsui-光环容器本地集成]]。
 
 ## 启动状态机
 
@@ -151,12 +151,12 @@ verified_at: 2026-08-09
 
 ## 源码索引
 
-- `Fuyutsui/Fuyutsui.toc:26-59`：精确加载顺序。
-- `Fuyutsui/core/core.lua:21-72`：默认值复制与 DB 初始化。
-- `Fuyutsui/core/core.lua:74-155`：初始化、启用和事件注册。
-- `Fuyutsui/core/core.lua:185-220`：生命周期锁与事件分发。
-- `Fuyutsui/core/player.lua:19-55`：首次专精装载与重建。
-- `Fuyutsui/main.lua:3-36`：初始状态编排。
+- `Retail/Fuyutsui/Fuyutsui.toc:26-59`：精确加载顺序。
+- `Retail/Fuyutsui/core/core.lua:21-72`：默认值复制与 DB 初始化。
+- `Retail/Fuyutsui/core/core.lua:74-155`：初始化、启用和事件注册。
+- `Retail/Fuyutsui/core/core.lua:185-220`：生命周期锁与事件分发。
+- `Retail/Fuyutsui/core/player.lua:19-55`：首次专精装载与重建。
+- `Retail/Fuyutsui/main.lua:3-36`：初始状态编排。
 
 ## 知识图谱
 

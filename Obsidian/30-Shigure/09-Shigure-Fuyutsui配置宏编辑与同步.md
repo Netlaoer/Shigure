@@ -43,7 +43,7 @@ verified_at: 2026-08-10
 # Shigure Fuyutsui 配置、宏编辑与同步
 
 > [!abstract] AI 快速摘要
-> Shigure 始终以 `AppPaths.BaseDirectory/Fuyutsui` 为插件权威源，用受限 Lua 数据解析器重写 ClassBlocks/ClassMacros，再生成 `config/*.json` 和 `keymap/*.json`。启动与“更新配置”会全量部署插件，编辑器保存会部署当前 Lua；部署按 SHA-256 跳过相同文件，不删除游戏额外文件。生成和部署由 MainForm 尾任务队列串行执行，但跨多个 Lua/JSON/游戏文件仍不是事务。
+> Shigure 始终以 `AppPaths.BaseDirectory/Retail/Fuyutsui` 为插件权威源，用受限 Lua 数据解析器重写 ClassBlocks/ClassMacros，再生成 `config/*.json` 和 `keymap/*.json`。启动与“更新配置”会全量部署插件，编辑器保存会部署当前 Lua；部署按 SHA-256 跳过相同文件，不删除游戏额外文件。生成和部署由 MainForm 尾任务队列串行执行，但跨多个 Lua/JSON/游戏文件仍不是事务。
 
 ## 图谱位置
 
@@ -58,7 +58,7 @@ verified_at: 2026-08-10
 
 ## 项目源与游戏部署目录
 
-项目源固定为 `Path.Combine(AppPaths.BaseDirectory, "Fuyutsui")`。配置页读取 `Fuyutsui/class`，宏页读取 `Fuyutsui/core/classmacros.lua`；两者不再把游戏 AddOns 目录当编辑源。
+项目源固定为 `Path.Combine(AppPaths.BaseDirectory, "Fuyutsui")`。配置页读取 `Retail/Fuyutsui/class`，宏页读取 `Retail/Fuyutsui/core/classmacros.lua`；两者不再把游戏 AddOns 目录当编辑源。
 
 游戏部署目标按以下过程计算：
 
@@ -117,7 +117,7 @@ verified_at: 2026-08-10
 
 ## ClassMacros → keymap
 
-- 固定键池为 26 个左右修饰组合 × 45 个主键 = **1170** 项。主键与 `Fuyutsui/core/macro.lua` 当前列表一致；刻意不含 F4、反引号、`NUMPADENTER`、数字主键和斜杠主键。Lua `macroKind` 与 C# `FuyutsuiKeymapConverter` 必须逐项相同。
+- 固定键池为 26 个左右修饰组合 × 45 个主键 = **1170** 项。主键与 `Retail/Fuyutsui/core/macro.lua` 当前列表一致；刻意不含 F4、反引号、`NUMPADENTER`、数字主键和斜杠主键。Lua `macroKind` 与 C# `FuyutsuiKeymapConverter` 必须逐项相同。
 - 动态宏项每项预留/消耗 30 个单位位置，然后是静态宏和特殊宏；超过容量会警告并截断。
 - 只转换职业级 flat 格式；输入仍含 common/spec 动态宏时直接报错，避免静默丢失。
 - party1..4 映射组员槽 2..5；原始 `@player` 动态语义映射组员槽 1；显式中文/player 保留单位 41；raid1..40 映射 1..40。
@@ -138,7 +138,7 @@ verified_at: 2026-08-10
 
 | 症状 | 优先检查 |
 |---|---|
-| 项目 Fuyutsui 不存在 | 发布目录是否完整包含 `Fuyutsui/`，csproj 的复制规则是否生效 |
+| 项目 Fuyutsui 不存在 | 发布目录是否完整包含 `Retail/Fuyutsui/`，csproj 的复制规则是否生效 |
 | 无法定位游戏部署目录 | `wow_process.txt`、候选进程可见窗口、进程查询权限和实际游戏路径 |
 | 项目保存成功但游戏未变化 | 游戏未运行、目标不可写、单文件部署失败，或 WoW 尚未重载插件 |
 | Lua 看似合法却解析失败 | 是否用了函数/表达式/hex/long string 等不支持语法；赋值名是否被注释先命中 |
