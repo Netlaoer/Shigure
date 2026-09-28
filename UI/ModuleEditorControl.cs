@@ -234,7 +234,10 @@ public sealed class ModuleEditorControl : UserControl
             var identityHeight = Math.Max(stripHeight, UiTheme.Scale(this, 48));
             var gap = UiTheme.Scale(this, UiTheme.PageGap);
             var iconWidth = UiTheme.Scale(this, iconWidthLogical);
-            var preferredIdentity = UiTheme.Scale(this, UiTheme.ModuleIdentityCardWidth);
+            // 与 BuildNameRow 列宽/内边距一致，避免整体 Scale 后卡片宽于内容。
+            var preferredIdentity = UiTheme.Scale(this, 58)
+                + UiTheme.Scale(this, UiTheme.ModuleMatchFieldWidth)
+                + UiTheme.Scale(this, UiTheme.CardPadding) * 2;
             var availableWidth = topArea.ClientSize.Width;
             if (availableWidth <= 0)
             {
@@ -848,31 +851,30 @@ public sealed class ModuleEditorControl : UserControl
         var row = new UiCardPanel
         {
             BackColor = UiTheme.Surface,
-            ColumnCount = 3,
+            ColumnCount = 2,
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding, 4, UiTheme.CardPadding, 4),
             Margin = Padding.Empty
         };
-        // 左侧弹性留白，名称/作者标签+输入靠右对齐。
+        // 卡片外壳贴合内容：标签 + 等宽输入，无弹性留白列；靠右由顶栏定位负责。
         row.ColumnStyles.Clear();
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
         row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
-        row.Controls.Add(CreateLabel("名称"), 1, 0);
+        row.Controls.Add(CreateLabel("名称"), 0, 0);
         UiTheme.StyleTextBox(_nameBox);
         _nameBox.Dock = DockStyle.Fill;
         _nameBox.Margin = Padding.Empty;
-        row.Controls.Add(_nameBox, 2, 0);
+        row.Controls.Add(_nameBox, 1, 0);
 
-        row.Controls.Add(CreateLabel("作者"), 1, 1);
+        row.Controls.Add(CreateLabel("作者"), 0, 1);
         UiTheme.StyleTextBox(_authorBox);
         _authorBox.Dock = DockStyle.Fill;
         _authorBox.Margin = Padding.Empty;
-        row.Controls.Add(_authorBox, 2, 1);
+        row.Controls.Add(_authorBox, 1, 1);
 
         return row;
     }
