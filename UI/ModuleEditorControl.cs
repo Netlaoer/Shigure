@@ -40,7 +40,6 @@ public sealed class ModuleEditorControl : UserControl
     private readonly DataGridViewComboBoxColumn _adjustmentTypeColumn = new();
     private readonly ListView _unitsList = new();
     private readonly Label _pathLabel = new();
-    private readonly Label _versionLabel = new();
     private readonly Label _unitsEmptyHint = new();
     private readonly Label _editorEmptyHint = new();
     private readonly ToolTip _pathToolTip = new();
@@ -462,7 +461,7 @@ public sealed class ModuleEditorControl : UserControl
             ColumnCount = 1,
             RowCount = 2
         };
-        editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));
+        editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
         editor.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         editor.Controls.Add(BuildMatchRow(), 0, 0);
@@ -792,56 +791,59 @@ public sealed class ModuleEditorControl : UserControl
             Padding = new Padding(UiTheme.CardPadding, 4, UiTheme.CardPadding, 4),
             Margin = Padding.Empty
         };
-        // 名称与作者纵向排列；版本号占作者行右端，不挤占名称输入空间。
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+        // 名称/作者纵向排列；输入框相对卡片内容区减半宽度，右侧留白。
+        row.ColumnStyles.Clear();
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
         row.Controls.Add(CreateLabel("名称"), 0, 0);
         UiTheme.StyleTextBox(_nameBox);
-        _nameBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        _nameBox.Dock = DockStyle.Fill;
+        _nameBox.Margin = Padding.Empty;
         row.Controls.Add(_nameBox, 1, 0);
-        row.SetColumnSpan(_nameBox, 2);
 
-        var authorLabel = CreateLabel("作者");
-        row.Controls.Add(authorLabel, 0, 1);
+        row.Controls.Add(CreateLabel("作者"), 0, 1);
         UiTheme.StyleTextBox(_authorBox);
-        _authorBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        _authorBox.Dock = DockStyle.Fill;
+        _authorBox.Margin = Padding.Empty;
         row.Controls.Add(_authorBox, 1, 1);
-
-        _versionLabel.Dock = DockStyle.Fill;
-        _versionLabel.ForeColor = UiTheme.Muted;
-        _versionLabel.BackColor = Color.Transparent;
-        _versionLabel.TextAlign = ContentAlignment.MiddleRight;
-        _versionLabel.AutoEllipsis = true;
-        row.Controls.Add(_versionLabel, 2, 1);
 
         return row;
     }
 
     private Control BuildMatchRow()
     {
+        var matchLabels = new[] { "职业:", "专精:", "英雄天赋:", "队伍类型:" };
+
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 4,
-            RowCount = 3,
+            ColumnCount = 11,
+            RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0)
         };
 
-        // 标签位于下拉框上方，四个筛选框始终同排，最小窗口宽度下也保留输入空间。
+        // 标签与下拉同一行：固定标签宽 + 缩窄下拉宽，避免挤出换行。
         row.ColumnStyles.Clear();
-        for (var index = 0; index < 4; index++)
+        for (var i = 0; i < matchLabels.Length; i++)
         {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            row.ColumnStyles.Add(new ColumnStyle(
+                SizeType.Absolute,
+                MeasureLabelColumnWidth(matchLabels[i], Font)));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
+            if (i < matchLabels.Length - 1)
+            {
+                row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchGapWidth));
+            }
         }
         row.RowStyles.Clear();
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         ResetClassOptions(_classBox);
@@ -868,10 +870,11 @@ public sealed class ModuleEditorControl : UserControl
             _rulesGrid.Invalidate();
         };
 
-        AddMatchField(row, "职业:", _classBox, 0);
-        AddMatchField(row, "专精:", _specBox, 1);
-        AddMatchField(row, "英雄天赋:", _heroTalentBox, 2);
-        AddMatchField(row, "队伍类型:", _partyTypeBox, 3);
+        // 列索引：标签0/字段1/隙2 → 标签3/字段4/隙5 → 标签6/字段7/隙8 → 标签9/字段10
+        AddMatchField(row, matchLabels[0], _classBox, 0);
+        AddMatchField(row, matchLabels[1], _specBox, 3);
+        AddMatchField(row, matchLabels[2], _heroTalentBox, 6);
+        AddMatchField(row, matchLabels[3], _partyTypeBox, 9);
 
         var recommendedTalentRow = new TableLayoutPanel
         {
@@ -883,6 +886,7 @@ public sealed class ModuleEditorControl : UserControl
         };
         recommendedTalentRow.RowStyles.Clear();
         recommendedTalentRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        recommendedTalentRow.ColumnStyles.Clear();
         recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
         recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var recommendedTalentLabel = CreateLabel("推荐天赋:");
@@ -890,11 +894,11 @@ public sealed class ModuleEditorControl : UserControl
         recommendedTalentLabel.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(recommendedTalentLabel, 0, 0);
         UiTheme.StyleTextBox(_recommendedTalentBox);
-        _recommendedTalentBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        _recommendedTalentBox.Dock = DockStyle.Fill;
         _recommendedTalentBox.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
-        row.Controls.Add(recommendedTalentRow, 0, 2);
-        row.SetColumnSpan(recommendedTalentRow, 4);
+        row.Controls.Add(recommendedTalentRow, 0, 1);
+        row.SetColumnSpan(recommendedTalentRow, 11);
 
         return row;
     }
@@ -4314,7 +4318,6 @@ public sealed class ModuleEditorControl : UserControl
         SelectHeroTalent(module.Match.HeroTalent);
         RefreshUnitsList();
         _pathLabel.Text = module.FilePath ?? "尚未保存";
-        _versionLabel.Text = string.IsNullOrWhiteSpace(module.Version) ? "版本 未知" : $"版本 {module.Version}";
         _adjustmentsGrid.Rows.Clear();
         _formulaAdjustmentsGrid.Rows.Clear();
         RefreshAdjustmentFieldColumn();
@@ -4386,7 +4389,6 @@ public sealed class ModuleEditorControl : UserControl
         SelectPartyType(null);
         SelectHeroTalent(null);
         _pathLabel.Text = "无模块";
-        _versionLabel.Text = string.Empty;
         _adjustmentsGrid.Rows.Clear();
         _formulaAdjustmentsGrid.Rows.Clear();
         RefreshAdjustmentFieldColumn();
@@ -4953,14 +4955,14 @@ public sealed class ModuleEditorControl : UserControl
         int column)
     {
         var fieldLabel = CreateLabel(label);
-        fieldLabel.Margin = new Padding(0, 0, column < 3 ? 12 : 0, 0);
+        fieldLabel.AutoSize = false;
+        fieldLabel.Margin = Padding.Empty;
         row.Controls.Add(fieldLabel, column, 0);
         UiTheme.StyleComboBox(box);
-        // 四个固定高度下拉框同排，空隙由单元格内边距提供。
-        box.Dock = DockStyle.None;
-        box.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        box.Margin = new Padding(0, 0, column < 3 ? 12 : 0, 0);
-        row.Controls.Add(box, column, 1);
+        // 标签与下拉同处一行；固定列宽下 Dock.Fill 填满单元格。
+        box.Dock = DockStyle.Fill;
+        box.Margin = Padding.Empty;
+        row.Controls.Add(box, column + 1, 0);
     }
 
     private static Label CreateLabel(string text)
@@ -4968,6 +4970,7 @@ public sealed class ModuleEditorControl : UserControl
         return new Label
         {
             Text = text,
+            AutoSize = false,
             Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,

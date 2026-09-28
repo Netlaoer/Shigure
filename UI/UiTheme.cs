@@ -43,6 +43,10 @@ internal static class UiTheme
     public const int GroupCardFixedWidth = 176;
     /// <summary>模块侧栏页脚按钮固定半宽。</summary>
     public const int ModuleFooterButtonWidth = (ModuleSidebarWidth - CardPadding * 2 - 8) / 2;
+    /// <summary>模块 Match 筛选项下拉固定宽（四项等宽，标签+下拉同一行可容纳）。</summary>
+    public const int ModuleMatchFieldWidth = 160;
+    /// <summary>模块 Match 筛选项之间固定间隔。</summary>
+    public const int ModuleMatchGapWidth = 12;
     /// <summary>窗口拖拽时列宽重算防抖间隔（毫秒）。</summary>
     public const int LayoutResizeDebounceMs = 80;
     /// <summary>职业/专精图标条相邻格间距。</summary>
