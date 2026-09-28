@@ -910,7 +910,8 @@ public sealed class ModuleEditorControl : UserControl
 
         row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        // 与匹配行同高，避免 Percent 撑高导致输入框比标签高出一截。
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
         ResetClassOptions(_classBox);
         ResetSpecOptions(_specBox, null);
@@ -948,7 +949,8 @@ public sealed class ModuleEditorControl : UserControl
             BackColor = Color.Transparent,
             ColumnCount = 2,
             RowCount = 1,
-            Margin = new Padding(0, 6, 0, 0)
+            Margin = new Padding(0, 4, 0, 0),
+            Padding = Padding.Empty
         };
         recommendedTalentRow.RowStyles.Clear();
         recommendedTalentRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -957,9 +959,12 @@ public sealed class ModuleEditorControl : UserControl
         recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var recommendedTalentLabel = CreateLabel("推荐天赋:");
         recommendedTalentLabel.AutoSize = false;
+        recommendedTalentLabel.Dock = DockStyle.Fill;
+        recommendedTalentLabel.TextAlign = ContentAlignment.MiddleLeft;
         recommendedTalentLabel.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(recommendedTalentLabel, 0, 0);
         UiTheme.StyleTextBox(_recommendedTalentBox);
+        // 与标签同处固定行高内 Dock.Fill，垂直居中对齐，不再随卡片剩余高度被拉高。
         _recommendedTalentBox.Dock = DockStyle.Fill;
         _recommendedTalentBox.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
