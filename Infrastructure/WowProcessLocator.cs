@@ -11,16 +11,31 @@ internal sealed class WowProcessLocator
 {
     private const string ProcessFileName = "wow_process.txt";
     private readonly string _processFilePath;
+    private readonly GameProfiles? _profiles;
+    private readonly string? _boundProcessName;
 
-    public WowProcessLocator(string baseDirectory)
+    public WowProcessLocator(string baseDirectory, GameProfiles? profiles = null, string? boundProcessName = null)
     {
         _processFilePath = Path.Combine(baseDirectory, ProcessFileName);
+        _profiles = profiles;
+        _boundProcessName = boundProcessName;
     }
+
+    public WowProcessLocator ForProcess(string processName)
+        => new(Path.GetDirectoryName(_processFilePath)!, _profiles, processName);
 
     public string ProcessFilePath => _processFilePath;
 
     public nint FindFrontmostWindow()
     {
+        if (_boundProcessName is not null && _profiles is not null)
+        {
+            var frontmost = new WowProcessLocator(Path.GetDirectoryName(_processFilePath)!, _profiles);
+            var hwnd = frontmost.FindFrontmostWindow();
+            return string.Equals(GetProcessName(hwnd), _boundProcessName, StringComparison.OrdinalIgnoreCase)
+                ? hwnd
+                : 0;
+        }
         var processIds = GetCandidateProcessIds();
         if (processIds.Count == 0)
         {
@@ -58,6 +73,37 @@ internal sealed class WowProcessLocator
 
         _ = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
         return processId == 0 ? null : TryGetProcessPath(processId);
+    }
+
+    public string? FindFrontmostProcessName()
+    {
+        return GetProcessName(FindFrontmostWindow());
+    }
+
+    private static string? GetProcessName(nint hwnd)
+    {
+        if (hwnd == 0)
+        {
+            return null;
+        }
+        _ = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
+        if (processId == 0)
+        {
+            return null;
+        }
+        try
+        {
+            using var process = Process.GetProcessById(checked((int)processId));
+            return process.ProcessName;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     public string DescribeConfiguredProcesses()
@@ -102,6 +148,14 @@ internal sealed class WowProcessLocator
 
     private IReadOnlyList<string> ReadProcessNames()
     {
+        if (_boundProcessName is not null)
+        {
+            return [_boundProcessName];
+        }
+        if (_profiles is not null)
+        {
+            return _profiles.ProcessNames;
+        }
         try
         {
             return File.ReadLines(_processFilePath)

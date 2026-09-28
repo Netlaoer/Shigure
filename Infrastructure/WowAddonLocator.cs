@@ -7,11 +7,10 @@ internal static class WowAddonLocator
 {
     private const string InterfaceDirectoryName = "Interface";
     private const string AddOnsDirectoryName = "AddOns";
-    private const string AddonDirectoryName = "Fuyutsui";
 
-    public static string? FindClassDirectory(WowProcessLocator processLocator)
+    public static string? FindClassDirectory(WowProcessLocator processLocator, string addonName = "Fuyutsui")
     {
-        var addonRoot = FindAddonRoot(processLocator);
+        var addonRoot = FindAddonRoot(processLocator, addonName);
         if (addonRoot is null)
         {
             return null;
@@ -22,7 +21,7 @@ internal static class WowAddonLocator
     }
 
     /// <summary>定位 Fuyutsui 插件根目录（含 class/、core/）。</summary>
-    public static string? FindAddonRoot(WowProcessLocator processLocator)
+    public static string? FindAddonRoot(WowProcessLocator processLocator, string addonName = "Fuyutsui")
     {
         var addOnsDirectory = FindAddOnsDirectory(processLocator);
         if (addOnsDirectory is null)
@@ -30,7 +29,7 @@ internal static class WowAddonLocator
             return null;
         }
 
-        var addonRoot = Path.Combine(addOnsDirectory, AddonDirectoryName);
+        var addonRoot = Path.Combine(addOnsDirectory, addonName);
         return Directory.Exists(addonRoot) ? addonRoot : null;
     }
 
@@ -65,9 +64,9 @@ internal static class WowAddonLocator
             : Path.Combine(executableDirectory, InterfaceDirectoryName, AddOnsDirectoryName);
     }
 
-    public static string? FindClassMacrosPath(WowProcessLocator processLocator)
+    public static string? FindClassMacrosPath(WowProcessLocator processLocator, string addonName = "Fuyutsui")
     {
-        var addonRoot = FindAddonRoot(processLocator);
+        var addonRoot = FindAddonRoot(processLocator, addonName);
         if (addonRoot is null)
         {
             return null;

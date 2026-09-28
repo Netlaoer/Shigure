@@ -1,0 +1,317 @@
+local addon, ns = ...
+
+local GetSpellName = C_Spell.GetSpellName
+local GetSpellCooldown = C_Spell.GetSpellCooldown
+local GetSpellChargeDuration = C_Spell.GetSpellChargeDuration
+local GetSpellCooldownDuration = C_Spell.GetSpellCooldownDuration
+local EvaluateColorFromBoolean = C_CurveUtil.EvaluateColorFromBoolean
+
+local IsSpellKnown = C_SpellBook.IsSpellKnown
+local IsSpellInSpellBook = C_SpellBook.IsSpellInSpellBook
+
+local target = Shingen.target
+local state = Shingen.state
+
+local spells = {}
+local insertSpellTimer, insertSpellIndex = nil, nil
+local insertItemTimer, insertItemIndex, insertItemId = nil, nil, nil
+
+local ColorValue255 = CreateColor(0, 0, 1, 1)
+
+local dispelCurve = C_CurveUtil.CreateColorCurve()
+target.enemyCurve = C_CurveUtil.CreateColorCurve()
+target.friendCurve = C_CurveUtil.CreateColorCurve()
+dispelCurve:SetType(Enum.LuaCurveType.Step)
+target.enemyCurve:SetType(Enum.LuaCurveType.Step)
+target.friendCurve:SetType(Enum.LuaCurveType.Step)
+
+local succSpells = {}
+local succIndex = 1
+
+local function DebugPrintNewSpellEntry(spellID)
+    if succSpells[spellID] or Shingen.spellsList[spellID] then return end
+    succSpells[spellID] = true
+    print("[" .. spellID .. "]" .. " = { index = " .. succIndex .. ", }, -- " .. GetSpellName(spellID))
+    succIndex = succIndex + 1
+end
+
+local function DebugPrintSpellBlockLine(spellID)
+    local spellName = C_Spell.GetSpellName(spellID)
+    print("[] = { type = \"spell\", spellId = " .. spellID .. ", name = \"" .. spellName .. "\" },")
+end
+
+Shingen.DebugPrintNewSpellEntry = DebugPrintNewSpellEntry
+Shingen.DebugPrintSpellBlockLine = DebugPrintSpellBlockLine
+
+local overrideSpells = {
+    [432459] = 1289728, -- 神圣壁垒
+    [432472] = 1289728, -- 圣洁武器
+    [444995] = 455630,  -- 涌动图腾
+    [1242173] = 228260, -- 虚空齐射
+    [1241413] = 31884,  -- 愤怒之锤
+    [24275] = 31884,    -- 愤怒之锤
+    [1241288] = 31884,  -- 愤怒之锤
+    [1277026] = 31884,  -- 愤怒之锤
+    [1279408] = 31884,  -- 愤怒之锤
+}
+
+function Shingen:IsSpellKnown(spellID)
+    local isKnown = IsSpellKnown(spellID)
+    if isKnown then
+        return isKnown
+    end
+    local overrideSpellID = overrideSpells[spellID]
+    if overrideSpellID then
+        isKnown = IsSpellKnown(overrideSpellID)
+    end
+    return isKnown
+end
+
+function Shingen:ClearInsertSpell()
+    if insertSpellTimer then
+        insertSpellTimer:Cancel()
+        insertSpellTimer = nil
+    end
+    insertSpellIndex = nil
+    state.insertSpell = 0
+    self:UpdateStateBlock("状态", "插入法术")
+end
+
+--- index: spellsList 中的宏序号；spellName/spellId 仅用于提示
+function Shingen:SetInsertSpell(index, spellName, spellId)
+    if insertSpellTimer then
+        insertSpellTimer:Cancel()
+        insertSpellTimer = nil
+    end
+    insertSpellIndex = index
+    state.insertSpell = index / 255
+    self:UpdateStateBlock("状态", "插入法术")
+    local msg = "|cff00ff00[Shingen]|r 插入法术: |cff00ff00" .. (spellName or "?") .. "|r"
+        .. "（spellId: " .. (spellId or "?") .. "，序号: " .. index .. "）"
+    print(msg)
+    insertSpellTimer = C_Timer.NewTimer(1.5, function()
+        insertSpellTimer = nil
+        insertSpellIndex = nil
+        state.insertSpell = 0
+        Shingen:UpdateStateBlock("状态", "插入法术")
+    end)
+end
+
+function Shingen:UpdateInsertSpellBySuccess(spellID)
+    if not insertSpellIndex then return end
+    local info = self.spellsList and self.spellsList[spellID]
+    if not info or info.index ~= insertSpellIndex then return end
+    self:ClearInsertSpell()
+end
+
+function Shingen:ClearInsertItem()
+    if insertItemTimer then
+        insertItemTimer:Cancel()
+        insertItemTimer = nil
+    end
+    insertItemIndex = nil
+    insertItemId = nil
+    state.insertItem = 0
+    self:UpdateStateBlock("状态", "插入物品")
+end
+
+--- index: itemsList 中的本地序号；itemName/itemId 仅用于提示
+function Shingen:SetInsertItem(index, itemName, itemId)
+    if insertItemTimer then
+        insertItemTimer:Cancel()
+        insertItemTimer = nil
+    end
+    insertItemIndex = index
+    insertItemId = itemId
+    state.insertItem = index / 255
+    self:UpdateStateBlock("状态", "插入物品")
+    local msg = "|cff00ff00[Shingen]|r 插入物品: |cff00ff00" .. (itemName or "?") .. "|r"
+        .. "（itemId: " .. (itemId or "?") .. "，序号: " .. index .. "）"
+    print(msg)
+    insertItemTimer = C_Timer.NewTimer(1.5, function()
+        insertItemTimer = nil
+        insertItemIndex = nil
+        insertItemId = nil
+        state.insertItem = 0
+        Shingen:UpdateStateBlock("状态", "插入物品")
+    end)
+end
+
+function Shingen:UpdateInsertItemBySuccess(spellID)
+    if not insertItemId then return end
+    local getItemSpell = C_Item and C_Item.GetItemSpell
+    if not getItemSpell then return end
+    local itemSpellID = select(2, getItemSpell(insertItemId))
+    if not itemSpellID or itemSpellID ~= spellID then return end
+    self:ClearInsertItem()
+end
+
+local function UpdateCooldownSpellKnown()
+    spells = {}
+    if not Shingen.blocks or not Shingen.blocks.spells then return end
+    C_Timer.After(1, function()
+        local blocks = Shingen.blocks
+        if not blocks or not blocks.spells then return end
+        for spellID, info in pairs(blocks.spells) do
+            local isKnown = Shingen:IsSpellKnown(spellID)
+            if info.inSpellBook then
+                isKnown = IsSpellInSpellBook(spellID)
+            end
+            if isKnown or info.forcedKnown then
+                spells[spellID] = info
+            else
+                if info.index then
+                    Shingen:CreateTexture(info.index, 1)
+                end
+                if info.charge then
+                    Shingen:CreateTexture(info.charge, 1)
+                end
+            end
+        end
+    end)
+end
+
+local DEFENSIVE_DISPEL_TYPE_NAMES = {
+    [1] = "Magic",
+    [2] = "Curse",
+    [3] = "Disease",
+    [4] = "Poison",
+    [11] = "Bleed",
+}
+
+local OFFENSIVE_DISPEL_TYPE_NAMES = {
+    [1] = "Magic",
+    [9] = "Enrage",
+}
+
+function Shingen:UpdateSpellKnown()
+    UpdateCooldownSpellKnown()
+
+    local dispelCapabilities = {
+        [1] = true,
+        [2] = true,
+        [3] = true,
+        [4] = true,
+        [11] = true,
+    }
+    local offensiveDispelCapabilities = {
+        [1] = true,
+        [9] = true,
+    }
+
+    self.dispelCapabilities = dispelCapabilities
+    self.offensiveDispelCapabilities = offensiveDispelCapabilities
+
+    local includeDispelTypes = {}
+    for id, can in pairs(dispelCapabilities) do
+        local name = DEFENSIVE_DISPEL_TYPE_NAMES[id]
+        if can and name then
+            includeDispelTypes[name] = true
+        end
+    end
+    self.includeDispelTypes = includeDispelTypes
+
+    local includeOffensiveDispelTypes = {}
+    for id, can in pairs(offensiveDispelCapabilities) do
+        local name = OFFENSIVE_DISPEL_TYPE_NAMES[id]
+        if can and name then
+            includeOffensiveDispelTypes[name] = true
+        end
+    end
+    self.includeOffensiveDispelTypes = includeOffensiveDispelTypes
+
+    dispelCurve:ClearPoints()
+    target.enemyCurve:ClearPoints()
+    target.friendCurve:ClearPoints()
+
+    for i, v in pairs(dispelCapabilities) do
+        if v then
+            dispelCurve:AddPoint(i, CreateColor(0, 1, i / 255, 1))
+            target.friendCurve:AddPoint(i, CreateColor(0, 1, (i + 11) / 255, 1))
+        else
+            dispelCurve:AddPoint(i, CreateColor(0, 0, 0, 1))
+            target.friendCurve:AddPoint(i, CreateColor(0, 0, 11 / 255, 1))
+        end
+    end
+
+    for i, v in pairs(offensiveDispelCapabilities) do
+        if v then
+            if i == 9 then
+                target.enemyCurve:AddPoint(9, CreateColor(0, 1, 3 / 255, 1))
+            else
+                target.enemyCurve:AddPoint(i, CreateColor(0, 1, (i + 1) / 255, 1))
+            end
+        else
+            target.enemyCurve:AddPoint(i, CreateColor(0, 0, 1 / 255, 1))
+        end
+    end
+end
+
+function Shingen:UpdateSpellCooldown()
+    if not spells then return end
+    local curve255 = self.curve255
+    for spellID, info in pairs(spells) do
+        local index = info.index
+        -- charge-only 条目只有 .charge，没有冷却像素索引
+        if index then
+            local cdDurationObj = GetSpellCooldownDuration(spellID)
+            local cdInfo = GetSpellCooldown(spellID)
+            if cdDurationObj and cdInfo then
+                local result = cdDurationObj:EvaluateRemainingDuration(curve255, 1)
+                ColorValue255:SetRGBA(0, index / 255, 254 / 255)
+                ---@diagnostic disable-next-line: param-type-mismatch
+                local value = EvaluateColorFromBoolean(cdInfo.isEnabled, result, ColorValue255)
+                local _, _, b = value:GetRGB()
+                ---@diagnostic disable-next-line: undefined-field
+                if cdInfo.isOnGCD then b = 0 end
+                self:CreateTexture(index, b)
+            else
+                self:CreateTexture(index, 1)
+            end
+        end
+        local chargeIndex = info.charge
+        if chargeIndex then
+            local chDurationObj = GetSpellChargeDuration(spellID)
+            if chDurationObj then
+                local result = chDurationObj:EvaluateRemainingDuration(curve255)
+                ---@diagnostic disable-next-line: param-type-mismatch
+                local _, _, b = result:GetRGB()
+                self:CreateTexture(chargeIndex, b)
+            else
+                self:CreateTexture(chargeIndex, 1)
+            end
+        end
+    end
+end
+
+function Shingen:GetItemRemainingTime(itemID, isEquipped)
+    local itemExists
+    if isEquipped then
+        itemExists = itemID and C_Item.IsEquippedItem(itemID)
+    else
+        local itemCount = itemID and C_Item.GetItemCount(itemID)
+        itemExists = itemCount and itemCount > 0
+    end
+    if not itemExists then
+        return 255
+    end
+    local startTimeSeconds, durationSeconds, enableCooldownTimer = C_Item.GetItemCooldown(itemID)
+    if startTimeSeconds == nil or durationSeconds == nil
+        or enableCooldownTimer == nil or enableCooldownTimer == false or enableCooldownTimer == 0 then
+        return 255
+    end
+    if startTimeSeconds <= 0 or durationSeconds <= 0 then
+        return 0
+    end
+    local remainingTime = durationSeconds - (GetTime() - startTimeSeconds)
+    if remainingTime <= 0 then return 0 end
+    return math.min(254, math.ceil(remainingTime))
+end
+
+function Shingen:UpdateItemCooldown()
+    local items = self.blocks and self.blocks.items
+    if not items then return end
+    for itemID, info in pairs(items) do
+        self:CreateTexture(info.index, self:GetItemRemainingTime(itemID, info.isEquipped) / 255)
+    end
+end

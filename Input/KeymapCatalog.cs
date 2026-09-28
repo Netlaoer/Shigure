@@ -11,25 +11,28 @@ namespace Shigure;
 public sealed class KeymapCatalog
 {
     private readonly string _baseDirectory;
+    private readonly string _addonRoot;
     private readonly ConfigService? _config;
     private readonly Dictionary<string, KeymapEntries> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    private KeymapCatalog(string baseDirectory, ConfigService? config)
+    private KeymapCatalog(string baseDirectory, ConfigService? config, string addonRoot)
     {
         _baseDirectory = baseDirectory;
         _config = config;
+        _addonRoot = addonRoot;
     }
 
-    public static KeymapCatalog Load(string baseDirectory)
+    public static KeymapCatalog Load(string baseDirectory, string? addonRoot = null)
     {
+        addonRoot ??= Path.Combine(baseDirectory, "Fuyutsui");
         try
         {
-            return new KeymapCatalog(baseDirectory, ConfigService.LoadFromBaseDirectory(baseDirectory));
+            return new KeymapCatalog(baseDirectory, ConfigService.LoadFromBaseDirectory(baseDirectory), addonRoot);
         }
         catch
         {
             // config 缺失或损坏时仍可回退到 keymap/keymap.json。
-            return new KeymapCatalog(baseDirectory, null);
+            return new KeymapCatalog(baseDirectory, null, addonRoot);
         }
     }
 
@@ -101,11 +104,7 @@ public sealed class KeymapCatalog
         }
 
         var ids = _config.GetFailedSpells(classId).Values.ToHashSet();
-        var path = Path.Combine(
-            _baseDirectory,
-            "Fuyutsui",
-            "class",
-            $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+        var path = Path.Combine(_addonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
         try
         {
             return ClassBlocksStore.Load(path).SpellsList
@@ -128,11 +127,7 @@ public sealed class KeymapCatalog
         }
 
         var ids = _config.GetInsertItems(classId).Values.ToHashSet();
-        var path = Path.Combine(
-            _baseDirectory,
-            "Fuyutsui",
-            "class",
-            $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+        var path = Path.Combine(_addonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
         try
         {
             return ClassBlocksStore.Load(path).ItemsList

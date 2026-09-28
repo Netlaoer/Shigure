@@ -7,14 +7,15 @@ namespace Shigure;
 /// </summary>
 internal sealed class FuyutsuiAddonSyncService
 {
-    private const string AddonDirectoryName = "Fuyutsui";
     private readonly string _sourceRoot;
     private readonly WowProcessLocator _processLocator;
+    private readonly string _addonName;
 
     public FuyutsuiAddonSyncService(string sourceRoot, WowProcessLocator processLocator)
     {
         _sourceRoot = Path.GetFullPath(sourceRoot);
         _processLocator = processLocator;
+        _addonName = Path.GetFileName(_sourceRoot);
     }
 
     public string SourceRoot => _sourceRoot;
@@ -23,7 +24,7 @@ internal sealed class FuyutsuiAddonSyncService
     {
         if (!Directory.Exists(_sourceRoot))
         {
-            throw new DirectoryNotFoundException($"找不到项目 Fuyutsui 目录: {_sourceRoot}");
+            throw new DirectoryNotFoundException($"找不到项目 {_addonName} 目录: {_sourceRoot}");
         }
 
         var targetRoot = ResolveTargetRoot();
@@ -52,7 +53,7 @@ internal sealed class FuyutsuiAddonSyncService
             || relativePath.Equals("..", StringComparison.Ordinal)
             || relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException($"待同步文件不在项目 Fuyutsui 目录内: {fullSourcePath}");
+            throw new InvalidOperationException($"待同步文件不在项目 {_addonName} 目录内: {fullSourcePath}");
         }
 
         if (!File.Exists(fullSourcePath))
@@ -78,7 +79,7 @@ internal sealed class FuyutsuiAddonSyncService
         var addOnsDirectory = WowAddonLocator.FindAddOnsDirectory(_processLocator);
         return string.IsNullOrWhiteSpace(addOnsDirectory)
             ? null
-            : Path.Combine(addOnsDirectory, AddonDirectoryName);
+            : Path.Combine(addOnsDirectory, _addonName);
     }
 
     private static void SynchronizeCore(

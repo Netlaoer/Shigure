@@ -126,24 +126,25 @@ public sealed class ConditionFieldCatalog
     };
 
     private readonly ConfigService? _config;
-    private readonly string _baseDirectory;
+    private readonly string _addonRoot;
 
-    private ConditionFieldCatalog(ConfigService? config, string baseDirectory)
+    private ConditionFieldCatalog(ConfigService? config, string baseDirectory, string addonRoot)
     {
         _config = config;
-        _baseDirectory = baseDirectory;
+        _addonRoot = addonRoot;
     }
 
-    public static ConditionFieldCatalog Load(string baseDirectory)
+    public static ConditionFieldCatalog Load(string baseDirectory, string? addonRoot = null)
     {
+        addonRoot ??= Path.Combine(baseDirectory, "Fuyutsui");
         try
         {
-            return new ConditionFieldCatalog(ConfigService.LoadFromBaseDirectory(baseDirectory), baseDirectory);
+            return new ConditionFieldCatalog(ConfigService.LoadFromBaseDirectory(baseDirectory), baseDirectory, addonRoot);
         }
         catch
         {
             // config 缺失或损坏时返回空目录，编辑器降级为手动输入。
-            return new ConditionFieldCatalog(null, baseDirectory);
+            return new ConditionFieldCatalog(null, baseDirectory, addonRoot);
         }
     }
 
@@ -501,11 +502,7 @@ public sealed class ConditionFieldCatalog
 
         try
         {
-            var path = Path.Combine(
-                _baseDirectory,
-                "Fuyutsui",
-                "class",
-                $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+            var path = Path.Combine(_addonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
             if (!File.Exists(path))
             {
                 return result;

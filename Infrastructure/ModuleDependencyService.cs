@@ -32,9 +32,8 @@ internal sealed class ModuleDependencyService
     private readonly string _classMacrosPath;
     private readonly object _gate = new();
 
-    public ModuleDependencyService(string baseDirectory)
+    public ModuleDependencyService(string addonRoot)
     {
-        var addonRoot = Path.Combine(baseDirectory, "Fuyutsui");
         _classDirectory = Path.Combine(addonRoot, "class");
         _classMacrosPath = Path.Combine(addonRoot, "core", "classmacros.lua");
     }

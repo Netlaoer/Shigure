@@ -15,7 +15,7 @@ public sealed class ModuleEditorControl : UserControl
     private readonly Func<Task> _runtimeRestartRequested;
     private readonly Func<ModuleDefinition, string?> _captureDependencies;
     private readonly Func<Task> _modulesReloadRequested;
-    private readonly string _baseDirectory;
+    private readonly Func<GameProfile> _resolveProfile;
     private ConditionFieldCatalog _fieldCatalog;
     private KeymapCatalog _keymapCatalog;
     private readonly ScrollAwareListBox _moduleList = new();
@@ -106,20 +106,20 @@ public sealed class ModuleEditorControl : UserControl
         ("动态数值", ConditionFieldCategory.DynamicValue)
     ];
 
-    public ModuleEditorControl(
+    internal ModuleEditorControl(
         ModuleStore moduleStore,
         Func<Task> runtimeRestartRequested,
         Func<ModuleDefinition, string?> captureDependencies,
         Func<Task> modulesReloadRequested,
-        string baseDirectory)
+        Func<GameProfile> resolveProfile)
     {
         _moduleStore = moduleStore;
         _runtimeRestartRequested = runtimeRestartRequested;
         _captureDependencies = captureDependencies;
         _modulesReloadRequested = modulesReloadRequested;
-        _baseDirectory = baseDirectory;
-        _fieldCatalog = ConditionFieldCatalog.Load(baseDirectory);
-        _keymapCatalog = KeymapCatalog.Load(baseDirectory);
+        _resolveProfile = resolveProfile;
+        _fieldCatalog = ConditionFieldCatalog.Load(resolveProfile().RuntimeDirectory, resolveProfile().AddonRoot);
+        _keymapCatalog = KeymapCatalog.Load(resolveProfile().RuntimeDirectory, resolveProfile().AddonRoot);
         InitializeComponent();
         SpellIconCatalog.CatalogChanged += OnSpellIconCatalogChanged;
         LoadModules();
@@ -139,8 +139,8 @@ public sealed class ModuleEditorControl : UserControl
 
     public void ReloadCatalogs()
     {
-        _fieldCatalog = ConditionFieldCatalog.Load(_baseDirectory);
-        _keymapCatalog = KeymapCatalog.Load(_baseDirectory);
+        _fieldCatalog = ConditionFieldCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
+        _keymapCatalog = KeymapCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
         ReloadCurrentClassSpellIds();
         // “更新配置”可能刚重建了 keymap；立即刷新当前规则的技能/目标/宏条件下拉，
         // 避免必须切换职业或重启应用后才能看到新解析出的宏条件。
@@ -1579,11 +1579,7 @@ public sealed class ModuleEditorControl : UserControl
             return;
         }
 
-        var classPath = Path.Combine(
-            _baseDirectory,
-            "Fuyutsui",
-            "class",
-            $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+        var classPath = Path.Combine(_resolveProfile().AddonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
         try
         {
             var document = ClassBlocksStore.Load(classPath);
@@ -4097,7 +4093,7 @@ public sealed class ModuleEditorControl : UserControl
     private IReadOnlyList<ConditionField> RefreshAndBuildConditionFields(bool includeRuleSettings = false)
     {
         // 配置可能由“更新配置”或外部文件同步在当前编辑会话中被重建；每次打开条件弹窗都读取最新目录。
-        _fieldCatalog = ConditionFieldCatalog.Load(_baseDirectory);
+        _fieldCatalog = ConditionFieldCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
         InvalidateConditionFieldValidation();
         return BuildConditionFields(includeRuleSettings);
     }

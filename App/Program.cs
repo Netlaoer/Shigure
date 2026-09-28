@@ -14,9 +14,12 @@ internal static class Program
             {
                 baseDirectory = AppPaths.BaseDirectory;
             }
-            FuyutsuiConfigConverter.UpdateFromClassDirectory(
-                Path.Combine(baseDirectory, "Fuyutsui", "class"),
-                Path.Combine(baseDirectory, ConfigService.ConfigDirectoryName));
+            foreach (var profile in GameProfiles.Load(baseDirectory).DistinctAddons)
+            {
+                FuyutsuiConfigConverter.UpdateFromClassDirectory(
+                    Path.Combine(profile.AddonRoot, "class"),
+                    Path.Combine(profile.RuntimeDirectory, ConfigService.ConfigDirectoryName));
+            }
             return;
         }
 
@@ -28,9 +31,12 @@ internal static class Program
                 baseDirectory = AppPaths.BaseDirectory;
             }
 
-            FuyutsuiKeymapConverter.UpdateFromClassMacros(
-                Path.Combine(baseDirectory, "Fuyutsui", "core", "classmacros.lua"),
-                Path.Combine(baseDirectory, "keymap"));
+            foreach (var profile in GameProfiles.Load(baseDirectory).DistinctAddons)
+            {
+                FuyutsuiKeymapConverter.UpdateFromClassMacros(
+                    Path.Combine(profile.AddonRoot, "core", "classmacros.lua"),
+                    Path.Combine(profile.RuntimeDirectory, "keymap"));
+            }
             return;
         }
 
@@ -65,11 +71,14 @@ internal static class Program
         {
             var options = AppOptions.FromArgs(args);
             var baseDirectory = AppPaths.BaseDirectory;
-            var moduleStore = new ModuleStore(ModuleStore.ResolveModuleDirectory());
+            var profiles = GameProfiles.Load(baseDirectory);
+            var processLocator = new WowProcessLocator(baseDirectory, profiles);
+            var initialProfile = profiles.Find(processLocator.FindFrontmostProcessName()) ?? profiles.Default;
+            var activeProfile = new ActiveGameProfile(initialProfile);
+            var moduleStore = new ModuleStore(initialProfile.ModuleDirectory);
             ShowModuleMigrationHint(baseDirectory, moduleStore);
             var triggerKeyState = new WindowsTriggerKeyState();
-            var processLocator = new WowProcessLocator(baseDirectory);
-            var runtimeFactory = new ShigureRuntimeFactory(baseDirectory, moduleStore, triggerKeyState, processLocator);
+            var runtimeFactory = new ShigureRuntimeFactory(moduleStore, triggerKeyState, processLocator, activeProfile);
             var runtimeSession = new RuntimeSessionCoordinator(runtimeFactory);
 
             Application.Run(new MainForm(
@@ -78,6 +87,8 @@ internal static class Program
                 moduleStore,
                 triggerKeyState,
                 processLocator,
+                profiles,
+                activeProfile,
                 runtimeSession));
         }
         finally

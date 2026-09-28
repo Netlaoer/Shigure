@@ -97,7 +97,7 @@ dotnet run --project .\Shigure.csproj
 dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic-ms 100 --render-ms 100
 ```
 
-- `wow_process.txt`：每行一个目标进程名（可带或不带 `.exe`）。程序使用 Windows Z 顺序中最靠前的候选进程可见顶层窗口，切换窗口后会自动跟随。
+- `game_profiles.json`：为每个游戏进程指定插件。当前 `Wow`、`WowT` 使用 `Fuyutsui`，`WowClassic` 使用 `Shingen`；进程名可带 `.exe`。程序选择 Windows Z 顺序中最靠前的候选可见窗口，切换版本后会切换插件、配置、键位和模块。缺少此文件时回退读取旧版 `wow_process.txt`，并全部使用 `Fuyutsui`。
 - `--toggle`：触发键，默认 `XBUTTON2`。
 - `--mode`：发送模式，支持 `switch`、`click`、`hold`。
 - `--logic-ms`：初始逻辑计算间隔，默认 `100` ms，最小 `50` ms；通用页保存的性能设置会在后续启动时覆盖它。
@@ -109,7 +109,7 @@ dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic
 - `click`：每次按下只执行一轮逻辑。
 - `hold`：按住时运行，松开后停止。
 
-程序会直接从当前 EXE 所在目录运行，并从该目录读取 `Fuyutsui/`、`config/`、`keymap/` 和 `wow_process.txt`；模块从我的文档目录 `{MyDocuments}/Shigure/module` 读取，UI 缓存写入 `{MyDocuments}/Shigure/cache`。
+程序会直接从当前 EXE 所在目录运行。`Fuyutsui/` 对应根目录的 `config/`、`keymap/`，`Shingen/` 对应 `profiles/Shingen/config/`、`profiles/Shingen/keymap/`。Fuyutsui 模块位于 `{MyDocuments}/Shigure/module`，Shingen 模块位于 `{MyDocuments}/Shigure/module-Shingen`；UI 缓存位于 `{MyDocuments}/Shigure/cache`。
 
 ## 构建
 
@@ -117,7 +117,7 @@ dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic
 dotnet build .\Shigure.csproj
 ```
 
-应用图标为 `Assets\arasaka-icon.ico`。项目会把 `Fuyutsui/**`、`config/*.json`、`keymap/*.json` 和 `wow_process.txt` 复制到输出/发布目录；应用、职业、专精和少量程序专用图标作为嵌入资源打包。完整技能/物品图标库不随发布版分发，用户可在“设置 → 通用 → 下载数据包”中从 GitHub 最新正式 Release 下载到 `data\SpellIcons.shgpack`。缺少数据包时技能图标与添加技能的 spellId 联想保持关闭，但仍可手工编辑技能。仅技能旧包仍可加载技能；物品搜索库关闭，手工编辑物品保持可用。
+应用图标为 `Assets\arasaka-icon.ico`。项目会把 `Fuyutsui/**`、`Shingen/**`、两套 `config/keymap` JSON 及 `game_profiles.json` 复制到输出/发布目录；应用、职业、专精和少量程序专用图标作为嵌入资源打包。完整技能/物品图标库不随发布版分发，用户可在“设置 → 通用 → 下载数据包”中从 GitHub 最新正式 Release 下载到 `data\SpellIcons.shgpack`。缺少数据包时技能图标与添加技能的 spellId 联想保持关闭，但仍可手工编辑技能。仅技能旧包仍可加载技能；物品搜索库关闭，手工编辑物品保持可用。
 
 ## 项目结构
 
@@ -141,12 +141,28 @@ Tools\                  辅助脚本
 `SpellIconPackage/` 中保存数据包源清单、本地构建工具和生成的
 `SpellIcons.shgpack`；整个目录由 `.gitignore` 排除，不提交到仓库。完整包在 v1 技能索引后追加物品扩展段；仅技能旧包可被新版读取，此时只禁用物品搜索库。
 
-## Fuyutsui 配置同步
+## 游戏版本与配置同步
 
-项目目录中的 `Fuyutsui/` 是唯一权威源。`通用` 页的“更新配置”会读取：
+在 `game_profiles.json` 中按进程填写插件目录名，例如：
+
+```json
+{
+  "profiles": [
+    { "process": "Wow", "addon": "Fuyutsui" },
+    { "process": "WowT", "addon": "Fuyutsui" },
+    { "process": "WowClassic", "addon": "Shingen" }
+  ]
+}
+```
+
+前台游戏为 `WowClassic` 时，设置窗口编辑项目中的 `Shingen/`，部署目标为该游戏的 `Interface\AddOns\Shingen`；`config/keymap` 和模块也使用 Shingen 的独立目录。切换前如有未保存的配置或宏，先保存或放弃修改，程序随后自动切换。修改 `game_profiles.json` 后重启 Shigure。`dotnet run --project .\Shigure.csproj -- --update-config` 与 `--update-keymap` 会分别为两套插件生成 JSON。
+
+项目中的插件目录是各自版本的权威源。`通用` 页的“更新配置”会读取当前版本：
 
 - `Fuyutsui\class\*.lua` → `config/*.json`
 - `Fuyutsui\core\classmacros.lua` → `keymap/*.json`
+- `Shingen\class\*.lua` → `profiles/Shingen/config/*.json`
+- `Shingen\core\classmacros.lua` → `profiles/Shingen/keymap/*.json`
 
 如果 EXE 所在目录的 `config/` 或 `keymap/` 缺失或文件不完整，启动 Shigure 时会先从上述 Fuyutsui 源文件自动补齐；新建 `config/` 时也会生成运行时必需的 `common.json`。转换完成后会刷新模块编辑器的字段/keymap 目录并重启运行循环，同时递归同步整个插件到当前游戏的 `Interface\AddOns\Fuyutsui`。启动 Shigure 时也会执行同一全量同步：缺失文件会创建，SHA-256 不同的文件会覆盖，相同文件会跳过，游戏目录中的额外文件会保留。
 

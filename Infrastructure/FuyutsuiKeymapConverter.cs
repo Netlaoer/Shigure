@@ -85,8 +85,8 @@ internal static partial class FuyutsuiKeymapConverter
 
         Directory.CreateDirectory(keymapDirectory);
         var lua = File.ReadAllText(classMacrosPath, Encoding.UTF8);
-        var classMacros = ExtractAssignedTable(lua, "Fuyutsui.ClassMacros")
-            ?? throw new InvalidDataException("classmacros.lua 中未找到 Fuyutsui.ClassMacros");
+        var classMacros = ExtractAssignedTable(lua, AddonLuaNames.Assignment(lua, "ClassMacros"))
+            ?? throw new InvalidDataException("classmacros.lua 中未找到 ClassMacros");
 
         var updated = new List<string>();
         var warnings = new List<string>();

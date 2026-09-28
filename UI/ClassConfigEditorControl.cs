@@ -432,7 +432,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _saveButton.Margin = new Padding(0);
         _reloadButton.Click += (_, _) => ReloadFromAddon();
         _saveButton.Click += async (_, _) => await SaveAndUpdateAsync();
-        _toolTip.SetToolTip(_reloadButton, "从项目 Fuyutsui 重新加载配置 (F5)");
+        _toolTip.SetToolTip(_reloadButton, "从当前项目插件重新加载配置 (F5)");
         _toolTip.SetToolTip(_saveButton, "保存配置并同步游戏 (Ctrl+S)");
         actions.Controls.Add(_reloadButton);
         actions.Controls.Add(_saveButton);
@@ -458,7 +458,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
         info.Controls.Add(CreateFieldCaption("状态"), 0, 0);
         ConfigureInfoLabel(_statusLabel, UiTheme.Muted);
-        _statusLabel.Text = "点击刷新以加载项目 Fuyutsui\\class";
+        _statusLabel.Text = "点击刷新以加载项目插件的 class 目录";
         _statusLabel.TextChanged += (_, _) => _toolTip.SetToolTip(_statusLabel, _statusLabel.Text);
         _toolTip.SetToolTip(_statusLabel, _statusLabel.Text);
         info.Controls.Add(_statusLabel, 1, 0);
@@ -748,7 +748,7 @@ public sealed class ClassConfigEditorControl : UserControl
         currentListTitle.Dock = DockStyle.None;
         currentListTitle.Anchor = AnchorStyles.Left;
         currentListHeader.Controls.Add(currentListTitle, 0, 0);
-        var hint = CreateFieldCaption("来自当前职业 Lua 的 Fuyutsui.itemsList。");
+        var hint = CreateFieldCaption("来自当前职业 Lua 的 itemsList。");
         hint.TextAlign = ContentAlignment.MiddleRight;
         currentListHeader.Controls.Add(hint, 1, 0);
         currentListCard.Controls.Add(currentListHeader, 0, 0);
@@ -2018,8 +2018,8 @@ public sealed class ClassConfigEditorControl : UserControl
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
                 _classTree.SetClasses([]);
-                _pathLabel.Text = "未找到 Fuyutsui\\class";
-                _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
+                _pathLabel.Text = "未找到插件 class 目录";
+                _statusLabel.Text = "请确认程序目录中包含当前插件的 class 目录后点击刷新。";
                 return;
             }
 

@@ -108,8 +108,10 @@ public sealed class MainForm : Form, IMessageFilter
     private readonly ModuleStore _moduleStore;
     private readonly ITriggerKeyState _triggerKeyState;
     private readonly WowProcessLocator _processLocator;
-    private readonly FuyutsuiAddonSyncService _addonSyncService;
-    private readonly ModuleDependencyService _moduleDependencyService;
+    private readonly GameProfiles _profiles;
+    private readonly ActiveGameProfile _activeProfile;
+    private FuyutsuiAddonSyncService _addonSyncService;
+    private ModuleDependencyService _moduleDependencyService;
     private readonly RuntimeSessionCoordinator _runtimeSession;
     private readonly ModuleEditorControl _moduleEditor;
     private readonly ClassConfigEditorControl _classConfigEditor;
@@ -136,7 +138,8 @@ public sealed class MainForm : Form, IMessageFilter
     private bool _exitRequested;
     private bool _shutdownStarted;
     private bool _shutdownCompleted;
-    private bool _wasWowProcessWindowAvailable;
+    private string? _lastFrontmostProcessName;
+    private bool _switchingProfile;
     private bool _borderlessCaptureAccessRequested;
 
     private sealed record ProjectConfigUpdateResult(
@@ -155,6 +158,8 @@ public sealed class MainForm : Form, IMessageFilter
         ModuleStore moduleStore,
         ITriggerKeyState triggerKeyState,
         WowProcessLocator processLocator,
+        GameProfiles profiles,
+        ActiveGameProfile activeProfile,
         RuntimeSessionCoordinator runtimeSession)
     {
         _initialOptions = initialOptions;
@@ -162,9 +167,10 @@ public sealed class MainForm : Form, IMessageFilter
         _moduleStore = moduleStore;
         _triggerKeyState = triggerKeyState;
         _processLocator = processLocator;
-        var localAddonRoot = Path.Combine(_baseDirectory, "Fuyutsui");
-        _addonSyncService = new FuyutsuiAddonSyncService(localAddonRoot, _processLocator);
-        _moduleDependencyService = new ModuleDependencyService(_baseDirectory);
+        _profiles = profiles;
+        _activeProfile = activeProfile;
+        _addonSyncService = CreateAddonSyncService(_activeProfile.Current);
+        _moduleDependencyService = new ModuleDependencyService(_activeProfile.Current.AddonRoot);
         _runtimeSession = runtimeSession;
         _uiCache = UiCacheStore.Load();
         _statusForm = new StatusForm();
@@ -187,13 +193,12 @@ public sealed class MainForm : Form, IMessageFilter
                 UiTheme.ApplyFallbackRoundedCorners(this);
             }
         };
-        _wasWowProcessWindowAvailable = _processLocator.FindFrontmostWindow() != 0;
+        _lastFrontmostProcessName = _processLocator.FindFrontmostProcessName();
         _wowProcessMonitorTimer = new System.Windows.Forms.Timer
         {
             Interval = WowProcessMonitorIntervalMs
         };
         _wowProcessMonitorTimer.Tick += HandleWowProcessMonitorTick;
-        _wowProcessMonitorTimer.Start();
         _gamepadCaptureTimer = new System.Windows.Forms.Timer
         {
             Interval = GamepadCaptureIntervalMs
@@ -207,9 +212,9 @@ public sealed class MainForm : Form, IMessageFilter
         _moduleEditor = new ModuleEditorControl(
             _moduleStore,
             RestartRuntimeFromEditorAsync,
-            _moduleDependencyService.Capture,
+            module => _moduleDependencyService.Capture(module),
             ReloadModulesWithDependenciesAsync,
-            _baseDirectory);
+            () => _activeProfile.Current);
         _statusForm.AttachModuleEditor(_moduleEditor);
         _classConfigEditor = new ClassConfigEditorControl(
             () => Path.Combine(_addonSyncService.SourceRoot, "class"),
@@ -261,12 +266,17 @@ public sealed class MainForm : Form, IMessageFilter
             await SynchronizeAddonAtStartupAsync();
         }
         await StartRuntimeAsync();
+        if (!_shutdownStarted)
+        {
+            _wowProcessMonitorTimer.Start();
+            HandleWowProcessMonitorTick(this, EventArgs.Empty);
+        }
     }
 
     private async Task<bool> GenerateRuntimeDataAtStartupIfMissingAsync()
     {
-        var configDirectory = Path.Combine(_baseDirectory, ConfigService.ConfigDirectoryName);
-        var keymapDirectory = Path.Combine(_baseDirectory, "keymap");
+        var configDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, ConfigService.ConfigDirectoryName);
+        var keymapDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, "keymap");
         var hasAllConfigFiles = Directory.Exists(configDirectory)
             && File.Exists(Path.Combine(configDirectory, ConfigService.CommonConfigFileName))
             && ClassNames.GetClasses().All(item =>
@@ -281,7 +291,7 @@ public sealed class MainForm : Form, IMessageFilter
             return false;
         }
 
-        AppendLog("检测到 config 或 keymap 缺失或不完整，正在从项目 Fuyutsui 自动生成");
+        AppendLog($"检测到 config 或 keymap 缺失或不完整，正在从项目 {_activeProfile.Current.AddonName} 自动生成");
         try
         {
             var result = await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
@@ -499,22 +509,54 @@ public sealed class MainForm : Form, IMessageFilter
 
     private async void HandleWowProcessMonitorTick(object? sender, EventArgs e)
     {
-        var isAvailable = _processLocator.FindFrontmostWindow() != 0;
-        var justOpened = !_wasWowProcessWindowAvailable && isAvailable;
-        _wasWowProcessWindowAvailable = isAvailable;
-
-        if (!justOpened || _shutdownStarted)
+        var processName = _processLocator.FindFrontmostProcessName();
+        if (_shutdownStarted || _switchingProfile
+            || string.Equals(processName, _lastFrontmostProcessName, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
-
-        AppendLog("检测到目标游戏进程已打开，正在自动更新配置");
+        if (processName is null)
+        {
+            _lastFrontmostProcessName = null;
+            return;
+        }
+        var profile = _profiles.Find(processName);
+        if (profile is null || _classConfigEditor.HasUnsavedChanges || _classMacrosEditor.HasUnsavedChanges)
+        {
+            return;
+        }
+        _switchingProfile = true;
         try
         {
+            if (!string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase))
+            {
+                AppendLog($"切换到 {profile.ProcessName} / {profile.AddonName}");
+                try
+                {
+                    await WaitForPendingConfigUpdatesAsync();
+                }
+                catch
+                {
+                    // 上次配置更新的调用方已收到错误；仍可切换版本。
+                }
+                await _runtimeSession.StopAsync();
+                _activeProfile.Current = profile;
+                _addonSyncService = CreateAddonSyncService(profile);
+                _moduleDependencyService = new ModuleDependencyService(profile.AddonRoot);
+                _moduleStore.UseDirectory(profile.ModuleDirectory);
+                _moduleEditor.ReloadCatalogs();
+                _classConfigEditor.ReloadFromAddon();
+                _classMacrosEditor.ReloadFromAddon();
+                await GenerateRuntimeDataAtStartupIfMissingAsync();
+                await ImportModuleDependenciesAsync(reloadStore: true, showFeedback: false);
+            }
+            AppendLog($"检测到 {profile.ProcessName}，正在更新 {profile.AddonName} 配置");
             await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
             if (!_shutdownStarted)
             {
-                AppendLog("目标游戏进程启动后的配置更新已完成");
+                _lastFrontmostProcessName = processName;
+                await StartRuntimeAsync();
+                AppendLog($"{profile.ProcessName} 配置更新已完成");
             }
         }
         catch (OperationCanceledException) when (_shutdownStarted)
@@ -525,10 +567,17 @@ public sealed class MainForm : Form, IMessageFilter
         {
             if (!_shutdownStarted)
             {
-                AppendLog($"目标游戏进程启动后的配置更新失败: {ex.Message}");
+                AppendLog($"{processName} 配置更新失败: {ex.Message}");
             }
         }
+        finally
+        {
+            _switchingProfile = false;
+        }
     }
+
+    private FuyutsuiAddonSyncService CreateAddonSyncService(GameProfile profile)
+        => new(profile.AddonRoot, _processLocator.ForProcess(profile.ProcessName));
 
     private async Task CompleteShutdownAsync()
     {
@@ -1923,14 +1972,14 @@ public sealed class MainForm : Form, IMessageFilter
         var classMacrosPath = Path.Combine(_addonSyncService.SourceRoot, "core", "classmacros.lua");
         if (!Directory.Exists(classDirectory))
         {
-            throw new DirectoryNotFoundException($"找不到项目 Fuyutsui class 目录: {classDirectory}");
+            throw new DirectoryNotFoundException($"找不到项目 {_activeProfile.Current.AddonName} class 目录: {classDirectory}");
         }
 
         _configSourceLabel.Text = File.Exists(classMacrosPath)
-            ? $"项目 Fuyutsui: {classDirectory} + classmacros.lua"
-            : $"项目 Fuyutsui class: {classDirectory}";
-        var configDirectory = Path.Combine(_baseDirectory, ConfigService.ConfigDirectoryName);
-        var keymapDirectory = Path.Combine(_baseDirectory, "keymap");
+            ? $"项目 {_activeProfile.Current.AddonName}: {classDirectory} + classmacros.lua"
+            : $"项目 {_activeProfile.Current.AddonName} class: {classDirectory}";
+        var configDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, ConfigService.ConfigDirectoryName);
+        var keymapDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, "keymap");
         Directory.CreateDirectory(keymapDirectory);
 
         try
@@ -1957,7 +2006,7 @@ public sealed class MainForm : Form, IMessageFilter
             }
 
             _moduleEditor.ReloadCatalogs();
-            AppendLog($"已从项目 Fuyutsui 更新配置: {result.Config.UpdatedFiles.Count} 个文件 ← {result.Config.ClassDirectory}");
+            AppendLog($"已从项目 {_activeProfile.Current.AddonName} 更新配置: {result.Config.UpdatedFiles.Count} 个文件 ← {result.Config.ClassDirectory}");
             foreach (var warning in result.Config.Warnings.Take(20))
             {
                 AppendLog($"配置警告: {warning}");
@@ -1973,7 +2022,7 @@ public sealed class MainForm : Form, IMessageFilter
             }
             else
             {
-                AppendLog("项目 Fuyutsui 中未找到 core\\classmacros.lua，已跳过 keymap 更新");
+                AppendLog($"项目 {_activeProfile.Current.AddonName} 中未找到 core\\classmacros.lua，已跳过 keymap 更新");
             }
 
             LogAddonSyncResult(
@@ -2024,7 +2073,7 @@ public sealed class MainForm : Form, IMessageFilter
         if (syncIssue is not null || warningCount > 0)
         {
             MessageBox.Show(
-                $"已从项目 Fuyutsui 更新 {result.Config.UpdatedFiles.Count} 个职业配置。{keymapText}{syncText}{warningText}",
+                $"已从项目 {_activeProfile.Current.AddonName} 更新 {result.Config.UpdatedFiles.Count} 个职业配置。{keymapText}{syncText}{warningText}",
                 "更新配置",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);

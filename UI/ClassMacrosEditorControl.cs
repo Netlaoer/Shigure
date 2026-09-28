@@ -238,7 +238,7 @@ public sealed class ClassMacrosEditorControl : UserControl
         _saveButton.Margin = new Padding(0);
         _reloadButton.Click += (_, _) => ReloadFromAddon();
         _saveButton.Click += async (_, _) => await SaveAndUpdateAsync();
-        _toolTip.SetToolTip(_reloadButton, "从项目 Fuyutsui 重新加载宏 (F5)");
+        _toolTip.SetToolTip(_reloadButton, "从当前项目插件重新加载宏 (F5)");
         _toolTip.SetToolTip(_saveButton, "保存宏并同步游戏 (Ctrl+S)");
         actions.Controls.Add(_reloadButton);
         actions.Controls.Add(_saveButton);
@@ -265,7 +265,7 @@ public sealed class ClassMacrosEditorControl : UserControl
 
         info.Controls.Add(CreateFieldCaption("状态"), 0, 0);
         ConfigureInfoLabel(_statusLabel, UiTheme.Muted);
-        _statusLabel.Text = "点击刷新以加载项目 Fuyutsui\\core\\classmacros.lua";
+        _statusLabel.Text = "点击刷新以加载项目插件的 core\\classmacros.lua";
         _statusLabel.TextChanged += (_, _) => _toolTip.SetToolTip(_statusLabel, _statusLabel.Text);
         _toolTip.SetToolTip(_statusLabel, _statusLabel.Text);
         info.Controls.Add(_statusLabel, 1, 0);
@@ -684,7 +684,7 @@ public sealed class ClassMacrosEditorControl : UserControl
             {
                 _classStrip.SetItems([]);
                 _pathLabel.Text = "未找到 core\\classmacros.lua";
-                _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\core\\classmacros.lua 后点击刷新。";
+                _statusLabel.Text = "请确认程序目录中包含当前插件的 core\\classmacros.lua 后点击刷新。";
                 UpdateOffsetHint();
                 return;
             }

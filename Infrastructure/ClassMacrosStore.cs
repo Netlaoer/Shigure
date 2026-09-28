@@ -9,8 +9,6 @@ namespace Shigure;
 /// </summary>
 internal static class ClassMacrosStore
 {
-    public const string AssignmentName = "Fuyutsui.ClassMacros";
-    public const string MacroBodiesAssignmentName = "Fuyutsui.MacroBodies";
 
     private static readonly string[] ClassFileOrder =
     [
@@ -52,9 +50,10 @@ internal static class ClassMacrosStore
     public static MacrosDocument Load(string filePath)
     {
         var source = File.ReadAllText(filePath, Encoding.UTF8);
-        if (!TryExtractAssignedTable(source, AssignmentName, out var table, out var start, out var end))
+        var assignmentName = AddonLuaNames.Assignment(source, "ClassMacros");
+        if (!TryExtractAssignedTable(source, assignmentName, out var table, out var start, out var end))
         {
-            throw new InvalidDataException($"{Path.GetFileName(filePath)} 中未找到 {AssignmentName}");
+            throw new InvalidDataException($"{Path.GetFileName(filePath)} 中未找到 {assignmentName}");
         }
 
         var doc = new MacrosDocument
@@ -89,7 +88,7 @@ internal static class ClassMacrosStore
         }
 
         var source = File.ReadAllText(filePath, Encoding.UTF8);
-        if (!TryExtractAssignedTable(source, MacroBodiesAssignmentName, out var table, out _, out _))
+        if (!TryExtractAssignedTable(source, AddonLuaNames.Assignment(source, "MacroBodies"), out var table, out _, out _))
         {
             return result;
         }
@@ -116,7 +115,7 @@ internal static class ClassMacrosStore
             + document.SourceText[document.TableEndExclusive..];
         AtomicFile.WriteAllText(document.FilePath, updated, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-        if (!TryExtractAssignedTable(updated, AssignmentName, out _, out var start, out var end))
+        if (!TryExtractAssignedTable(updated, AddonLuaNames.Assignment(updated, "ClassMacros"), out _, out var start, out var end))
         {
             throw new InvalidOperationException("保存后无法重新定位 ClassMacros 表。");
         }

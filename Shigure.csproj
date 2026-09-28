@@ -39,8 +39,11 @@
     <EmbeddedResource Include="wiki\BigWigs团队首领事件.json" />
     <None Include="config\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="keymap\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="profiles\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="wow_process.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="game_profiles.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Fuyutsui\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Shingen\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

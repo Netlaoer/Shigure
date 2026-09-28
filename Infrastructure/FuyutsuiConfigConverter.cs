@@ -76,10 +76,10 @@ internal static class FuyutsuiConfigConverter
                 : new JsonObject();
 
             var lua = File.ReadAllText(luaPath, Encoding.UTF8);
-            var classBlocks = ExtractAssignedTable(lua, "Fuyutsui.ClassBlocks")
-                ?? throw new InvalidDataException($"{fileName}.lua 中未找到 Fuyutsui.ClassBlocks");
-            var spellsList = ExtractAssignedTable(lua, "Fuyutsui.spellsList");
-            var itemsList = ExtractAssignedTable(lua, "Fuyutsui.itemsList");
+            var classBlocks = ExtractAssignedTable(lua, AddonLuaNames.Assignment(lua, "ClassBlocks"))
+                ?? throw new InvalidDataException($"{fileName}.lua 中未找到 ClassBlocks");
+            var spellsList = ExtractAssignedTable(lua, AddonLuaNames.Assignment(lua, "spellsList"));
+            var itemsList = ExtractAssignedTable(lua, AddonLuaNames.Assignment(lua, "itemsList"));
 
             var root = new JsonObject();
             PreserveMeta(existing, root);
