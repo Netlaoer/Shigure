@@ -10,12 +10,12 @@ public sealed class UnitEditorForm : Form
 {
     private const int RowWidth = 800;
     private const int LegacyClientWidth = RowWidth + 36;
-    private const int DefaultClientWidth = LegacyClientWidth * 120 / 100;
-    private const int LabelWidth = 132;
-    private const int SplitSecondaryLabelWidth = 90;
+    private const int DefaultClientWidth = 960;
+    private const int DefaultClientHeight = 760;
+    private const int LabelWidth = 136;
     // 页头双栏（类别/统计对象、名称/值名称）：等宽标签列 + 百分比输入列，随窗体拉宽。
-    private const int HeaderLabelWidth = 100;
-    private const int ParamRowHeight = 44;
+    private const int FieldHeight = 36;
+    private const int ParamRowHeight = FieldHeight + 16;
 
     private static readonly TargetFieldItem[] TargetFieldOptions =
     [
@@ -67,6 +67,7 @@ public sealed class UnitEditorForm : Form
     private readonly Label _previewLabel = new();
     private readonly ToolTip _toolTip = new();
     private Button? _okButton;
+    private TableLayoutPanel _rootPanel = null!;
 
     private Label _selectorLabel = null!;
     private TableLayoutPanel _categoryRow = null!;
@@ -74,6 +75,7 @@ public sealed class UnitEditorForm : Form
     private TableLayoutPanel _unitTargetRow = null!;
     private TableLayoutPanel _targetAuraRow = null!;
     private UiCardPanel _countFilterSection = null!;
+    private int _labelColumnWidth = LabelWidth;
 
     public ModuleUnit? ResultUnit { get; private set; }
     public ModuleCountField? ResultCount { get; private set; }
@@ -113,6 +115,24 @@ public sealed class UnitEditorForm : Form
         var defaultWidth = Width;
         var cache = UiCacheStore.Load();
         var cached = cache.UnitEditorWindowSize;
+        // 旧版默认高度为 1200：只迁移与旧默认值相近的缓存，保留用户手动调整的尺寸。
+        if (cache.UnitEditorLayoutVersion == 0)
+        {
+            var chromeHeight = Math.Max(0, Height - ClientSize.Height);
+            if (cached is { Height: > 0 }
+                && Math.Abs(cached.Height - (1200 + chromeHeight)) <= 24)
+            {
+                cached = new WindowSize
+                {
+                    Width = cached.Width,
+                    Height = DefaultClientHeight + chromeHeight
+                };
+                cache.UnitEditorWindowSize = cached;
+            }
+
+            cache.UnitEditorLayoutVersion = 1;
+            UiCacheStore.Save(cache);
+        }
         // 旧版本把宽度锁在最小宽度上。那种缓存改用加宽后的默认宽度，之后的拖动结果仍会记住。
         if (cached is { Width: > 0 } && cached.Width <= MinimumSize.Width + 2)
         {
@@ -132,6 +152,7 @@ public sealed class UnitEditorForm : Form
     protected override void OnResizeEnd(EventArgs e)
     {
         base.OnResizeEnd(e);
+        _countFilterEditor.FinishResize();
         UiTheme.SaveCachedDialogPlacement(
             this,
             (c, size) => c.UnitEditorWindowSize = size,
@@ -150,20 +171,73 @@ public sealed class UnitEditorForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        UpdateLabelColumnWidths();
+        UpdatePreviewRowHeight();
         ApplyParamRowStyles();
         _nameBox.Focus();
         _nameBox.SelectAll();
     }
 
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        UpdateLabelColumnWidths();
+        UpdatePreviewRowHeight();
+    }
+
+    protected override void OnFontChanged(EventArgs e)
+    {
+        base.OnFontChanged(e);
+        UpdateLabelColumnWidths();
+        UpdatePreviewRowHeight();
+    }
+
+    private void UpdatePreviewRowHeight()
+    {
+        if (_rootPanel is not null)
+        {
+            _rootPanel.RowStyles[2].Height = Math.Max(
+                _rootPanel.RowStyles[2].Height,
+                Font.Height + 30);
+        }
+    }
+
+    private void UpdateLabelColumnWidths()
+    {
+        if (_unitTargetRow is null)
+        {
+            return;
+        }
+
+        // 按当前字体和 DPI 留足中文标签的宽度；只在显示或 DPI 改变时重新布局。
+        var measured = TextRenderer.MeasureText(
+            "查找的单位",
+            Font,
+            Size.Empty,
+            TextFormatFlags.NoPadding | TextFormatFlags.SingleLine).Width;
+        var width = Math.Max(LabelWidth, measured + UiTheme.Scale(this, 24));
+        if (_labelColumnWidth == width)
+        {
+            return;
+        }
+
+        _labelColumnWidth = width;
+        _unitTargetRow.ColumnStyles[0].Width = width;
+        _unitTargetRow.ColumnStyles[2].Width = width;
+        _targetAuraRow.ColumnStyles[0].Width = width;
+        ApplyHeaderRowLayout(_categoryRow, split: IsAverageHealthCategory);
+        ApplyHeaderRowLayout(_nameRow, split: IsUnitCategory);
+    }
+
     private void InitializeComponent()
     {
         Text = "编辑单位与统计";
-        Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
+        Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        // 默认宽度比原先锁定宽度增加 20%；宽高都可拖动，关闭时缓存。
-        UiTheme.ConfigureResizableDialog(this, DefaultClientWidth, 1200, LegacyClientWidth, 600);
+        // 默认展示完整编辑流程，避免筛选区在初次打开时留下大块空白。
+        UiTheme.ConfigureResizableDialog(this, DefaultClientWidth, DefaultClientHeight, LegacyClientWidth, 600);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
 
@@ -175,9 +249,11 @@ public sealed class UnitEditorForm : Form
             ColumnCount = 1,
             RowCount = 4
         };
+        _rootPanel = root;
         // 页头两行固定行高，避免 Percent 50/50 随窗体拉伸。
-        const int headerRowHeight = 56;
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, headerRowHeight * 2));
+        const int headerRowHeight = 58;
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute,
+            headerRowHeight * 2 + 16 + UiTheme.PageGap));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 56));
@@ -202,7 +278,8 @@ public sealed class UnitEditorForm : Form
         var headerCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(4),
+            BackColor = UiTheme.Surface,
+            Padding = new Padding(12, 8, 12, 8),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
             RowCount = 2
@@ -215,16 +292,17 @@ public sealed class UnitEditorForm : Form
         root.Controls.Add(headerCard, 0, 0);
 
         _paramPanel.Dock = DockStyle.Fill;
-        _paramPanel.BackColor = Color.Transparent;
+        _paramPanel.BackColor = UiTheme.SurfaceRaised;
         _paramPanel.ColumnCount = 1;
         _paramPanel.RowCount = 3;
         _paramPanel.Margin = new Padding(0);
-        _paramPanel.Padding = new Padding(4, 6, 4, 6);
+        _paramPanel.Padding = new Padding(8, 10, 8, 8);
         _paramPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         BuildParamRows();
         var paramsCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(4),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
@@ -241,6 +319,7 @@ public sealed class UnitEditorForm : Form
         var previewCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(UiTheme.CardPadding, 6, UiTheme.CardPadding, 6),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
@@ -290,10 +369,10 @@ public sealed class UnitEditorForm : Form
         _paramPanel.RowStyles.Clear();
         _paramPanel.RowStyles.Add(new RowStyle(
             SizeType.Absolute,
-            _unitTargetRow.Visible ? ParamRowHeight + 6 : 0));
+            _unitTargetRow.Visible ? ParamRowHeight + 8 : 0));
         _paramPanel.RowStyles.Add(new RowStyle(
             SizeType.Absolute,
-            _targetAuraRow.Visible ? ParamRowHeight + 6 : 0));
+            _targetAuraRow.Visible ? ParamRowHeight + 8 : 0));
         _paramPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
     }
 
@@ -331,13 +410,15 @@ public sealed class UnitEditorForm : Form
         var section = new UiCardPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(4, 4, 4, 6),
-            Margin = new Padding(0, 3, 0, 7),
+            BackColor = UiTheme.SurfaceRaised,
+            FillColor = UiTheme.Surface,
+            Padding = new Padding(12, 10, 12, 12),
+            Margin = new Padding(0, 4, 0, 0),
             ColumnCount = 1,
             RowCount = 2
         };
         section.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        section.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
         section.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var titleLabel = new Label
@@ -347,8 +428,8 @@ public sealed class UnitEditorForm : Form
             ForeColor = UiTheme.Text,
             Text = title,
             TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(4, 0, 0, 0),
-            Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Bold, GraphicsUnit.Point),
+            Padding = new Padding(0),
+            Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Bold, GraphicsUnit.Point),
             Margin = new Padding(0)
         };
 
@@ -365,6 +446,7 @@ public sealed class UnitEditorForm : Form
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10),
             Margin = new Padding(0),
             ColumnCount = 2,
@@ -396,6 +478,33 @@ public sealed class UnitEditorForm : Form
         actions.Controls.Add(_okButton);
         actions.Controls.Add(cancelButton);
         row.Controls.Add(actions, 1, 0);
+
+        void FitActionRow()
+        {
+            foreach (var button in new[] { _okButton, cancelButton })
+            {
+                var textSize = TextRenderer.MeasureText(
+                    button.Text,
+                    button.Font,
+                    Size.Empty,
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+                button.Size = new Size(
+                    Math.Max(84, textSize.Width + button.Padding.Horizontal + Math.Max(40, button.Font.Height + 8)),
+                    Math.Max(40, textSize.Height + button.Padding.Vertical + UiTheme.Scale(button, 8)));
+            }
+
+            row.ColumnStyles[1].Width = Math.Max(184, _okButton.Width + cancelButton.Width + 16);
+            if (row.Parent is TableLayoutPanel root)
+            {
+                root.RowStyles[3].Height = Math.Max(56, Math.Max(_okButton.Height, cancelButton.Height) + 20);
+            }
+        }
+
+        _okButton.HandleCreated += (_, _) => FitActionRow();
+        _okButton.FontChanged += (_, _) => FitActionRow();
+        cancelButton.HandleCreated += (_, _) => FitActionRow();
+        cancelButton.FontChanged += (_, _) => FitActionRow();
+        FitActionRow();
         AcceptButton = _okButton;
         CancelButton = cancelButton;
         return row;
@@ -922,8 +1031,8 @@ public sealed class UnitEditorForm : Form
             Dock = DockStyle.Fill,
             Height = height,
             BackColor = UiTheme.SurfaceRaised,
-            Margin = new Padding(0, 1, 0, 5),
-            Padding = new Padding(0, 3, 0, 3),
+            Margin = new Padding(0, 0, 0, 8),
+            Padding = new Padding(0, 8, 0, 8),
             ColumnCount = 2,
             RowCount = 1
         };
@@ -942,7 +1051,7 @@ public sealed class UnitEditorForm : Form
         };
 
         control.Dock = DockStyle.Fill;
-        control.Margin = new Padding(0, 0, 0, 0);
+        control.Margin = Padding.Empty;
         panel.Controls.Add(labelControl, 0, 0);
         panel.Controls.Add(control, 1, 0);
         return panel;
@@ -955,14 +1064,14 @@ public sealed class UnitEditorForm : Form
             Dock = DockStyle.Fill,
             Height = ParamRowHeight,
             BackColor = UiTheme.SurfaceRaised,
-            Margin = new Padding(0, 1, 0, 5),
+            Margin = new Padding(0, 0, 0, 8),
             Padding = new Padding(0, 8, 0, 8),
             ColumnCount = 4,
             RowCount = 1
         };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelWidth));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SplitSecondaryLabelWidth));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, LabelWidth));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -976,7 +1085,7 @@ public sealed class UnitEditorForm : Form
             Margin = new Padding(0)
         };
         controlA.Dock = DockStyle.Fill;
-        controlA.Margin = new Padding(0, 0, 8, 0);
+        controlA.Margin = new Padding(0, 0, 12, 0);
 
         var labelBControl = new Label
         {
@@ -1004,7 +1113,7 @@ public sealed class UnitEditorForm : Form
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0),
-            Padding = new Padding(0, 5, 0, 5),
+            Padding = new Padding(0, 11, 0, 11),
             ColumnCount = 4,
             RowCount = 1
         };
@@ -1021,7 +1130,7 @@ public sealed class UnitEditorForm : Form
             Margin = new Padding(0)
         };
         controlA.Dock = DockStyle.Fill;
-        controlA.Margin = new Padding(0, 0, 8, 0);
+        controlA.Margin = new Padding(0, 0, 12, 0);
 
         _selectorLabel = new Label
         {
@@ -1050,7 +1159,7 @@ public sealed class UnitEditorForm : Form
             Dock = DockStyle.Fill,
             BackColor = UiTheme.SurfaceRaised,
             Margin = new Padding(0),
-            Padding = new Padding(0, 5, 0, 5),
+            Padding = new Padding(0, 11, 0, 11),
             ColumnCount = 4,
             RowCount = 1
         };
@@ -1067,8 +1176,9 @@ public sealed class UnitEditorForm : Form
             Margin = new Padding(0)
         };
         UiTheme.StyleTextBox(_nameBox);
+        _nameBox.AutoSize = false;
         _nameBox.Dock = DockStyle.Fill;
-        _nameBox.Margin = new Padding(0, 0, 8, 0);
+        _nameBox.Margin = new Padding(0, 0, 12, 0);
         _nameBox.TextChanged += (_, _) => UpdatePreview();
 
         _valueNameLabel.Text = "值名称";
@@ -1078,6 +1188,7 @@ public sealed class UnitEditorForm : Form
         _valueNameLabel.AutoEllipsis = true;
         _valueNameLabel.Margin = new Padding(0);
         UiTheme.StyleTextBox(_valueNameBox);
+        _valueNameBox.AutoSize = false;
         _valueNameBox.Dock = DockStyle.Fill;
         _valueNameBox.Margin = new Padding(0);
         _valueNameBox.TextChanged += (_, _) => UpdatePreview();
@@ -1093,7 +1204,7 @@ public sealed class UnitEditorForm : Form
         return panel;
     }
 
-    private static void ApplyHeaderRowLayout(TableLayoutPanel? panel, bool split)
+    private void ApplyHeaderRowLayout(TableLayoutPanel? panel, bool split)
     {
         if (panel is null)
         {
@@ -1106,15 +1217,15 @@ public sealed class UnitEditorForm : Form
             panel.ColumnStyles.Clear();
             if (split)
             {
-                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, HeaderLabelWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _labelColumnWidth));
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, HeaderLabelWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _labelColumnWidth));
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             }
             else
             {
                 // 单栏：标签固定宽，输入占满剩余；后两列折叠为 0。
-                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, HeaderLabelWidth));
+                panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, _labelColumnWidth));
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 0));
                 panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 0));
