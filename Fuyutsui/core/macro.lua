@@ -3,6 +3,9 @@ local format = string.format
 local macroList = {}
 local macroKind = {}
 local bindingOwner = CreateFrame("Frame")
+local blockedHotkeys = {
+    ["RALT-RCTRL-RSHIFT-NUMPADMULTIPLY"] = true
+}
 
 local modifiers = {
     "RCTRL", "RALT", "RSHIFT",
@@ -32,8 +35,11 @@ do
     local i = 1
     for _, m in ipairs(modifiers) do
         for _, k in ipairs(keys) do
-            macroKind[i] = m .. "-" .. k
-            i = i + 1
+            local hotkey = m .. "-" .. k
+            if not blockedHotkeys[hotkey] then
+                macroKind[i] = hotkey
+                i = i + 1
+            end
         end
     end
 end

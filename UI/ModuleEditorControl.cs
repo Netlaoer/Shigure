@@ -18,7 +18,8 @@ public sealed class ModuleEditorControl : UserControl
     private readonly string _baseDirectory;
     private ConditionFieldCatalog _fieldCatalog;
     private KeymapCatalog _keymapCatalog;
-    private readonly ListBox _moduleList = new();
+    private readonly ScrollAwareListBox _moduleList = new();
+    private readonly UiDarkScrollBar _moduleScrollBar = new();
     private readonly TextBox _nameBox = new();
     private readonly TextBox _authorBox = new();
     private readonly TextBox _recommendedTalentBox = new();
@@ -27,6 +28,7 @@ public sealed class ModuleEditorControl : UserControl
     private readonly UiDropDown _partyTypeBox = new();
     private readonly UiDropDown _heroTalentBox = new();
     private readonly DataGridView _rulesGrid = new();
+    private readonly UiDarkScrollBar _rulesScrollBar = new();
     private readonly DataGridView _adjustmentsGrid = new();
     private readonly DataGridView _formulaAdjustmentsGrid = new();
     private readonly DataGridViewComboBoxColumn _spellColumn = new();
@@ -38,7 +40,6 @@ public sealed class ModuleEditorControl : UserControl
     private readonly DataGridViewComboBoxColumn _adjustmentTypeColumn = new();
     private readonly ListView _unitsList = new();
     private readonly Label _pathLabel = new();
-    private readonly Label _versionLabel = new();
     private readonly Label _unitsEmptyHint = new();
     private readonly Label _editorEmptyHint = new();
     private readonly ToolTip _pathToolTip = new();
@@ -53,7 +54,11 @@ public sealed class ModuleEditorControl : UserControl
         AutoPopDelay = 4000,
         ShowAlways = true
     };
+    private readonly ClassIconStrip _classFilterStrip = new();
+    private System.Windows.Forms.Timer? _topAreaResizeTimer;
+    private List<ModuleDefinition> _allModules = new();
     private List<ModuleDefinition> _modules = new();
+    private int? _filterClassId;
     private ModuleDefinition? _selectedModule;
     // 当前编辑中模块的动态单位/数量字段(含未保存的新增), 供目标下拉与条件字段使用。
     private readonly List<ModuleUnit> _units = new();
@@ -145,8 +150,8 @@ public sealed class ModuleEditorControl : UserControl
         _rulesGrid.Invalidate();
     }
 
-    private const int ModuleFooterBarHeight = 56;
-    private const int ModuleFooterButtonHeight = 36;
+    private const int ModuleFooterBarHeight = 64;
+    private const int ModuleFooterButtonHeight = 40;
 
     private void InitializeComponent()
     {
@@ -155,7 +160,39 @@ public sealed class ModuleEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var root = new TableLayoutPanel
+        var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
+        filterItems.AddRange(ClassNames.GetClasses().Select(item => ((int?)item.Id, item.Name)));
+        _classFilterStrip.SetItems(filterItems);
+        _classFilterStrip.SelectClassId(null);
+        _classFilterStrip.SelectionChanged += (_, _) =>
+        {
+            _filterClassId = _classFilterStrip.SelectedClassId;
+            ApplyModuleClassFilter(preserveSelection: true);
+        };
+
+        var iconStack = UiTheme.CreateIconStripStack(_classFilterStrip);
+        iconStack.Dock = DockStyle.None;
+        iconStack.Margin = Padding.Empty;
+        var iconViewport = new Panel
+        {
+            AutoScroll = true,
+            Margin = Padding.Empty
+        };
+        iconViewport.Controls.Add(iconStack);
+        var iconCard = UiTheme.CreateIconStripCard(iconViewport);
+        var identityCard = BuildNameRow();
+        identityCard.Dock = DockStyle.None;
+        var topArea = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty,
+            // 子控件的位置由 SyncTopArea 按可用宽度计算。
+        };
+        topArea.Controls.Add(iconCard);
+        topArea.Controls.Add(identityCard);
+        identityCard.BringToFront();
+        var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
@@ -163,16 +200,150 @@ public sealed class ModuleEditorControl : UserControl
             RowCount = 2,
             Margin = new Padding(0)
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ModuleFooterBarHeight));
-        Controls.Add(root);
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleSidebarWidth));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        body.RowStyles.Add(new RowStyle(SizeType.Absolute, ModuleFooterBarHeight));
+        body.Controls.Add(BuildSidebar(), 0, 0);
+        body.Controls.Add(BuildEditor(), 1, 0);
+        body.Controls.Add(BuildSidebarFooter(), 0, 1);
+        body.Controls.Add(BuildActionRow(), 1, 1);
+        body.Resize += (_, _) =>
+        {
+            var desired = body.ClientSize.Width < UiTheme.Scale(this, 1000)
+                ? 220
+                : UiTheme.ModuleSidebarWidth;
+            if (body.ColumnStyles[0].Width != desired)
+            {
+                body.ColumnStyles[0].Width = desired;
+            }
+        };
 
-        root.Controls.Add(BuildSidebar(), 0, 0);
-        root.Controls.Add(BuildEditor(), 1, 0);
-        root.Controls.Add(BuildSidebarFooter(), 0, 1);
-        root.Controls.Add(BuildActionRow(), 1, 1);
+        var page = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute,
+            ClassIconStrip.StripHeight + UiTheme.IconStripCardPadding * 2 + UiTheme.PageGap));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(topArea, 0, 0);
+        page.Controls.Add(body, 0, 1);
+
+        Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth, throttleResize: true));
+
+        var iconWidthLogical = ClassIconStrip.StripPadding * 2
+            + filterItems.Count * ClassIconStrip.CellSize
+            + Math.Max(0, filterItems.Count - 1) * ClassIconStrip.CellGap;
+
+        void SyncTopArea()
+        {
+            if (topArea.IsDisposed || !topArea.IsHandleCreated)
+            {
+                return;
+            }
+
+            var stripHeight = _classFilterStrip.ScaledHeight;
+            var identityHeight = Math.Max(stripHeight, UiTheme.Scale(this, 48));
+            var gap = UiTheme.Scale(this, UiTheme.PageGap);
+            var iconWidth = UiTheme.Scale(this, iconWidthLogical);
+            var preferredIdentity = UiTheme.Scale(this, UiTheme.ModuleIdentityCardWidth);
+            var minimumIdentity = UiTheme.Scale(this, UiTheme.ModuleIdentityCardMinWidth);
+            var availableWidth = topArea.ClientSize.Width;
+            if (availableWidth <= 0)
+            {
+                return;
+            }
+
+            var preferredIconCardWidth = iconWidth + iconCard.Padding.Horizontal;
+            // 先收窄名称/作者卡，再让职业图标卡在自身内部滚动；两张卡始终同排。
+            var identityWidth = Math.Clamp(
+                availableWidth - preferredIconCardWidth - gap,
+                Math.Min(minimumIdentity, Math.Max(0, availableWidth - gap)),
+                preferredIdentity);
+            var iconCardWidth = Math.Max(0,
+                Math.Min(preferredIconCardWidth, availableWidth - identityWidth - gap));
+            var needsScroll = iconWidth > Math.Max(0, iconCardWidth - iconCard.Padding.Horizontal);
+            var cardHeight = Math.Max(identityHeight,
+                stripHeight + iconCard.Padding.Vertical
+                    + (needsScroll ? SystemInformation.HorizontalScrollBarHeight : 0));
+            var topHeight = cardHeight + gap;
+            if (Math.Abs(page.RowStyles[0].Height - topHeight) > 0.5f)
+            {
+                page.RowStyles[0].Height = topHeight;
+            }
+
+            var identityLeft = availableWidth - identityWidth;
+            var iconCardBounds = new Rectangle(0, 0, iconCardWidth, cardHeight);
+            var iconBounds = new Rectangle(0, 0, iconWidth, stripHeight);
+            var identityBounds = new Rectangle(identityLeft, 0, identityWidth, cardHeight);
+
+            if (iconCard.Bounds == iconCardBounds
+                && iconStack.Bounds == iconBounds
+                && identityCard.Bounds == identityBounds)
+            {
+                return;
+            }
+
+            topArea.SuspendLayout();
+            try
+            {
+                if (iconCard.Bounds != iconCardBounds)
+                {
+                    iconCard.Bounds = iconCardBounds;
+                }
+
+                if (iconStack.Bounds != iconBounds)
+                {
+                    iconStack.Bounds = iconBounds;
+                }
+
+                if (identityCard.Bounds != identityBounds)
+                {
+                    identityCard.Bounds = identityBounds;
+                }
+
+                if (iconStack.RowStyles.Count >= 1
+                    && Math.Abs(iconStack.RowStyles[0].Height - stripHeight) > 0.5f)
+                {
+                    iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, stripHeight);
+                }
+
+                identityCard.BringToFront();
+            }
+            finally
+            {
+                topArea.ResumeLayout(false);
+            }
+        }
+
+        _topAreaResizeTimer = new System.Windows.Forms.Timer
+        {
+            Interval = UiTheme.LayoutResizeDebounceMs
+        };
+        _topAreaResizeTimer.Tick += (_, _) =>
+        {
+            _topAreaResizeTimer.Stop();
+            SyncTopArea();
+        };
+
+        topArea.Resize += (_, _) =>
+        {
+            _topAreaResizeTimer.Stop();
+            _topAreaResizeTimer.Start();
+        };
+        HandleCreated += (_, _) => BeginInvoke(SyncTopArea);
+        _classFilterStrip.HandleCreated += (_, _) => SyncTopArea();
+        Disposed += (_, _) =>
+        {
+            _topAreaResizeTimer?.Stop();
+            _topAreaResizeTimer?.Dispose();
+            _topAreaResizeTimer = null;
+        };
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -244,6 +415,7 @@ public sealed class ModuleEditorControl : UserControl
         var sidebar = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0, 0, UiTheme.PageGap, UiTheme.PageGap),
             ColumnCount = 1,
@@ -265,8 +437,49 @@ public sealed class ModuleEditorControl : UserControl
                 : null);
         _moduleList.BackColor = UiTheme.SurfaceRaised;
         _moduleList.SelectedIndexChanged += (_, _) => SelectModule(_moduleList.SelectedIndex);
-        sidebar.Controls.Add(_moduleList, 0, 0);
+        var hoveredModuleIndex = -1;
+        _moduleList.MouseMove += (_, e) =>
+        {
+            var index = _moduleList.IndexFromPoint(e.Location);
+            if (index == hoveredModuleIndex)
+            {
+                return;
+            }
+
+            hoveredModuleIndex = index;
+            _pathToolTip.SetToolTip(
+                _moduleList,
+                index >= 0 && index < _moduleList.Items.Count
+                    ? _moduleList.Items[index]?.ToString()
+                    : null);
+        };
+        _moduleList.MouseLeave += (_, _) => hoveredModuleIndex = -1;
+        var listHost = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = UiTheme.Surface };
+        listHost.Controls.Add(_moduleList);
+        AttachModuleScrollBar(listHost);
+        sidebar.Controls.Add(listHost, 0, 0);
         return sidebar;
+    }
+
+    private void AttachModuleScrollBar(Panel host)
+    {
+        host.Controls.Add(_moduleScrollBar);
+        _moduleScrollBar.BringToFront();
+        void PositionBar() => _moduleScrollBar.SetBounds(
+            Math.Max(0, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth),
+            0,
+            SystemInformation.VerticalScrollBarWidth,
+            host.ClientSize.Height);
+        void SyncBar() => _moduleScrollBar.SetMetrics(
+            _moduleList.Items.Count,
+            Math.Max(1, _moduleList.ClientSize.Height / Math.Max(1, _moduleList.ItemHeight)),
+            _moduleList.TopIndex);
+
+        host.Resize += (_, _) => { PositionBar(); SyncBar(); };
+        _moduleList.ViewChanged += (_, _) => SyncBar();
+        _moduleScrollBar.ScrollRequested += value => _moduleList.TopIndex = value;
+        PositionBar();
+        SyncBar();
     }
 
     private Control BuildSidebarFooter()
@@ -274,7 +487,8 @@ public sealed class ModuleEditorControl : UserControl
         var footer = new UiCardPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10),
+            BackColor = UiTheme.Surface,
+            Padding = new Padding(UiTheme.CardPadding, 12, UiTheme.CardPadding, 12),
             Margin = new Padding(0, 0, UiTheme.PageGap, 0),
             ColumnCount = 3,
             RowCount = 1
@@ -342,15 +556,13 @@ public sealed class ModuleEditorControl : UserControl
             Padding = new Padding(0),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap),
             ColumnCount = 1,
-            RowCount = 3
+            RowCount = 2
         };
-        editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));
         editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
         editor.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        editor.Controls.Add(BuildNameRow(), 0, 0);
-        editor.Controls.Add(BuildMatchRow(), 0, 1);
-        editor.Controls.Add(BuildEditorTabs(), 0, 2);
+        editor.Controls.Add(BuildMatchRow(), 0, 0);
+        editor.Controls.Add(BuildEditorTabs(), 0, 1);
         return editor;
     }
 
@@ -386,6 +598,7 @@ public sealed class ModuleEditorControl : UserControl
         var contentCard = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             ColumnCount = 1,
             RowCount = 1,
             Margin = new Padding(0),
@@ -502,8 +715,99 @@ public sealed class ModuleEditorControl : UserControl
         };
 
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        panel.Controls.Add(BuildRulesGrid(), 0, 0);
+        var gridHost = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 2,
+            RowCount = 1
+        };
+        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SystemInformation.VerticalScrollBarWidth));
+        gridHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        gridHost.Controls.Add(BuildRulesGrid(), 0, 0);
+        _rulesGrid.ScrollBars = ScrollBars.Horizontal;
+        _rulesScrollBar.Dock = DockStyle.Fill;
+        _rulesScrollBar.Margin = Padding.Empty;
+        gridHost.Controls.Add(_rulesScrollBar, 1, 0);
+        AttachRulesScrollBar(gridHost);
+        panel.Controls.Add(gridHost, 0, 0);
         return panel;
+    }
+
+    private void AttachRulesScrollBar(Control host)
+    {
+        var syncQueued = false;
+
+        void SyncBar()
+        {
+            if (_rulesGrid.IsDisposed || !_rulesGrid.IsHandleCreated)
+            {
+                return;
+            }
+
+            var visibleRows = Math.Max(1, _rulesGrid.DisplayedRowCount(includePartialRow: true));
+            var firstRow = _rulesGrid.FirstDisplayedScrollingRowIndex;
+            _rulesScrollBar.SetMetrics(_rulesGrid.Rows.Count, visibleRows, Math.Max(0, firstRow));
+        }
+
+        void ScheduleSync()
+        {
+            if (syncQueued || !_rulesGrid.IsHandleCreated || _rulesGrid.IsDisposed)
+            {
+                return;
+            }
+
+            syncQueued = true;
+            _rulesGrid.BeginInvoke(() =>
+            {
+                syncQueued = false;
+                SyncBar();
+            });
+        }
+
+        host.Resize += (_, _) => ScheduleSync();
+        _rulesGrid.Resize += (_, _) => ScheduleSync();
+        _rulesGrid.Scroll += (_, e) =>
+        {
+            if (e.ScrollOrientation == ScrollOrientation.VerticalScroll)
+            {
+                SyncBar();
+            }
+        };
+        _rulesGrid.RowsAdded += (_, _) => ScheduleSync();
+        _rulesGrid.RowsRemoved += (_, _) => ScheduleSync();
+        _rulesGrid.RowHeightChanged += (_, _) => ScheduleSync();
+        _rulesGrid.HandleCreated += (_, _) => ScheduleSync();
+        void ScrollRulesTo(int value)
+        {
+            if (value < 0 || value >= _rulesGrid.Rows.Count)
+            {
+                return;
+            }
+
+            try
+            {
+                _rulesGrid.FirstDisplayedScrollingRowIndex = value;
+            }
+            catch (InvalidOperationException)
+            {
+                // 表格正在重建行或切换页签时，下一次布局会同步滚动位置。
+            }
+        }
+
+        _rulesScrollBar.ScrollRequested += ScrollRulesTo;
+        _rulesGrid.MouseWheel += (_, e) =>
+        {
+            if (e.Delta != 0 && _rulesGrid.Rows.Count > 0)
+            {
+                ScrollRulesTo(Math.Clamp(
+                    Math.Max(0, _rulesGrid.FirstDisplayedScrollingRowIndex) - Math.Sign(e.Delta) * 3,
+                    0,
+                    _rulesGrid.Rows.Count - 1));
+            }
+        };
     }
 
     private Control BuildUnitsPanel()
@@ -518,7 +822,7 @@ public sealed class ModuleEditorControl : UserControl
             Margin = new Padding(0)
         };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         UiTheme.ConfigureListViewColumns(
@@ -578,75 +882,68 @@ public sealed class ModuleEditorControl : UserControl
     {
         var row = new UiCardPanel
         {
-            Dock = DockStyle.Fill,
-            ColumnCount = 4,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 2,
             RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 8),
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+            Padding = new Padding(UiTheme.CardPadding, 4, UiTheme.CardPadding, 4),
+            Margin = Padding.Empty
         };
-        // 名称/作者各占剩余宽度的一半, 两个输入框等宽并铺满窗口。
+        // 卡片外壳贴合内容：标签 + 等宽输入，无弹性留白列；靠右由顶栏定位负责。
+        row.ColumnStyles.Clear();
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        row.RowStyles.Clear();
+        row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
         row.Controls.Add(CreateLabel("名称"), 0, 0);
         UiTheme.StyleTextBox(_nameBox);
         _nameBox.Dock = DockStyle.Fill;
+        _nameBox.Margin = new Padding(0, 6, 0, 0);
         row.Controls.Add(_nameBox, 1, 0);
 
-        var authorLabel = CreateLabel("作者");
-        authorLabel.Margin = new Padding(10, 0, 0, 0);
-        row.Controls.Add(authorLabel, 2, 0);
+        row.Controls.Add(CreateLabel("作者"), 0, 1);
         UiTheme.StyleTextBox(_authorBox);
         _authorBox.Dock = DockStyle.Fill;
-        row.Controls.Add(_authorBox, 3, 0);
-
-        _pathLabel.Dock = DockStyle.Fill;
-        _pathLabel.ForeColor = UiTheme.Muted;
-        _pathLabel.BackColor = Color.Transparent;
-        _pathLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _pathLabel.AutoEllipsis = true;
-        _pathLabel.TextChanged += (_, _) => _pathToolTip.SetToolTip(_pathLabel, _pathLabel.Text);
-        row.Controls.Add(_pathLabel, 0, 1);
-        row.SetColumnSpan(_pathLabel, 3);
-
-        // 版本号紧贴窗口右侧, 右对齐显示在"路径"同一行。
-        _versionLabel.Dock = DockStyle.Fill;
-        _versionLabel.ForeColor = UiTheme.Muted;
-        _versionLabel.BackColor = Color.Transparent;
-        _versionLabel.TextAlign = ContentAlignment.MiddleRight;
-        _versionLabel.AutoEllipsis = true;
-        row.Controls.Add(_versionLabel, 3, 1);
+        _authorBox.Margin = new Padding(0, 6, 0, 0);
+        row.Controls.Add(_authorBox, 1, 1);
 
         return row;
     }
 
     private Control BuildMatchRow()
     {
-        var matchLabels = new[] { "职业", "专精", "英雄天赋", "队伍类型" };
-
+        var matchLabels = new[] { "职业:", "专精:", "英雄天赋:", "队伍类型:" };
+        var matchBoxes = new[] { _classBox, _specBox, _heroTalentBox, _partyTypeBox };
+        // 职业贴左、队伍类型贴右；组间等宽弹性间隙，四下拉等宽。
+        var columnCount = matchLabels.Length * 2 + (matchLabels.Length - 1);
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 12,
+            BackColor = UiTheme.Surface,
+            ColumnCount = columnCount,
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0)
         };
-        foreach (var label in matchLabels)
+
+        row.ColumnStyles.Clear();
+        for (var i = 0; i < matchLabels.Length; i++)
         {
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, MeasureLabelColumnWidth(label, Font)));
-            // 下拉框由原来的 25% 缩短到 20%，余下 5% 作为与下一项标签之间的弹性间隔。
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
-            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 5));
+            row.ColumnStyles.Add(new ColumnStyle(
+                SizeType.Absolute,
+                MeasureLabelColumnWidth(matchLabels[i], Font)));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
+            if (i < matchLabels.Length - 1)
+            {
+                row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            }
         }
-        // RowCount 会预置 Percent 样式, 必须 Clear 后再设 Absolute, 否则 Add 只追加到末尾不生效。
+
         row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
-        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        // 与匹配行同高，避免 Percent 撑高导致输入框比标签高出一截。
+        row.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
         ResetClassOptions(_classBox);
         ResetSpecOptions(_specBox, null);
@@ -672,10 +969,11 @@ public sealed class ModuleEditorControl : UserControl
             _rulesGrid.Invalidate();
         };
 
-        AddMatchField(row, "职业:", _classBox, 0);
-        AddMatchField(row, "专精:", _specBox, 3);
-        AddMatchField(row, "英雄天赋:", _heroTalentBox, 6);
-        AddMatchField(row, "队伍类型:", _partyTypeBox, 9);
+        // 列：标签0 / 框1 / 隙2 / 标签3 / 框4 / …
+        for (var i = 0; i < matchLabels.Length; i++)
+        {
+            AddMatchField(row, matchLabels[i], matchBoxes[i], i * 3);
+        }
 
         var recommendedTalentRow = new TableLayoutPanel
         {
@@ -683,26 +981,27 @@ public sealed class ModuleEditorControl : UserControl
             BackColor = Color.Transparent,
             ColumnCount = 2,
             RowCount = 1,
-            // 推荐天赋整行相对原位置下移 4px，并与上方匹配项保持清晰间距。
-            Margin = new Padding(0, 12, 0, 0)
+            Margin = new Padding(0, 4, 0, 0),
+            Padding = Padding.Empty
         };
         recommendedTalentRow.RowStyles.Clear();
         recommendedTalentRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(
-            SizeType.Absolute,
-            MeasureLabelColumnWidth("推荐天赋", Font)));
+        recommendedTalentRow.ColumnStyles.Clear();
+        recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
         recommendedTalentRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var recommendedTalentLabel = CreateLabel("推荐天赋:");
         recommendedTalentLabel.AutoSize = false;
+        recommendedTalentLabel.Dock = DockStyle.Fill;
+        recommendedTalentLabel.TextAlign = ContentAlignment.MiddleLeft;
         recommendedTalentLabel.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(recommendedTalentLabel, 0, 0);
         UiTheme.StyleTextBox(_recommendedTalentBox);
-        _recommendedTalentBox.Dock = DockStyle.None;
-        _recommendedTalentBox.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-        _recommendedTalentBox.Margin = Padding.Empty;
+        // 与标签同处固定行高内 Dock.Fill；仅输入框下移 4px，标签位置不变。
+        _recommendedTalentBox.Dock = DockStyle.Fill;
+        _recommendedTalentBox.Margin = new Padding(0, 10, 0, 0);
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
         row.Controls.Add(recommendedTalentRow, 0, 1);
-        row.SetColumnSpan(recommendedTalentRow, 12);
+        row.SetColumnSpan(recommendedTalentRow, columnCount);
 
         return row;
     }
@@ -1784,9 +2083,15 @@ public sealed class ModuleEditorControl : UserControl
         // 否则同名目标会被 seen 抢先登记成错误类别，载入时无法正确回填“类型”。
         foreach (var unit in _units)
         {
-            if (!string.IsNullOrWhiteSpace(unit.HealthName))
+            if (!string.IsNullOrWhiteSpace(unit.ValueName))
             {
-                AddAdjustmentField(fields, seen, unit.HealthName, $"{unit.HealthName} (生命值)", ConditionFieldCategory.DynamicUnit);
+                var fieldLabel = UnitSummary.DescribeTargetField(unit.TargetField);
+                AddAdjustmentField(
+                    fields,
+                    seen,
+                    unit.ValueName,
+                    $"{unit.ValueName} ({fieldLabel})",
+                    ConditionFieldCategory.DynamicUnit);
             }
         }
 
@@ -1885,6 +2190,7 @@ public sealed class ModuleEditorControl : UserControl
             GetAuraFields(),
             GetNameplateAuraFields(),
             GetThresholdFields(),
+            GetFormulaValueNames(),
             CollectTakenNames(),
             null,
             null,
@@ -1929,13 +2235,14 @@ public sealed class ModuleEditorControl : UserControl
         var existingEnemyCount = kind == UnitRowKind.EnemyCount ? _enemyCounts[index] : null;
         var existingAverageHealth = kind == UnitRowKind.AverageHealth ? _averageHealthFields[index] : null;
         var ownName = existingUnit?.Name ?? existingCount?.Name ?? existingEnemyCount?.Name ?? existingAverageHealth?.Name;
-        var ownHealthName = existingUnit?.HealthName;
+        var ownValueName = existingUnit?.ValueName;
 
         using var editor = new UnitEditorForm(
             GetAuraFields(),
             GetNameplateAuraFields(),
             GetThresholdFields(),
-            CollectTakenNames(ownName, ownHealthName),
+            GetFormulaValueNames(),
+            CollectTakenNames(ownName, ownValueName),
             existingUnit,
             existingCount,
             existingEnemyCount,
@@ -2047,20 +2354,18 @@ public sealed class ModuleEditorControl : UserControl
         _unitsList.Items.Clear();
         foreach (var unit in _units)
         {
-            var name = string.IsNullOrWhiteSpace(unit.HealthName) ? unit.Name : $"{unit.Name} / {unit.HealthName}";
+            var name = string.IsNullOrWhiteSpace(unit.ValueName) ? unit.Name : $"{unit.Name} / {unit.ValueName}";
             var summary = UnitSummary.Describe(unit, ResolveGroupAuraName);
             var item = new ListViewItem([name, "队友单位", summary]) { ToolTipText = $"{name}\n{summary}" };
-            var referencedAuraIds = (unit.AuraSpellIds ?? [])
-                .Concat(unit.AuraDurationSpellId is { } durationAuraSpellId ? [durationAuraSpellId] : [])
+            var referencedAuraIds = (unit.FilterGroups ?? [])
+                .SelectMany(group => group.Conditions ?? [])
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Concat(unit.TargetAuraSpellId is { } targetAuraId ? [targetAuraId] : [])
+                .Where(id => id > 0)
                 .Distinct();
             var missing = referencedAuraIds.Where(id => !availableAuraIds.Contains(id)).ToArray();
-            if (unit.AuraNames is { Count: > 0 })
-            {
-                item.BackColor = UiTheme.DangerSoft;
-                item.ForeColor = UiTheme.Danger;
-                item.ToolTipText += $"\n旧名称光环引用尚未转换：{string.Join("、", unit.AuraNames)}";
-            }
-            else if (missing.Length > 0)
+            if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
                 item.ForeColor = UiTheme.Danger;
@@ -2073,14 +2378,14 @@ public sealed class ModuleEditorControl : UserControl
         {
             var summary = UnitSummary.Describe(count, ResolveGroupAuraName);
             var item = new ListViewItem([count.Name, "队友数量", summary]) { ToolTipText = $"{count.Name}\n{summary}" };
-            var missing = (count.AuraSpellIds ?? []).Where(id => !availableAuraIds.Contains(id)).ToArray();
-            if (!string.IsNullOrWhiteSpace(count.AuraName))
-            {
-                item.BackColor = UiTheme.DangerSoft;
-                item.ForeColor = UiTheme.Danger;
-                item.ToolTipText += $"\n旧名称光环引用尚未转换：{count.AuraName}";
-            }
-            else if (missing.Length > 0)
+            var referencedAuraIds = count.FilterGroups
+                .SelectMany(group => group.Conditions)
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Where(id => id > 0)
+                .Distinct();
+            var missing = referencedAuraIds.Where(id => !availableAuraIds.Contains(id)).ToArray();
+            if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
                 item.ForeColor = UiTheme.Danger;
@@ -2098,7 +2403,13 @@ public sealed class ModuleEditorControl : UserControl
         {
             var summary = UnitSummary.Describe(count, ResolveNameplateAuraName);
             var item = new ListViewItem([count.Name, "敌人数量", summary]) { ToolTipText = $"{count.Name}\n{summary}" };
-            var missing = (count.AuraSpellIds ?? []).Where(id => !availableNameplateAuraIds.Contains(id)).ToArray();
+            var referencedAuraIds = count.FilterGroups
+                .SelectMany(group => group.Conditions)
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Where(id => id > 0)
+                .Distinct();
+            var missing = referencedAuraIds.Where(id => !availableNameplateAuraIds.Contains(id)).ToArray();
             if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
@@ -2120,7 +2431,13 @@ public sealed class ModuleEditorControl : UserControl
                 ToolTipText = $"{field.Name}\n{summary}"
             };
             var availableIds = enemyTarget ? availableNameplateAuraIds : availableAuraIds;
-            var missing = (field.AuraSpellIds ?? []).Where(id => !availableIds.Contains(id)).ToArray();
+            var referencedAuraIds = (field.FilterGroups ?? [])
+                .SelectMany(group => group.Conditions ?? [])
+                .Where(condition => condition.Field == CountConditionFieldKind.Aura)
+                .Select(condition => condition.AuraSpellId.GetValueOrDefault())
+                .Where(id => id > 0)
+                .Distinct();
+            var missing = referencedAuraIds.Where(id => !availableIds.Contains(id)).ToArray();
             if (missing.Length > 0)
             {
                 item.BackColor = UiTheme.DangerSoft;
@@ -2201,6 +2518,27 @@ public sealed class ModuleEditorControl : UserControl
             .ToList();
     }
 
+    private IReadOnlyList<string> GetFormulaValueNames()
+    {
+        var names = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (DataGridViewRow row in _formulaAdjustmentsGrid.Rows)
+        {
+            if (row.IsNewRow)
+            {
+                continue;
+            }
+
+            if (TryGetAdjustmentField(CellText(row, "Field"), CellText(row, "Formula"), out var field)
+                && seen.Add(field))
+            {
+                names.Add(field);
+            }
+        }
+
+        return names;
+    }
+
     // 名称查重集合: 其它单位/数量(含生命值名) + 当前职业/专精的状态字段与 group 字段; 排除正在编辑项自身的名称。
     private IReadOnlyCollection<string> CollectTakenNames(params string?[] ownNames)
     {
@@ -2211,9 +2549,9 @@ public sealed class ModuleEditorControl : UserControl
         foreach (var unit in _units)
         {
             taken.Add(unit.Name);
-            if (!string.IsNullOrWhiteSpace(unit.HealthName))
+            if (!string.IsNullOrWhiteSpace(unit.ValueName))
             {
-                taken.Add(unit.HealthName);
+                taken.Add(unit.ValueName);
             }
         }
 
@@ -3823,10 +4161,15 @@ public sealed class ModuleEditorControl : UserControl
                 fields.Add(new ConditionField(unit.Name, $"{unit.Name} (存在)", ConditionFieldType.Bool, ConditionFieldCategory.DynamicUnit));
             }
 
-            // 值名称: 该单位 生命值 的直接命名数值字段。
-            if (!string.IsNullOrWhiteSpace(unit.HealthName) && seen.Add(unit.HealthName))
+            // 值名称: 导出所选单位目标字段的命名数值。
+            if (!string.IsNullOrWhiteSpace(unit.ValueName) && seen.Add(unit.ValueName))
             {
-                fields.Add(new ConditionField(unit.HealthName, $"{unit.HealthName} (生命值)", ConditionFieldType.Int, ConditionFieldCategory.DynamicUnit));
+                var fieldLabel = UnitSummary.DescribeTargetField(unit.TargetField);
+                fields.Add(new ConditionField(
+                    unit.ValueName,
+                    $"{unit.ValueName} ({fieldLabel})",
+                    ConditionFieldType.Int,
+                    ConditionFieldCategory.DynamicUnit));
             }
         }
 
@@ -3874,14 +4217,15 @@ public sealed class ModuleEditorControl : UserControl
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
             ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0),
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10)
+            Padding = new Padding(UiTheme.CardPadding, 12, UiTheme.CardPadding, 12)
         };
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 148));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 360));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 352));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var openFolderButton = UiTheme.CreateButton("打开目录", UiTheme.ButtonKind.Secondary);
@@ -3893,38 +4237,41 @@ public sealed class ModuleEditorControl : UserControl
             openFolderButton,
             "在资源管理器中打开模块目录；若已选中已保存模块则定位到对应文件");
 
-        var spacer = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
-        };
+        _pathLabel.Dock = DockStyle.Fill;
+        _pathLabel.Margin = new Padding(8, 0, 16, 0);
+        _pathLabel.ForeColor = UiTheme.Muted;
+        _pathLabel.BackColor = Color.Transparent;
+        _pathLabel.TextAlign = ContentAlignment.MiddleLeft;
+        _pathLabel.AutoEllipsis = true;
+        _pathLabel.TextChanged += (_, _) => _pathToolTip.SetToolTip(_pathLabel, _pathLabel.Text);
 
         var buttons = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = Color.Transparent,
-            ColumnCount = 3,
+            ColumnCount = 5,
             RowCount = 1,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 8));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 8));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
         buttons.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         _addButton = UiTheme.CreateButton("新建", UiTheme.ButtonKind.Secondary);
         StyleModuleFooterButton(_addButton);
         _addButton.Dock = DockStyle.Fill;
-        _addButton.Margin = new Padding(0, 0, 8, 0);
+        _addButton.Margin = Padding.Empty;
         _addButton.Click += async (_, _) => await RunModuleCommandAsync(AddModuleAsync);
         _pathToolTip.SetToolTip(_addButton, "新建模块 (Ctrl+N)");
 
         _deleteButton = UiTheme.CreateButton("删除", UiTheme.ButtonKind.Danger);
         StyleModuleFooterButton(_deleteButton);
         _deleteButton.Dock = DockStyle.Fill;
-        _deleteButton.Margin = new Padding(0, 0, 8, 0);
+        _deleteButton.Margin = Padding.Empty;
         _deleteButton.Click += async (_, _) => await RunModuleCommandAsync(DeleteSelectedModuleAsync);
 
         _saveButton = UiTheme.CreateButton("保存", UiTheme.ButtonKind.Primary);
@@ -3935,11 +4282,11 @@ public sealed class ModuleEditorControl : UserControl
         _pathToolTip.SetToolTip(_saveButton, "保存当前模块 (Ctrl+S)");
 
         buttons.Controls.Add(_addButton, 0, 0);
-        buttons.Controls.Add(_deleteButton, 1, 0);
-        buttons.Controls.Add(_saveButton, 2, 0);
+        buttons.Controls.Add(_deleteButton, 2, 0);
+        buttons.Controls.Add(_saveButton, 4, 0);
 
         row.Controls.Add(openFolderButton, 0, 0);
-        row.Controls.Add(spacer, 1, 0);
+        row.Controls.Add(_pathLabel, 1, 0);
         row.Controls.Add(buttons, 2, 0);
         return row;
     }
@@ -4003,20 +4350,60 @@ public sealed class ModuleEditorControl : UserControl
         {
             _moduleStore.Reload();
         }
-        _modules = _moduleStore.GetModulesForDisplay().ToList();
-        _moduleList.Items.Clear();
-        foreach (var module in _modules)
+
+        _allModules = _moduleStore.GetModulesForDisplay().ToList();
+        ApplyModuleClassFilter(preserveSelection: false);
+    }
+
+    private void ApplyModuleClassFilter(bool preserveSelection)
+    {
+        var selectedId = preserveSelection ? _selectedModule?.Id : null;
+        _modules = _filterClassId is { } classId
+            ? _allModules.Where(module => module.Match.ClassId == classId).ToList()
+            : _allModules.ToList();
+
+        _moduleList.BeginUpdate();
+        try
         {
-            _moduleList.Items.Add(ModuleDisplay.FormatListItem(module));
+            _moduleList.Items.Clear();
+            foreach (var module in _modules)
+            {
+                _moduleList.Items.Add(ModuleDisplay.FormatListItem(module));
+            }
+        }
+        finally
+        {
+            _moduleList.EndUpdate();
         }
 
-        if (_modules.Count > 0)
+        _moduleScrollBar.SetMetrics(
+            _moduleList.Items.Count,
+            Math.Max(1, _moduleList.ClientSize.Height / Math.Max(1, _moduleList.ItemHeight)),
+            _moduleList.TopIndex);
+
+        if (_modules.Count == 0)
         {
-            _moduleList.SelectedIndex = 0;
+            ClearEditor();
+            return;
+        }
+
+        var index = 0;
+        if (selectedId is not null)
+        {
+            var matched = _modules.FindIndex(module => module.Id == selectedId);
+            if (matched >= 0)
+            {
+                index = matched;
+            }
+        }
+
+        if (_moduleList.SelectedIndex == index)
+        {
+            SelectModule(index);
         }
         else
         {
-            ClearEditor();
+            _moduleList.SelectedIndex = index;
         }
     }
 
@@ -4057,7 +4444,6 @@ public sealed class ModuleEditorControl : UserControl
         SelectHeroTalent(module.Match.HeroTalent);
         RefreshUnitsList();
         _pathLabel.Text = module.FilePath ?? "尚未保存";
-        _versionLabel.Text = string.IsNullOrWhiteSpace(module.Version) ? "版本 未知" : $"版本 {module.Version}";
         _adjustmentsGrid.Rows.Clear();
         _formulaAdjustmentsGrid.Rows.Clear();
         RefreshAdjustmentFieldColumn();
@@ -4129,7 +4515,6 @@ public sealed class ModuleEditorControl : UserControl
         SelectPartyType(null);
         SelectHeroTalent(null);
         _pathLabel.Text = "无模块";
-        _versionLabel.Text = string.Empty;
         _adjustmentsGrid.Rows.Clear();
         _formulaAdjustmentsGrid.Rows.Clear();
         RefreshAdjustmentFieldColumn();
@@ -4366,7 +4751,7 @@ public sealed class ModuleEditorControl : UserControl
             .Where(pair => pair.Value.Count == 1)
             .ToDictionary(pair => pair.Key, pair => pair.Value.Single(), StringComparer.Ordinal);
         var dynamicFieldNames = module.Units
-            .SelectMany(unit => new[] { unit.Name, unit.HealthName })
+            .SelectMany(unit => new[] { unit.Name, unit.ValueName })
             .Concat(module.Counts.Select(count => count.Name))
             .Concat(module.EnemyCounts.Select(count => count.Name))
             .Concat(module.AverageHealthFields.Select(field => field.Name))
@@ -4402,49 +4787,6 @@ public sealed class ModuleEditorControl : UserControl
             adjustment.Condition = condition;
             adjustment.Field = field;
             adjustment.Formula = formula;
-        }
-
-        for (var unitIndex = 0; unitIndex < module.Units.Count; unitIndex++)
-        {
-            var unit = module.Units[unitIndex];
-            if (unit.AuraNames is not { Count: > 0 })
-            {
-                continue;
-            }
-            var ids = new List<long>();
-            foreach (var name in unit.AuraNames)
-            {
-                if (!replacements.TryGetValue(name, out var key) || !TryExtractId(key, out var id))
-                {
-                    error = $"动态单位第 {unitIndex + 1} 行“{unit.Name}”引用的队伍光环“{name}”无法唯一转换为本地 spellId。";
-                    return false;
-                }
-                ids.Add(id);
-            }
-            unit.AuraSpellIds = ids.Distinct().ToList();
-            if (unit.AuraDurationFilter != AuraDurationFilterKind.None
-                && unit.AuraDurationSpellId is null
-                && unit.AuraSpellIds.Count > 0)
-            {
-                unit.AuraDurationSpellId = unit.AuraSpellIds[0];
-            }
-            unit.AuraNames = null;
-        }
-        for (var countIndex = 0; countIndex < module.Counts.Count; countIndex++)
-        {
-            var count = module.Counts[countIndex];
-            if (string.IsNullOrWhiteSpace(count.AuraName))
-            {
-                continue;
-            }
-            if (!replacements.TryGetValue(count.AuraName, out var key) || !TryExtractId(key, out var id))
-            {
-                error = $"动态数量第 {countIndex + 1} 行“{count.Name}”引用的队伍光环“{count.AuraName}”无法唯一转换为本地 spellId。";
-                return false;
-            }
-            count.AuraSpellId = id;
-            count.AuraSpellIds = [id];
-            count.AuraName = null;
         }
 
         return true;
@@ -4555,19 +4897,6 @@ public sealed class ModuleEditorControl : UserControl
                 values[i] = replaced;
             }
             return true;
-        }
-
-        static bool TryExtractId(string key, out long id)
-        {
-            foreach (var part in key.Split('.', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (long.TryParse(part, out id) && id > 0)
-                {
-                    return true;
-                }
-            }
-            id = 0;
-            return false;
         }
     }
 
@@ -4745,15 +5074,19 @@ public sealed class ModuleEditorControl : UserControl
         };
     }
 
-    private static void AddMatchField(TableLayoutPanel row, string label, UiDropDown box, int column)
+    private static void AddMatchField(
+        TableLayoutPanel row,
+        string label,
+        UiDropDown box,
+        int column)
     {
         var fieldLabel = CreateLabel(label);
+        fieldLabel.AutoSize = false;
         fieldLabel.Margin = Padding.Empty;
         row.Controls.Add(fieldLabel, column, 0);
         UiTheme.StyleComboBox(box);
-        // 仅横向拉伸，让固定高度的下拉控件在行内垂直居中，与标签共用一条水平中心线。
-        box.Dock = DockStyle.None;
-        box.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        // 标签与下拉同处一行；固定列宽下 Dock.Fill 填满单元格。
+        box.Dock = DockStyle.Fill;
         box.Margin = Padding.Empty;
         row.Controls.Add(box, column + 1, 0);
     }
@@ -4763,6 +5096,7 @@ public sealed class ModuleEditorControl : UserControl
         return new Label
         {
             Text = text,
+            AutoSize = false,
             Dock = DockStyle.Fill,
             ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,
@@ -4793,8 +5127,7 @@ public sealed class ModuleEditorControl : UserControl
     {
         var button = UiTheme.CreateButton(text, backColor, foreColor);
         button.AutoSize = false;
-        button.AutoEllipsis = true;
-        button.Height = 36;
+        button.Height = ModuleFooterButtonHeight;
         button.Margin = new Padding(0, 0, 0, bottomGap ? 8 : 0);
         button.Padding = new Padding(0);
         button.TextAlign = ContentAlignment.MiddleCenter;
@@ -4988,6 +5321,20 @@ public sealed class ModuleEditorControl : UserControl
         public override string ToString()
         {
             return Text;
+        }
+    }
+
+    private sealed class ScrollAwareListBox : ListBox
+    {
+        public event EventHandler? ViewChanged;
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg is 0x0115 or 0x020A or 0x0100 or 0x0101)
+            {
+                ViewChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
     }
 }

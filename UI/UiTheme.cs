@@ -9,17 +9,70 @@ namespace Shigure;
 internal static class UiTheme
 {
     public const int PageGap = 12;
-    public const int CardPadding = 14;
+    public const int CardPadding = 16;
+    public const int EditorShellPadding = 8;
     public const int ActionButtonHeight = 36;
     public const int GridRowHeight = 40;
     public const int TabBarHeight = 42;
-    public const int CardCornerRadius = 10;
+    public const int CardCornerRadius = 12;
     public const int ControlCornerRadius = 8;
+    public const int ResponsiveSplitBreakpoint = 900;
+
+    /// <summary>配置/宏/模块页最小内容宽（1200 × 1.5）；外层可随窗口加宽。</summary>
+    public const int EditorPageWidth = 1800;
+    /// <summary>模块列表侧栏宽度，留出名称与职业图标的可读空间。</summary>
+    public const int ModuleSidebarWidth = 320;
+    /// <summary>配置页职业/专精树侧栏默认展开宽。</summary>
+    public const int ConfigSidebarWidth = 240;
+    /// <summary>配置页职业/专精树侧栏缩窄宽（仅图标）。</summary>
+    public const int ConfigSidebarCollapsedWidth = 52;
+    /// <summary>配置侧栏拖动时最小展开宽。</summary>
+    public const int ConfigSidebarMinWidth = 160;
+    /// <summary>配置侧栏拖动时最大展开宽。</summary>
+    public const int ConfigSidebarMaxWidth = 480;
+    /// <summary>配置侧栏与右侧面板之间分隔条两侧留白。</summary>
+    public const int ConfigSidebarSplitGap = 8;
+    /// <summary>配置侧栏可拖动分隔条厚度。</summary>
+    public const int ConfigSidebarSplitterThickness = 4;
+    /// <summary>配置编辑区最小宽（EditorPageWidth - ConfigSidebarWidth - SplitGap×2 - Splitter）。</summary>
+    public const int ConfigEditorWidth = EditorPageWidth
+        - ConfigSidebarWidth
+        - ConfigSidebarSplitGap * 2
+        - ConfigSidebarSplitterThickness;
+    /// <summary>编辑页左右分栏在最小宽下的半宽参考值。</summary>
+    public const int EditorSplitHalfWidth = (EditorPageWidth - PageGap) / 2;
+    /// <summary>队伍页分组卡片固定宽（不再随父宽均分）。</summary>
+    public const int GroupCardFixedWidth = 176;
+    /// <summary>模块侧栏页脚按钮固定半宽。</summary>
+    public const int ModuleFooterButtonWidth = (ModuleSidebarWidth - CardPadding * 2 - 8) / 2;
+    /// <summary>模块 Match 筛选项下拉固定宽（四项等宽；相对原 160 加宽约 50%）。</summary>
+    public const int ModuleMatchFieldWidth = 240;
+    /// <summary>模块 Match 筛选项之间固定间隔。</summary>
+    public const int ModuleMatchGapWidth = 12;
+    /// <summary>模块顶栏名称/作者身份卡首选宽（仅标签+输入+内边距，无额外留白）。</summary>
+    public const int ModuleIdentityCardWidth = 58 + ModuleMatchFieldWidth + CardPadding * 2;
+    /// <summary>模块顶栏身份卡缩小时保留标签和可编辑的输入宽度。</summary>
+    public const int ModuleIdentityCardMinWidth = 58 + 160 + CardPadding * 2;
+    /// <summary>窗口拖拽时列宽重算防抖间隔（毫秒）。</summary>
+    public const int LayoutResizeDebounceMs = 80;
+    /// <summary>职业/专精图标条相邻格间距。</summary>
+    public const int IconStripCellGap = 4;
+    /// <summary>EX/BW 事件页卡片宽（通用 1200 × 1.3，与编辑页宽度解耦）。</summary>
+    public const int EventPageWidth = 1200 + 1200 * 3 / 10;
+    /// <summary>职业/专精图标逻辑边长（对齐 StyleSpecIconListBox(iconSize)）。</summary>
+    public const int ClassSpecIconSize = 40;
+    /// <summary>职业/专精图标格逻辑边长（iconSize + 8）。</summary>
+    public const int ClassSpecIconCellSize = ClassSpecIconSize + 8;
+    /// <summary>职业图标条卡片内边距。</summary>
+    public const int IconStripCardPadding = 8;
+    /// <summary>同一宿主内职业行与专精行间距。</summary>
+    public const int IconStripRowGap = 2;
 
     private static readonly Dictionary<int, Image?> ClassIcons = new();
     private static readonly Dictionary<(int ClassId, int SpecId), Image?> SpecIcons = new();
     private static readonly ConditionalWeakTable<ListView, Func<ListViewItem, int, Image?>> ListViewSubItemIcons = new();
     private static readonly ConditionalWeakTable<ListView, Func<ListViewItem, Color?>> ListViewRowAccents = new();
+    private static readonly ConditionalWeakTable<ListView, Font> ListViewPrimaryColumnBoldFonts = new();
     private static readonly ConditionalWeakTable<ListView, ListColumnLayoutState> ListColumnLayouts = new();
 
     private const int DwmwaUseImmersiveDarkMode = 20;
@@ -33,17 +86,21 @@ internal static class UiTheme
     private const int AccentEnableBlurBehind = 3;
     private const int AccentEnableAcrylicBlurBehind = 4;
 
-    public static readonly Color Background = Color.FromArgb(12, 15, 19);
-    public static readonly Color Surface = Color.FromArgb(23, 28, 35);
-    public static readonly Color SurfaceRaised = Color.FromArgb(28, 35, 43);
-    public static readonly Color Field = Color.FromArgb(34, 42, 51);
-    public static readonly Color Hover = Color.FromArgb(42, 53, 63);
-    public static readonly Color Pressed = Color.FromArgb(50, 63, 74);
-    public static readonly Color Border = Color.FromArgb(48, 58, 69);
-    public static readonly Color RowAlt = Color.FromArgb(26, 32, 39);
-    public static readonly Color Text = Color.FromArgb(231, 237, 243);
-    public static readonly Color Muted = Color.FromArgb(152, 164, 178);
-    public static readonly Color Accent = Color.FromArgb(82, 224, 209);
+    // Cursor 风格 charcoal 层次；Accent 保留 Shigure 青蓝。
+    public static readonly Color Background = Color.FromArgb(20, 20, 20);       // #141414
+    public static readonly Color Surface = Color.FromArgb(24, 24, 24);          // #181818
+    /// <summary>设置窗口导航侧栏，比主内容底色亮约 20%。</summary>
+    public static readonly Color SettingsNavigation = Color.FromArgb(29, 29, 29); // #1D1D1D
+    public static readonly Color SettingsNavigationBorder = Color.FromArgb(43, 43, 43); // #2B2B2B
+    public static readonly Color SurfaceRaised = Color.FromArgb(37, 37, 37);    // #252525
+    public static readonly Color Field = Color.FromArgb(45, 45, 45);            // #2D2D2D
+    public static readonly Color Hover = Color.FromArgb(55, 55, 55);            // #373737
+    public static readonly Color Pressed = Color.FromArgb(65, 65, 65);          // #414141
+    public static readonly Color Border = Color.FromArgb(58, 58, 58);           // #3A3A3A
+    public static readonly Color RowAlt = Color.FromArgb(33, 33, 33);           // #212121
+    public static readonly Color Text = Color.FromArgb(245, 245, 245);         // #F5F5F5
+    public static readonly Color Muted = Color.FromArgb(170, 170, 170);         // #AAAAAA
+    public static readonly Color Accent = Color.FromArgb(82, 224, 209);         // #52E0D1
     public static readonly Color AccentSoft = Color.FromArgb(24, 63, 64);
     public static readonly Color Success = Color.FromArgb(103, 211, 145);
     public static readonly Color Warning = Color.FromArgb(232, 196, 106);
@@ -115,6 +172,123 @@ internal static class UiTheme
     {
         var dark = 1;
         _ = DwmSetWindowAttribute(form.Handle, DwmwaUseImmersiveDarkMode, ref dark, sizeof(int));
+    }
+
+    /// <summary>
+    /// 编辑弹窗：固定客户端宽度、默认可变高度（MinimumSize/MaximumSize 锁宽）。
+    /// </summary>
+    public static void ConfigureFixedWidthResizableHeight(
+        Form form,
+        int clientWidth,
+        int defaultClientHeight,
+        int minimumClientHeight)
+    {
+        form.FormBorderStyle = FormBorderStyle.Sizable;
+        form.MaximizeBox = false;
+        form.MinimizeBox = false;
+        form.ClientSize = new Size(clientWidth, defaultClientHeight);
+        var outerWidth = form.Width;
+        var chromeHeight = Math.Max(0, form.Height - form.ClientSize.Height);
+        form.MinimumSize = new Size(outerWidth, chromeHeight + minimumClientHeight);
+        form.MaximumSize = new Size(outerWidth, int.MaxValue);
+    }
+
+    /// <summary>
+    /// 编辑弹窗：宽高都可拖动。默认客户端尺寸，最小客户端尺寸为下限。
+    /// </summary>
+    public static void ConfigureResizableDialog(
+        Form form,
+        int defaultClientWidth,
+        int defaultClientHeight,
+        int minimumClientWidth,
+        int minimumClientHeight)
+    {
+        form.FormBorderStyle = FormBorderStyle.Sizable;
+        form.MaximizeBox = false;
+        form.MinimizeBox = false;
+        form.ClientSize = new Size(defaultClientWidth, defaultClientHeight);
+        var chromeWidth = Math.Max(0, form.Width - form.ClientSize.Width);
+        var chromeHeight = Math.Max(0, form.Height - form.ClientSize.Height);
+        form.MinimumSize = new Size(
+            chromeWidth + minimumClientWidth,
+            chromeHeight + minimumClientHeight);
+        form.MaximumSize = Size.Empty;
+    }
+
+    /// <summary>仅恢复缓存高度，宽度保持锁定。</summary>
+    public static void RestoreCachedDialogHeight(Form form, WindowSize? cached)
+        => RestoreCachedDialogPlacement(form, cached, location: null);
+
+    /// <summary>
+    /// 恢复弹窗高度与关闭时位置；无位置缓存时保持首次默认（如 CenterParent）。
+    /// </summary>
+    public static void RestoreCachedDialogPlacement(
+        Form form,
+        WindowSize? cachedSize,
+        WindowLocation? location)
+    {
+        var workingArea = form.Owner is not null
+            ? Screen.FromControl(form.Owner).WorkingArea
+            : Screen.FromControl(form).WorkingArea;
+
+        if (cachedSize is { Height: > 0 })
+        {
+            var maximumHeight = Math.Max(form.MinimumSize.Height, workingArea.Height - 40);
+            form.Height = Math.Clamp(cachedSize.Height, form.MinimumSize.Height, maximumHeight);
+            if (form.MaximumSize.Width > 0)
+            {
+                form.Width = form.MaximumSize.Width;
+            }
+            else if (cachedSize.Width > 0 && form.MinimumSize.Width > 0)
+            {
+                var maximumWidth = Math.Max(form.MinimumSize.Width, workingArea.Width - 40);
+                form.Width = Math.Clamp(cachedSize.Width, form.MinimumSize.Width, maximumWidth);
+            }
+        }
+
+        if (location is null)
+        {
+            return;
+        }
+
+        // 有关闭位置缓存时改为手动坐标，避免 CenterParent 覆盖。
+        form.StartPosition = FormStartPosition.Manual;
+        var width = Math.Max(form.Width, form.MinimumSize.Width);
+        var height = Math.Max(form.Height, form.MinimumSize.Height);
+        var maxX = Math.Max(workingArea.Left, workingArea.Right - width);
+        var maxY = Math.Max(workingArea.Top, workingArea.Bottom - Math.Min(height, 80));
+        form.Location = new Point(
+            Math.Clamp(location.X, workingArea.Left, maxX),
+            Math.Clamp(location.Y, workingArea.Top, maxY));
+    }
+
+    /// <summary>缓存弹窗外框尺寸（主要用于高度）。</summary>
+    public static void SaveCachedDialogSize(Form form, Action<UiCacheState, WindowSize> assign)
+        => SaveCachedDialogPlacement(form, assign, locationAssign: null);
+
+    /// <summary>缓存弹窗高度与关闭位置。</summary>
+    public static void SaveCachedDialogPlacement(
+        Form form,
+        Action<UiCacheState, WindowSize> sizeAssign,
+        Action<UiCacheState, WindowLocation>? locationAssign)
+    {
+        if (form.WindowState != FormWindowState.Normal || form.Width <= 0 || form.Height <= 0)
+        {
+            return;
+        }
+
+        var cache = UiCacheStore.Load();
+        sizeAssign(cache, new WindowSize
+        {
+            Width = form.Width,
+            Height = form.Height
+        });
+        locationAssign?.Invoke(cache, new WindowLocation
+        {
+            X = form.Left,
+            Y = form.Top
+        });
+        UiCacheStore.Save(cache);
     }
 
     public static bool ApplyRoundedCorners(Form form)
@@ -224,7 +398,7 @@ internal static class UiTheme
 
     public static Button CreateButton(string text, Color backColor, Color foreColor)
     {
-        var button = new Button();
+        var button = new UiButton();
         StyleButton(button, text, backColor, foreColor);
         return button;
     }
@@ -240,19 +414,12 @@ internal static class UiTheme
         button.Margin = new Padding(6, 0, 0, 0);
         button.UseVisualStyleBackColor = false;
         button.Cursor = Cursors.Hand;
-        button.TabStop = false;
+        button.TabStop = true;
         button.FlatAppearance.BorderSize = 1;
         button.FlatAppearance.BorderColor = backColor == Accent ? Accent : Border;
         button.FlatAppearance.MouseOverBackColor = backColor == Accent ? Color.FromArgb(112, 234, 221) : Hover;
         button.FlatAppearance.MouseDownBackColor = backColor == Accent ? Color.FromArgb(62, 194, 181) : Pressed;
         ApplyControlRoundedRegion(button, ControlCornerRadius);
-
-        if (backColor == Accent)
-        {
-            // WinForms ignores ForeColor for a disabled flat button and falls back to
-            // the system disabled-text color, which is nearly black on our dark theme.
-            button.Paint += (_, e) => PaintDisabledPrimaryButton(button, e);
-        }
 
         button.EnabledChanged += (_, _) =>
         {
@@ -262,33 +429,62 @@ internal static class UiTheme
             button.FlatAppearance.BorderColor = button.Enabled ? (backColor == Accent ? Accent : Border) : Border;
             button.Invalidate();
         };
+        var hovered = false;
+        var pressed = false;
+        button.MouseEnter += (_, _) => { hovered = true; button.Invalidate(); };
+        button.MouseLeave += (_, _) => { hovered = false; pressed = false; button.Invalidate(); };
+        button.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                pressed = true;
+                button.Invalidate();
+            }
+        };
+        button.MouseUp += (_, _) => { pressed = false; button.Invalidate(); };
+        button.Paint += (_, e) => PaintStyledButton(button, e, hovered, pressed);
     }
 
-    private static void PaintDisabledPrimaryButton(Button button, PaintEventArgs e)
+    private static void PaintStyledButton(Button button, PaintEventArgs e, bool hovered, bool pressed)
     {
-        if (button.Enabled || button.ClientSize.Width <= 1 || button.ClientSize.Height <= 1)
+        if (button.ClientSize.Width <= 1 || button.ClientSize.Height <= 1)
         {
             return;
         }
 
+        // 应用级深色模式也会重绘按钮；在 WinForms 绘制后恢复现有平面按钮外观。
+        var fill = !button.Enabled ? SurfaceRaised
+            : pressed ? button.FlatAppearance.MouseDownBackColor
+            : hovered ? button.FlatAppearance.MouseOverBackColor
+            : button.BackColor;
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         var bounds = new Rectangle(0, 0, button.ClientSize.Width - 1, button.ClientSize.Height - 1);
         using var path = CreateRoundedRectanglePath(bounds, Scale(button, ControlCornerRadius));
-        using var backgroundBrush = new SolidBrush(SurfaceRaised);
-        using var borderPen = new Pen(Border);
+        using var backgroundBrush = new SolidBrush(fill);
+        e.Graphics.Clear(button.Parent?.BackColor ?? Surface);
         e.Graphics.FillPath(backgroundBrush, path);
-        e.Graphics.DrawPath(borderPen, path);
+        if (button.FlatAppearance.BorderSize > 0)
+        {
+            using var borderPen = new Pen(button.FlatAppearance.BorderColor, button.FlatAppearance.BorderSize);
+            e.Graphics.DrawPath(borderPen, path);
+        }
         TextRenderer.DrawText(
             e.Graphics,
             button.Text,
             button.Font,
             button.ClientRectangle,
-            Muted,
+            button.Enabled ? button.ForeColor : Muted,
             TextFormatFlags.HorizontalCenter
             | TextFormatFlags.VerticalCenter
             | TextFormatFlags.SingleLine
             | TextFormatFlags.EndEllipsis
-            | TextFormatFlags.NoPadding);
+            | TextFormatFlags.NoPadding
+            | TextFormatFlags.NoPrefix);
+        if (button is UiButton { DisplayFocusCue: true } && button.Focused && !pressed)
+        {
+            using var focusPen = new Pen(Accent);
+            e.Graphics.DrawPath(focusPen, path);
+        }
     }
 
     public static Button CreateButton(string text, ButtonKind kind)
@@ -305,6 +501,329 @@ internal static class UiTheme
 
     public static int Scale(Control control, int logicalPixels)
         => Math.Max(1, (int)Math.Round(logicalPixels * control.DeviceDpi / 96F));
+
+    /// <summary>双栏编辑区在窄宽度下改为上下排布；表格保留自身的横向滚动。</summary>
+    public static void ConfigureResponsiveSplit(TableLayoutPanel split, float firstColumnPercent = 50F)
+    {
+        if (split.Controls.Count != 2)
+        {
+            throw new ArgumentException("响应式双栏必须包含两个控件。", nameof(split));
+        }
+
+        var second = split.GetControlFromPosition(1, 0)
+            ?? throw new ArgumentException("缺少右侧编辑区。", nameof(split));
+        var stacked = false;
+        var updating = false;
+        void UpdateLayout()
+        {
+            if (updating || split.IsDisposed || split.ClientSize.Width <= 0)
+            {
+                return;
+            }
+
+            var shouldStack = split.ClientSize.Width < Scale(split, ResponsiveSplitBreakpoint);
+            if (stacked == shouldStack)
+            {
+                return;
+            }
+
+            updating = true;
+            split.SuspendLayout();
+            try
+            {
+                if (shouldStack)
+                {
+                    split.RowCount = 2;
+                    split.RowStyles.Clear();
+                    split.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+                    split.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+                    split.SetCellPosition(second, new TableLayoutPanelCellPosition(0, 1));
+                    split.ColumnCount = 1;
+                    split.ColumnStyles.Clear();
+                    split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                }
+                else
+                {
+                    split.ColumnCount = 2;
+                    split.ColumnStyles.Clear();
+                    split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, firstColumnPercent));
+                    split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F - firstColumnPercent));
+                    split.SetCellPosition(second, new TableLayoutPanelCellPosition(1, 0));
+                    split.RowCount = 1;
+                    split.RowStyles.Clear();
+                    split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                }
+
+                stacked = shouldStack;
+            }
+            finally
+            {
+                split.ResumeLayout(true);
+                updating = false;
+            }
+        }
+
+        split.Resize += (_, _) => UpdateLayout();
+        split.HandleCreated += (_, _) => UpdateLayout();
+        UpdateLayout();
+    }
+
+    /// <summary>
+    /// 编辑页宿主：宽度始终贴合客户区（可小于 contentWidth）；仅当子控件固有宽度超出时出现横向滚动。
+    /// contentWidth 保留为调用方设计参考宽，不再写成 MinimumSize / AutoScrollMinSize，避免最大化还原后卡住。
+    /// </summary>
+    public static Panel CreateFixedWidthPageHost(
+        Control content,
+        int contentWidth,
+        bool throttleResize = false)
+    {
+        _ = contentWidth;
+
+        var scrollHost = new Panel
+        {
+            Dock = DockStyle.Fill,
+            AutoScroll = true,
+            BackColor = Surface,
+            Margin = new Padding(0)
+        };
+
+        content.Dock = DockStyle.None;
+        content.Location = Point.Empty;
+        // 允许随窗口收缩；旧逻辑 MinimumSize=contentWidth 会在还原后把内容锁在 1800+ 并留下横条。
+        content.MinimumSize = Size.Empty;
+        content.MaximumSize = Size.Empty;
+
+        void SyncLayout()
+        {
+            if (scrollHost.IsDisposed || content.IsDisposed)
+            {
+                return;
+            }
+
+            var hostWidth = Math.Max(0, scrollHost.ClientSize.Width);
+            var hostHeight = Math.Max(0, scrollHost.ClientSize.Height);
+            if (hostWidth <= 0 || hostHeight <= 0)
+            {
+                return;
+            }
+
+            var targetWidth = hostWidth;
+            var height = Math.Max(200, hostHeight);
+
+            if (content.Left != 0 || content.Top != 0
+                || content.Width != targetWidth
+                || content.Height != height)
+            {
+                content.SetBounds(0, 0, targetWidth, height);
+            }
+
+            // 不强制 AutoScrollMinSize=设计宽；清空后由子控件实际边界决定是否需要滚动。
+            if (scrollHost.AutoScrollMinSize != Size.Empty)
+            {
+                scrollHost.AutoScrollMinSize = Size.Empty;
+            }
+
+            // 最大化→还原后 WinForms 偶发保留横向滚动度量：内容已贴合时强制复位。
+            if (content.Width <= hostWidth
+                && (scrollHost.HorizontalScroll.Visible || scrollHost.AutoScrollPosition.X != 0))
+            {
+                scrollHost.AutoScroll = false;
+                scrollHost.AutoScrollMinSize = Size.Empty;
+                scrollHost.AutoScroll = true;
+            }
+        }
+
+        var layoutSuspended = false;
+        var applyingResize = false;
+        System.Windows.Forms.Timer? resizeTimer = null;
+        Form? parentForm = null;
+
+        void FinishResize()
+        {
+            resizeTimer?.Stop();
+            if (scrollHost.IsDisposed || content.IsDisposed)
+            {
+                return;
+            }
+
+            applyingResize = true;
+            try
+            {
+                if (layoutSuspended)
+                {
+                    layoutSuspended = false;
+                    content.ResumeLayout(performLayout: true);
+                }
+
+                scrollHost.AutoScroll = true;
+                SyncLayout();
+            }
+            finally
+            {
+                applyingResize = false;
+            }
+        }
+
+        void OnResizeEnd(object? sender, EventArgs e) => FinishResize();
+        if (throttleResize)
+        {
+            resizeTimer = new System.Windows.Forms.Timer { Interval = LayoutResizeDebounceMs };
+            resizeTimer.Tick += (_, _) => FinishResize();
+        }
+
+        void ScheduleSync()
+        {
+            if (scrollHost.IsDisposed || content.IsDisposed || applyingResize)
+            {
+                return;
+            }
+
+            if (!scrollHost.IsHandleCreated)
+            {
+                SyncLayout();
+                return;
+            }
+
+            if (!throttleResize)
+            {
+                scrollHost.BeginInvoke(SyncLayout);
+                return;
+            }
+
+            // 模块页先贴合宿主尺寸，延后内部表格与卡片排版，拖动时避免反复重绘。
+            applyingResize = true;
+            try
+            {
+                if (!layoutSuspended)
+                {
+                    content.SuspendLayout();
+                    layoutSuspended = true;
+                    scrollHost.AutoScroll = false;
+                    scrollHost.HorizontalScroll.Visible = false;
+                    scrollHost.VerticalScroll.Visible = false;
+                }
+
+                var width = Math.Max(0, scrollHost.ClientSize.Width);
+                var height = Math.Max(0, scrollHost.ClientSize.Height);
+                if (width > 0 && height > 0
+                    && content.Bounds != new Rectangle(0, 0, width, Math.Max(200, height)))
+                {
+                    content.SetBounds(0, 0, width, Math.Max(200, height));
+                }
+            }
+            finally
+            {
+                applyingResize = false;
+            }
+
+            if (resizeTimer is { Enabled: false })
+            {
+                resizeTimer.Start();
+            }
+        }
+
+        scrollHost.Controls.Add(content);
+        scrollHost.Resize += (_, _) => ScheduleSync();
+        scrollHost.HandleCreated += (_, _) =>
+        {
+            scrollHost.BeginInvoke(SyncLayout);
+            if (throttleResize && scrollHost.FindForm() is { } form)
+            {
+                parentForm = form;
+                form.ResizeEnd += OnResizeEnd;
+            }
+        };
+        scrollHost.Disposed += (_, _) =>
+        {
+            if (parentForm is not null)
+            {
+                parentForm.ResizeEnd -= OnResizeEnd;
+            }
+
+            resizeTimer?.Dispose();
+        };
+        SyncLayout();
+        return scrollHost;
+    }
+
+    /// <summary>
+    /// 将职业/专精图标条自上而下堆叠；图标条本身左起顺序排布。
+    /// </summary>
+    public static TableLayoutPanel CreateIconStripStack(params Control[] strips)
+    {
+        ArgumentNullException.ThrowIfNull(strips);
+        if (strips.Length == 0)
+        {
+            throw new ArgumentException("至少需要一条图标条。", nameof(strips));
+        }
+
+        var host = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = strips.Length,
+            Padding = Padding.Empty,
+            Margin = new Padding(0, 0, 0, PageGap),
+            BackColor = Color.Transparent
+        };
+
+        for (var i = 0; i < strips.Length; i++)
+        {
+            var strip = strips[i];
+            host.RowStyles.Add(new RowStyle(SizeType.Absolute, Math.Max(1, strip.Height)));
+            strip.Dock = DockStyle.Fill;
+            strip.BackColor = Color.Transparent;
+            strip.Margin = i < strips.Length - 1
+                ? new Padding(0, 0, 0, IconStripRowGap)
+                : Padding.Empty;
+            host.Controls.Add(strip, 0, i);
+        }
+
+        return host;
+    }
+
+    /// <summary>堆叠图标条总高度（含行间距，无卡片内边距）。</summary>
+    public static int MeasureIconStripStackHeight(Control host, params int[] stripHeights)
+    {
+        ArgumentNullException.ThrowIfNull(stripHeights);
+        if (stripHeights.Length == 0)
+        {
+            return 0;
+        }
+
+        var gaps = Scale(host, IconStripRowGap) * Math.Max(0, stripHeights.Length - 1);
+        var body = 0;
+        foreach (var height in stripHeights)
+        {
+            body += height;
+        }
+
+        return gaps + body;
+    }
+
+    public static int MeasureIconStripCardHeight(Control host, params int[] stripHeights)
+        => MeasureIconStripStackHeight(host, stripHeights);
+
+    /// <summary>用一张卡片容纳整条职业图标，滚动留在卡片内部。</summary>
+    public static UiCardPanel CreateIconStripCard(Panel viewport)
+    {
+        ArgumentNullException.ThrowIfNull(viewport);
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.None,
+            ColumnCount = 1,
+            RowCount = 1,
+            Padding = new Padding(IconStripCardPadding),
+            Margin = Padding.Empty
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        viewport.Dock = DockStyle.Fill;
+        viewport.BackColor = SurfaceRaised;
+        viewport.Margin = Padding.Empty;
+        card.Controls.Add(viewport, 0, 0);
+        return card;
+    }
 
     public static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int radius)
     {
@@ -728,7 +1247,7 @@ internal static class UiTheme
         return Math.Max(0, visibleBounds.Width);
     }
 
-    private static Image? GetClassIcon(int classId)
+    internal static Image? GetClassIcon(int classId)
     {
         if (ClassIcons.TryGetValue(classId, out var cached))
         {
@@ -865,7 +1384,7 @@ internal static class UiTheme
         };
     }
 
-    private static Image? GetSpecIcon(int classId, int specId)
+    internal static Image? GetSpecIcon(int classId, int specId)
     {
         var key = (classId, specId);
         if (SpecIcons.TryGetValue(key, out var cached))
@@ -906,6 +1425,23 @@ internal static class UiTheme
         Func<ListViewItem, Color?> resolver)
     {
         ListViewRowAccents.Add(listView, resolver);
+    }
+
+    /// <summary>
+    /// 首列用粗体白字绘制（默认首列为 Muted）；用于首领页「副本」列等强调场景。
+    /// 返回的粗体字体由 ListView 生命周期托管，调用方勿 Dispose。
+    /// </summary>
+    public static Font EmphasizeListViewPrimaryColumn(ListView listView, Font baseFont)
+    {
+        if (ListViewPrimaryColumnBoldFonts.TryGetValue(listView, out var existing))
+        {
+            return existing;
+        }
+
+        var boldFont = new Font(baseFont, FontStyle.Bold);
+        ListViewPrimaryColumnBoldFonts.Add(listView, boldFont);
+        listView.Disposed += (_, _) => boldFont.Dispose();
+        return boldFont;
     }
 
     public static Color GetStateCategoryAccent(string? category)
@@ -1031,12 +1567,21 @@ internal static class UiTheme
             }
 
             var textBounds = new Rectangle(textLeft, e.Bounds.Y, textWidth, e.Bounds.Height);
+            var drawFont = font;
+            var drawColor = selected || e.ColumnIndex != 0 ? Text : Muted;
+            if (e.ColumnIndex == 0
+                && ListViewPrimaryColumnBoldFonts.TryGetValue(listView, out var primaryBoldFont))
+            {
+                drawFont = primaryBoldFont;
+                drawColor = Text;
+            }
+
             TextRenderer.DrawText(
                 e.Graphics,
                 e.SubItem?.Text ?? string.Empty,
-                font,
+                drawFont,
                 textBounds,
-                selected ? Text : e.ColumnIndex == 0 ? Muted : Text,
+                drawColor,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         };
 
@@ -1045,6 +1590,9 @@ internal static class UiTheme
 
     public static void StyleDataGridView(DataGridView grid)
     {
+        typeof(Control)
+            .GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.SetValue(grid, true);
         grid.Dock = DockStyle.Fill;
         grid.Margin = new Padding(0);
         grid.BackgroundColor = Surface;
@@ -1102,7 +1650,12 @@ internal static class UiTheme
                 return;
             }
 
-            grid.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText = e.Value.ToString();
+            var cell = grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+            var tooltip = e.Value.ToString() ?? string.Empty;
+            if (!string.Equals(cell.ToolTipText, tooltip, StringComparison.Ordinal))
+            {
+                cell.ToolTipText = tooltip;
+            }
         };
     }
 
@@ -1263,7 +1816,34 @@ internal static class UiTheme
         }
 
         ListColumnLayouts.Add(listView, new ListColumnLayoutState(columns));
-        listView.Resize += (_, _) => FitListViewColumns(listView);
+        System.Windows.Forms.Timer? debounce = null;
+        void ScheduleFit()
+        {
+            debounce ??= new System.Windows.Forms.Timer { Interval = LayoutResizeDebounceMs };
+            debounce.Stop();
+            debounce.Tick -= OnDebouncedFit;
+            debounce.Tick += OnDebouncedFit;
+            debounce.Start();
+        }
+
+        void OnDebouncedFit(object? sender, EventArgs e)
+        {
+            debounce?.Stop();
+            if (!listView.IsDisposed && listView.IsHandleCreated)
+            {
+                listView.SuspendLayout();
+                try
+                {
+                    FitListViewColumns(listView);
+                }
+                finally
+                {
+                    listView.ResumeLayout();
+                }
+            }
+        }
+
+        listView.Resize += (_, _) => ScheduleFit();
         listView.HandleCreated += (_, _) =>
         {
             // ListView 在 OnHandleCreated 内部会重建原生 item；此时 Items.Count 已更新，
@@ -1275,6 +1855,17 @@ internal static class UiTheme
                     FitListViewColumns(listView);
                 }
             });
+        };
+        listView.Disposed += (_, _) =>
+        {
+            if (debounce is null)
+            {
+                return;
+            }
+
+            debounce.Stop();
+            debounce.Dispose();
+            debounce = null;
         };
 
         if (!string.IsNullOrWhiteSpace(cacheKey))
@@ -1341,6 +1932,167 @@ internal static class UiTheme
         {
             isInitializing = false;
         }
+
+        EnableDebouncedFillColumns(grid);
+    }
+
+    /// <summary>
+    /// 将 Fill 列改为 Absolute，并在尺寸变化时防抖重算剩余宽度（SuspendLayout 批量更新）。
+    /// </summary>
+    public static void EnableDebouncedFillColumns(
+        DataGridView grid,
+        int debounceMs = LayoutResizeDebounceMs)
+    {
+        System.Windows.Forms.Timer? debounce = null;
+        var fillNames = new List<string>();
+
+        void CaptureFillColumns()
+        {
+            // 列常在 ConfigureGrid 之后逐个 Add：先加的 Fill 已被改为 None，
+            // 若此处 Clear 会丢掉已捕获名，导致右侧永远留白。只追加新 Fill，并剔除已删除列。
+            for (var i = fillNames.Count - 1; i >= 0; i--)
+            {
+                if (grid.Columns[fillNames[i]] is null)
+                {
+                    fillNames.RemoveAt(i);
+                }
+            }
+
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                if (column.AutoSizeMode != DataGridViewAutoSizeColumnMode.Fill)
+                {
+                    continue;
+                }
+
+                if (!fillNames.Contains(column.Name))
+                {
+                    fillNames.Add(column.Name);
+                }
+
+                column.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                if (column.MinimumWidth < 40)
+                {
+                    column.MinimumWidth = 40;
+                }
+            }
+        }
+
+        void ApplyFillWidths()
+        {
+            if (grid.IsDisposed || fillNames.Count == 0 || grid.ClientSize.Width <= 0)
+            {
+                return;
+            }
+
+            var fillColumns = new List<DataGridViewColumn>();
+            foreach (var name in fillNames)
+            {
+                if (grid.Columns[name] is { } column && column.Visible)
+                {
+                    fillColumns.Add(column);
+                }
+            }
+
+            if (fillColumns.Count == 0)
+            {
+                return;
+            }
+
+            var used = grid.RowHeadersVisible ? grid.RowHeadersWidth : 0;
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                if (!column.Visible || fillColumns.Contains(column))
+                {
+                    continue;
+                }
+
+                used += column.Width;
+            }
+
+            // 预留竖向滚动条与边框，避免末列被挤出可视区。
+            var chrome = SystemInformation.VerticalScrollBarWidth + Scale(grid, 4);
+            var remaining = Math.Max(0, grid.ClientSize.Width - used - chrome);
+            var share = remaining / fillColumns.Count;
+
+            grid.SuspendLayout();
+            try
+            {
+                foreach (var column in fillColumns)
+                {
+                    column.Width = Math.Max(column.MinimumWidth, share);
+                }
+            }
+            finally
+            {
+                grid.ResumeLayout();
+            }
+        }
+
+        void ScheduleApply()
+        {
+            if (fillNames.Count == 0)
+            {
+                return;
+            }
+
+            debounce ??= new System.Windows.Forms.Timer { Interval = debounceMs };
+            debounce.Stop();
+            debounce.Tick -= OnDebouncedApply;
+            debounce.Tick += OnDebouncedApply;
+            debounce.Start();
+        }
+
+        void OnDebouncedApply(object? sender, EventArgs e)
+        {
+            debounce?.Stop();
+            ApplyFillWidths();
+        }
+
+        void EnsureBound()
+        {
+            CaptureFillColumns();
+            ApplyFillWidths();
+        }
+
+        if (grid.IsHandleCreated)
+        {
+            EnsureBound();
+        }
+        else
+        {
+            grid.HandleCreated += (_, _) => EnsureBound();
+        }
+
+        var lastClientWidth = 0;
+        grid.SizeChanged += (_, _) =>
+        {
+            var width = grid.ClientSize.Width;
+            // 窗口缩小/还原时立即收回 Fill 列，避免防抖期间列宽仍超出而挤出横向滚动条。
+            if (width > 0 && lastClientWidth > 0 && width < lastClientWidth)
+            {
+                ApplyFillWidths();
+            }
+
+            lastClientWidth = width;
+            ScheduleApply();
+        };
+        grid.ColumnAdded += (_, _) =>
+        {
+            CaptureFillColumns();
+            ScheduleApply();
+        };
+        grid.Disposed += (_, _) =>
+        {
+            if (debounce is null)
+            {
+                return;
+            }
+
+            debounce.Stop();
+            debounce.Dispose();
+            debounce = null;
+        };
     }
 
     public static void CacheListViewColumnWidths(ListView listView, string cacheKey)

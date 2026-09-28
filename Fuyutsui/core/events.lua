@@ -483,11 +483,17 @@ end
 function Fuyutsui:PLAYER_TARGET_CHANGED()
     self:RefreshTargetState()
     self:UpdateUnitAuraContainer("target")
+    if self.RefreshNameplateUnitMappings then
+        self:RefreshNameplateUnitMappings()
+    end
 end
 
 function Fuyutsui:PLAYER_FOCUS_CHANGED()
     self:RefreshFocusState()
     self:UpdateUnitAuraContainer("focus")
+    if self.RefreshNameplateUnitMappings then
+        self:RefreshNameplateUnitMappings()
+    end
 end
 
 function Fuyutsui:UPDATE_MOUSEOVER_UNIT()
@@ -521,6 +527,9 @@ function Fuyutsui:NAME_PLATE_UNIT_REMOVED(_, unit)
     if self.ClearNameplatePixelSlot then
         self:ClearNameplatePixelSlot(unit)
     end
+    if self.RefreshNameplateUnitMappings then
+        self:RefreshNameplateUnitMappings()
+    end
     self:RefreshTargetReactionState()
 end
 
@@ -551,10 +560,19 @@ function Fuyutsui:UPDATE_SHAPESHIFT_FORMS()
 end
 
 function Fuyutsui:ENCOUNTER_START(_, encounterID, encounterName, difficultyID, groupSize)
+    if self.ResetExBossTimelinePixels then
+        self:ResetExBossTimelinePixels()
+    end
     self:SetEncounterState(encounterID, difficultyID)
 end
 
 function Fuyutsui:ENCOUNTER_END(_, encounterID, encounterName, difficultyID, groupSize, success)
+    if self.ResetExBossTimelinePixels then
+        self:ResetExBossTimelinePixels()
+    end
+    if self.ResetBigWigsTimelinePixels then
+        self:ResetBigWigsTimelinePixels()
+    end
     self:SetEncounterState(0, 0)
 end
 
@@ -620,6 +638,9 @@ function Fuyutsui:OnUpdate(elapsed)
         RunUpdateSafely(self, "RefreshEnemyCounts")
         RunUpdateSafely(self, "RefreshNameplatePixels")
         RunUpdateSafely(self, "UpdateItemCooldown")
+        RunUpdateSafely(self, "RefreshExBossTimelinePixels")
+        RunUpdateSafely(self, "RefreshExTrashTimelinePixels")
+        RunUpdateSafely(self, "RefreshBigWigsTimelinePixels")
         self.timeElapsed = 0
     end
 

@@ -559,10 +559,12 @@ internal static class FuyutsuiConfigConverter
 
         if (spec.GetTable("nameplates") is { } nameplates)
         {
-            // 生命值/距离/战斗是固定偏移，与插件 LoadPlayerBlocks 的分配保持一致。
+            // 先 7 格单位映射，再生命值/距离/战斗固定偏移，与插件 LoadPlayerBlocks 一致。
+            var regionStart = index;
             var nameplateJson = new JsonObject
             {
-                ["start"] = index,
+                ["start"] = regionStart,
+                ["mappingCount"] = NameplateStateLayout.MappingFieldCount,
                 ["healthPercent"] = NameplateStateLayout.HealthPercentOffset,
                 ["range"] = NameplateStateLayout.RangeOffset,
                 ["combat"] = NameplateStateLayout.CombatOffset,
@@ -610,12 +612,25 @@ internal static class FuyutsuiConfigConverter
             }
 
             nameplateJson["num"] = fieldCount;
-            if (index + NameplateStateLayout.SlotCount * fieldCount - 1 > MainPixelLayout.MaxCapacity)
+            var totalPixels = NameplateStateLayout.TotalPixelCount(fieldCount);
+            if (regionStart + totalPixels - 1 > MainPixelLayout.MaxCapacity)
             {
-                warnings.Add($"{label}: 姓名板需要 {NameplateStateLayout.SlotCount * fieldCount} 格，超过主像素行 {MainPixelLayout.MaxCapacity} 格上限，已停用姓名板");
+                warnings.Add(
+                    $"{label}: 姓名板需要 {totalPixels} 格（映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount}×{fieldCount}），超过主像素行 {MainPixelLayout.MaxCapacity} 格上限，已停用姓名板");
             }
             else
             {
+                for (var mappingIndex = 0; mappingIndex < NameplateStateLayout.MappingFieldNames.Length; mappingIndex++)
+                {
+                    var mappingName = NameplateStateLayout.MappingFieldNames[mappingIndex];
+                    result[mappingName] = new JsonObject
+                    {
+                        ["step"] = NameplateStateLayout.MappingPixelIndex(regionStart, mappingIndex + 1),
+                        ["type"] = "int",
+                        ["category"] = NameplateStateLayout.MappingClassification
+                    };
+                }
+
                 result["nameplates"] = nameplateJson;
             }
         }

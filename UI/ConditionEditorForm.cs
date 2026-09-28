@@ -145,6 +145,12 @@ public sealed class ConditionEditorForm : Form
     private const string OperatorColumn = "Operator";
     private const string ValueColumn = "Value";
     private const string DeleteColumn = "Delete";
+    private const string ExBossTypeField = "EX首领技能类型";
+    private const string ExBossEventField = "EX首领技能事件";
+    private const string ExTrashTypeField = "EX小怪技能类型";
+    private const string ExTrashEventField = "EX小怪技能事件";
+    private const string BigWigsTypeField = "BigWigs首领技能类型";
+    private const string BigWigsEventField = "BigWigs首领技能事件";
     private const string Unclassified = "未分类";
     private const int ConditionRowHeight = 46;
 
@@ -181,6 +187,8 @@ public sealed class ConditionEditorForm : Form
     private readonly ListBox _subList = new();
     private ToolStripDropDown? _conditionComboDropDown;
     private bool _updatingGrid;
+    private string? _advancedConditionText;
+    private string? _advancedGridSnapshot;
 
     public string ConditionText { get; private set; } = string.Empty;
     public int? DelayMs { get; private set; }
@@ -282,20 +290,30 @@ public sealed class ConditionEditorForm : Form
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        RestoreCachedWindowSize();
+        var cache = UiCacheStore.Load();
+        UiTheme.RestoreCachedDialogPlacement(
+            this,
+            cache.ConditionEditorWindowSize,
+            cache.ConditionEditorWindowLocation);
     }
 
     protected override void OnResizeEnd(EventArgs e)
     {
         base.OnResizeEnd(e);
-        SaveWindowSize();
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.ConditionEditorWindowSize = size,
+            (c, location) => c.ConditionEditorWindowLocation = location);
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         SpellIconCatalog.CatalogChanged -= OnSpellIconCatalogChanged;
         CloseConditionComboDropDown();
-        SaveWindowSize();
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.ConditionEditorWindowSize = size,
+            (c, location) => c.ConditionEditorWindowLocation = location);
         base.OnFormClosed(e);
     }
 
@@ -315,49 +333,6 @@ public sealed class ConditionEditorForm : Form
         _conditionsGrid.Invalidate();
     }
 
-    private void RestoreCachedWindowSize()
-    {
-        var cached = UiCacheStore.Load().ConditionEditorWindowSize;
-        if (cached is null || cached.Width <= 0 || cached.Height <= 0)
-        {
-            return;
-        }
-
-        var workingArea = Owner is not null
-            ? Screen.FromControl(Owner).WorkingArea
-            : Screen.FromControl(this).WorkingArea;
-        var maximumWidth = Math.Max(MinimumSize.Width, workingArea.Width - 40);
-        var maximumHeight = Math.Max(MinimumSize.Height, workingArea.Height - 40);
-        Size = new Size(
-            Math.Clamp(cached.Width, MinimumSize.Width, maximumWidth),
-            Math.Clamp(cached.Height, MinimumSize.Height, maximumHeight));
-
-        if (Owner is not null)
-        {
-            CenterToParent();
-        }
-        else
-        {
-            CenterToScreen();
-        }
-    }
-
-    private void SaveWindowSize()
-    {
-        if (WindowState != FormWindowState.Normal || Width <= 0 || Height <= 0)
-        {
-            return;
-        }
-
-        var cache = UiCacheStore.Load();
-        cache.ConditionEditorWindowSize = new WindowSize
-        {
-            Width = Width,
-            Height = Height
-        };
-        UiCacheStore.Save(cache);
-    }
-
     private void InitializeComponent()
     {
         Text = "编辑条件";
@@ -365,14 +340,11 @@ public sealed class ConditionEditorForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        var initialHeight = _allowSubConditions ? 650 : 460;
-        ClientSize = new Size(1080, initialHeight);
-        FormBorderStyle = FormBorderStyle.Sizable;
-        MaximizeBox = false;
-        MinimizeBox = false;
+        // 默认高度相对原 650/460 翻倍；宽度固定，高度可调并缓存。
+        var baseHeight = _allowSubConditions ? 650 : 460;
+        UiTheme.ConfigureFixedWidthResizableHeight(this, 1080, baseHeight * 2, baseHeight);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(780, initialHeight);
 
         var root = new TableLayoutPanel
         {
@@ -605,9 +577,8 @@ public sealed class ConditionEditorForm : Form
         _conditionsGrid.Columns.Add(CreateComboColumn(TypeColumn, "类型", 118, 90));
         _conditionsGrid.Columns.Add(CreateComboColumn(ClassificationColumn, "分类", 130, 100));
 
-        var fieldColumn = CreateComboColumn(FieldColumn, "字段", 260, 160);
-        fieldColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
-        fieldColumn.FillWeight = 180;
+        var fieldColumn = CreateComboColumn(FieldColumn, "字段", 260, 260);
+        fieldColumn.AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
         // 字段列始终保存唯一字段名，显示名称只负责界面文本。
         // 避免 DataGridView 在对象值与格式化字符串之间切换，导致预览丢行或跨行串值。
         fieldColumn.DisplayMember = nameof(FieldItem.Display);
@@ -720,6 +691,51 @@ public sealed class ConditionEditorForm : Form
         }
 
         if (e.ColumnIndex == _conditionsGrid.Columns[ValueColumn]!.Index
+            && cell is ExBossTypeValueCell or ExTrashTypeValueCell
+            && ExBossEventCatalog.FindMechanicType(e.Value?.ToString()) is { } mechanicType)
+        {
+            cell.ToolTipText = $"类型 {mechanicType.Value}: {mechanicType.Name}";
+            return;
+        }
+
+        if (e.ColumnIndex == _conditionsGrid.Columns[ValueColumn]!.Index
+            && cell is BigWigsTypeValueCell
+            && BigWigsEventCatalog.FindEventType(e.Value?.ToString()) is { } bigWigsType)
+        {
+            cell.ToolTipText = $"类型 {bigWigsType.Value}: {bigWigsType.Name}";
+            return;
+        }
+
+        if (e.ColumnIndex == _conditionsGrid.Columns[ValueColumn]!.Index
+            && cell is BigWigsEventValueCell
+            && BigWigsEventCatalog.FindEvent(e.Value?.ToString()) is { } bigWigsEvent)
+        {
+            var location = bigWigsEvent.MapName.Length > 0
+                ? $" · {bigWigsEvent.MapName} / {bigWigsEvent.BossName}"
+                : string.Empty;
+            cell.ToolTipText = $"spellID {bigWigsEvent.SpellId}{location}";
+            return;
+        }
+
+        if (e.ColumnIndex == _conditionsGrid.Columns[ValueColumn]!.Index
+            && cell is ExBossEventValueCell
+            && ExBossEventCatalog.FindEvent(e.Value?.ToString()) is { } eventInfo)
+        {
+            cell.ToolTipText = $"eventID {eventInfo.EventId} · spellID {eventInfo.SpellId} · {eventInfo.MechanicType} · {eventInfo.MapName} / {eventInfo.BossName}";
+            return;
+        }
+
+        if (e.ColumnIndex == _conditionsGrid.Columns[ValueColumn]!.Index
+            && cell is ExTrashEventValueCell
+            && ExBossEventCatalog.FindTrashEvent(e.Value?.ToString()) is { } trashEvent)
+        {
+            var locations = string.Join("；", trashEvent.Locations.Select(location =>
+                $"{location.MapName} / {location.MobName}"));
+            cell.ToolTipText = $"spellID {trashEvent.SpellId} · {trashEvent.MechanicType} · {locations}";
+            return;
+        }
+
+        if (e.ColumnIndex == _conditionsGrid.Columns[ValueColumn]!.Index
             && cell is ReferenceValueCell
             && _valueReferenceFields.FirstOrDefault(field => string.Equals(
                 field.Name,
@@ -775,7 +791,10 @@ public sealed class ConditionEditorForm : Form
         }
 
         var cell = _conditionsGrid.Rows[e.RowIndex].Cells[e.ColumnIndex];
-        if (cell is BossValueCell or ReferenceValueCell)
+        if (cell is BossValueCell or ReferenceValueCell
+            or ExBossTypeValueCell or ExBossEventValueCell
+            or ExTrashTypeValueCell or ExTrashEventValueCell
+            or BigWigsTypeValueCell or BigWigsEventValueCell)
         {
             var buttonBounds = UiTheme.GetDropDownButtonBounds(
                 _conditionsGrid,
@@ -785,6 +804,12 @@ public sealed class ConditionEditorForm : Form
                 if (cell is BossValueCell)
                 {
                     ShowBossNumberDropDown(e.RowIndex, e.ColumnIndex);
+                }
+                else if (cell is ExBossTypeValueCell or ExBossEventValueCell
+                    or ExTrashTypeValueCell or ExTrashEventValueCell
+                    or BigWigsTypeValueCell or BigWigsEventValueCell)
+                {
+                    ShowExBossValueDropDown(e.RowIndex, e.ColumnIndex);
                 }
                 else
                 {
@@ -818,6 +843,19 @@ public sealed class ConditionEditorForm : Form
 
     private void OnConditionsGridKeyDown(object? sender, KeyEventArgs e)
     {
+        if (_conditionsGrid.CurrentCell is ExBossTypeValueCell or ExBossEventValueCell
+                or ExTrashTypeValueCell or ExTrashEventValueCell
+                or BigWigsTypeValueCell or BigWigsEventValueCell
+            && (e.KeyCode == Keys.F4 || e.KeyCode == Keys.Down && e.Alt))
+        {
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            ShowExBossValueDropDown(
+                _conditionsGrid.CurrentCell.RowIndex,
+                _conditionsGrid.CurrentCell.ColumnIndex);
+            return;
+        }
+
         if (_conditionsGrid.CurrentCell is BossValueCell bossCell
             && (e.KeyCode == Keys.F4 || e.KeyCode == Keys.Down && e.Alt))
         {
@@ -978,6 +1016,102 @@ public sealed class ConditionEditorForm : Form
         _conditionComboDropDown = dropDown;
     }
 
+    private void ShowExBossValueDropDown(int rowIndex, int columnIndex)
+    {
+        CloseConditionComboDropDown();
+        _conditionsGrid.EndEdit();
+        if (rowIndex < 0 || rowIndex >= _conditionsGrid.Rows.Count)
+        {
+            return;
+        }
+
+        var cell = _conditionsGrid.Rows[rowIndex].Cells[columnIndex];
+        if (cell is not (ExBossTypeValueCell or ExBossEventValueCell
+            or ExTrashTypeValueCell or ExTrashEventValueCell
+            or BigWigsTypeValueCell or BigWigsEventValueCell))
+        {
+            return;
+        }
+
+        _conditionsGrid.CurrentCell = cell;
+        List<UiDropDownOption> options;
+        var preferredWidth = 320;
+        if (cell is BigWigsTypeValueCell)
+        {
+            options = BigWigsEventCatalog.EventTypes
+                .Select(item => new UiDropDownOption(
+                    item.Value.ToString(CultureInfo.InvariantCulture),
+                    item.Name,
+                    LeadingText: item.Value.ToString(CultureInfo.InvariantCulture)))
+                .ToList();
+        }
+        else if (cell is ExBossTypeValueCell or ExTrashTypeValueCell)
+        {
+            options = ExBossEventCatalog.MechanicTypes
+                .Select(item => new UiDropDownOption(
+                    item.Value.ToString(CultureInfo.InvariantCulture),
+                    item.Name,
+                    LeadingText: item.Value.ToString(CultureInfo.InvariantCulture)))
+                .ToList();
+        }
+        else
+        {
+            preferredWidth = 680;
+            options =
+            [
+                new UiDropDownOption("0", "无事件 / 未安装 EXBoss", LeadingText: "0")
+            ];
+            if (cell is BigWigsEventValueCell)
+            {
+                options[0] = new UiDropDownOption("0", "无事件 / 未安装 BigWigs", LeadingText: "0");
+                options.AddRange(BigWigsEventCatalog.Events.Select(item => new UiDropDownOption(
+                    item.Key.ToString(CultureInfo.InvariantCulture),
+                    item.MapName.Length > 0
+                        ? $"{item.Name} · spellID {item.SpellId} · {item.MapName} / {item.BossName}"
+                        : $"{item.Name} · spellID {item.SpellId}",
+                    LeadingText: item.Key.ToString(CultureInfo.InvariantCulture))));
+            }
+            else if (cell is ExTrashEventValueCell)
+            {
+                options.AddRange(ExBossEventCatalog.TrashEvents.Select(item => new UiDropDownOption(
+                    item.Key.ToString(CultureInfo.InvariantCulture),
+                    $"{item.Name} · {item.MechanicType} · {string.Join("；", item.Locations.Select(location => $"{location.MapName} / {location.MobName}").Distinct(StringComparer.Ordinal))}",
+                    LeadingText: item.Key.ToString(CultureInfo.InvariantCulture))));
+            }
+            else
+            {
+                options.AddRange(ExBossEventCatalog.Events.Select(item => new UiDropDownOption(
+                    item.Key.ToString(CultureInfo.InvariantCulture),
+                    $"{item.Name} · {item.MechanicType} · {item.MapName} / {item.BossName}",
+                    LeadingText: item.Key.ToString(CultureInfo.InvariantCulture))));
+            }
+        }
+
+        var currentValue = cell.Value?.ToString()?.Trim() ?? string.Empty;
+        var cellBounds = _conditionsGrid.GetCellDisplayRectangle(columnIndex, rowIndex, cutOverflow: true);
+        ToolStripDropDown? dropDown = null;
+        dropDown = UiDropDownPopup.Show(
+            _conditionsGrid,
+            cellBounds,
+            options,
+            currentValue,
+            selected =>
+            {
+                cell.Value = selected.Value?.ToString() ?? string.Empty;
+                _conditionsGrid.InvalidateCell(cell);
+                UpdatePreview();
+            },
+            preferredWidth,
+            closed: () =>
+            {
+                if (ReferenceEquals(_conditionComboDropDown, dropDown))
+                {
+                    _conditionComboDropDown = null;
+                }
+            });
+        _conditionComboDropDown = dropDown;
+    }
+
     private static Image? ResolveFieldIcon(FieldItem field)
     {
         if (field.ItemId is > 0)
@@ -1016,7 +1150,10 @@ public sealed class ConditionEditorForm : Form
 
 
         var cell = _conditionsGrid.Rows[e.RowIndex].Cells[e.ColumnIndex];
-        if (cell is BossValueCell or ReferenceValueCell)
+        if (cell is BossValueCell or ReferenceValueCell
+            or ExBossTypeValueCell or ExBossEventValueCell
+            or ExTrashTypeValueCell or ExTrashEventValueCell
+            or BigWigsTypeValueCell or BigWigsEventValueCell)
         {
             UiTheme.PaintDataGridViewComboBoxCell(_conditionsGrid, e, showButton: true);
             return;
@@ -1105,6 +1242,28 @@ public sealed class ConditionEditorForm : Form
 
         rightButtons.Controls.Add(okButton);
         rightButtons.Controls.Add(cancelButton);
+        var advancedButton = UiTheme.CreateButton("高级编辑", UiTheme.ButtonKind.Secondary);
+        UiTheme.StyleActionButton(advancedButton, 144);
+        void FitAdvancedButton()
+        {
+            var textSize = TextRenderer.MeasureText(
+                advancedButton.Text,
+                advancedButton.Font,
+                Size.Empty,
+                TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+            advancedButton.Width = Math.Max(
+                UiTheme.Scale(advancedButton, 144),
+                textSize.Width + advancedButton.Padding.Horizontal + UiTheme.Scale(advancedButton, 32));
+            advancedButton.Height = Math.Max(
+                advancedButton.Height,
+                textSize.Height + advancedButton.Padding.Vertical + UiTheme.Scale(advancedButton, 8));
+        }
+        advancedButton.HandleCreated += (_, _) => FitAdvancedButton();
+        advancedButton.FontChanged += (_, _) => FitAdvancedButton();
+        FitAdvancedButton();
+        advancedButton.Margin = Padding.Empty;
+        advancedButton.Click += (_, _) => EditConditionText();
+        row.Controls.Add(advancedButton, 0, 0);
         row.Controls.Add(rightButtons, 1, 0);
 
         AcceptButton = okButton;
@@ -1112,11 +1271,70 @@ public sealed class ConditionEditorForm : Form
         return row;
     }
 
+    private string CurrentConditionText()
+    {
+        var visualText = ConditionExpression.Build(CollectTerms());
+        if (_advancedConditionText is null)
+        {
+            return visualText;
+        }
+
+        if (!string.Equals(visualText, _advancedGridSnapshot, StringComparison.Ordinal))
+        {
+            _advancedConditionText = null;
+            _advancedGridSnapshot = null;
+            return visualText;
+        }
+
+        return _advancedConditionText;
+    }
+
+    private void EditConditionText()
+    {
+        CloseConditionComboDropDown();
+        _conditionsGrid.EndEdit();
+        using var editor = new ConditionTextEditorForm(CurrentConditionText());
+        if (editor.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        var settingTerms = _conditionsGrid.Rows.Cast<DataGridViewRow>()
+            .Select(row => (Field: SelectedField(row), Value: ReadRowValue(row)))
+            .Where(item => IsRuleSettingField(item.Field))
+            .Select(item => new ConditionTerm(false, item.Field!.Name, "==", item.Value))
+            .ToArray();
+
+        _conditionsGrid.Rows.Clear();
+        foreach (var term in ConditionExpression.Parse(editor.ConditionText))
+        {
+            AddRow(term);
+        }
+
+        foreach (var setting in settingTerms)
+        {
+            AddRow(setting);
+        }
+
+        if (_conditionsGrid.Rows.Count == 0)
+        {
+            AddRow(null);
+        }
+
+        RefreshConnectors();
+        _advancedConditionText = editor.ConditionText;
+        _advancedGridSnapshot = ConditionExpression.Build(CollectTerms());
+        UpdatePreview();
+    }
+
     // 提交前对两类静默丢失给出确认: 不完整行被忽略、或结果为空会把条件清成"始终命中"。
     private void TryConfirm()
     {
         _conditionsGrid.EndEdit();
-        var incomplete = _conditionsGrid.Rows.Cast<DataGridViewRow>().Count(IsRowIncomplete);
+        var text = CurrentConditionText();
+        var incomplete = _advancedConditionText is null
+            ? _conditionsGrid.Rows.Cast<DataGridViewRow>().Count(IsRowIncomplete)
+            : 0;
         if (incomplete > 0
             && MessageBox.Show(
                 $"有 {incomplete} 行不完整(字段或值为空), 将被忽略。继续？",
@@ -1127,7 +1345,6 @@ public sealed class ConditionEditorForm : Form
             return;
         }
 
-        var text = ConditionExpression.Build(CollectTerms());
         if (!TryReadDelay(out var delayMs))
         {
             return;
@@ -1517,6 +1734,27 @@ public sealed class ConditionEditorForm : Form
             return;
         }
 
+        if (field?.Name is ExBossTypeField or ExBossEventField or ExTrashTypeField or ExTrashEventField
+            or BigWigsTypeField or BigWigsEventField)
+        {
+            var value = rawValue?.Trim() ?? string.Empty;
+            if (value.Length == 0)
+            {
+                value = "0";
+            }
+
+            row.Cells[ValueColumn] = field.Name switch
+            {
+                ExBossTypeField => new ExBossTypeValueCell { Value = value },
+                ExBossEventField => new ExBossEventValueCell { Value = value },
+                ExTrashTypeField => new ExTrashTypeValueCell { Value = value },
+                ExTrashEventField => new ExTrashEventValueCell { Value = value },
+                BigWigsTypeField => new BigWigsTypeValueCell { Value = value },
+                _ => new BigWigsEventValueCell { Value = value }
+            };
+            return;
+        }
+
         if (string.Equals(field?.Name, "首领战", StringComparison.Ordinal))
         {
             var bossValue = rawValue?.Trim() ?? string.Empty;
@@ -1863,7 +2101,7 @@ public sealed class ConditionEditorForm : Form
         _ = TryReadDelay(out var delayMs, showWarning: false);
         _ = TryReadLogicDelay(out var logicDelayMs, showWarning: false);
         _ = TryReadContinueLogic(out var continueLogic, showWarning: false);
-        var full = ComposePreview(ConditionExpression.Build(CollectTerms()), delayMs, logicDelayMs, continueLogic);
+        var full = ComposePreview(CurrentConditionText(), delayMs, logicDelayMs, continueLogic);
         _previewLabel.Text = full.Length == 0 ? "预览: (无条件, 始终命中)" : $"预览: {full}";
         // 单行预览会被省略号截断, 悬停看完整表达式。
         _previewToolTip.SetToolTip(_previewLabel, full.Length == 0 ? string.Empty : full);
@@ -2101,6 +2339,14 @@ public sealed class ConditionEditorForm : Form
     }
 
     private sealed class BossValueCell : DataGridViewTextBoxCell;
+
+    // EX 事件值保留文本框编辑能力，右侧按钮同时提供已知类型/事件目录。
+    private sealed class ExBossTypeValueCell : DataGridViewTextBoxCell;
+    private sealed class ExBossEventValueCell : DataGridViewTextBoxCell;
+    private sealed class ExTrashTypeValueCell : DataGridViewTextBoxCell;
+    private sealed class ExTrashEventValueCell : DataGridViewTextBoxCell;
+    private sealed class BigWigsTypeValueCell : DataGridViewTextBoxCell;
+    private sealed class BigWigsEventValueCell : DataGridViewTextBoxCell;
 
     // 值列: 可手填数字, 也可从动态数值字段中选一个作为引用。
     private sealed class ReferenceValueCell : DataGridViewTextBoxCell;

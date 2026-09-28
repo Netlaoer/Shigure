@@ -16,7 +16,6 @@ public sealed class MainForm : Form, IMessageFilter
         Exit
     }
 
-    private const int ResizeGripSize = 8;
     private const int RoundedCornerResizeDebounceMs = 80;
     private const int WowProcessMonitorIntervalMs = 10_000;
     private const int GamepadCaptureIntervalMs = 50;
@@ -26,6 +25,10 @@ public sealed class MainForm : Form, IMessageFilter
     private const int MinimumMainBarShortEdge = 56;
     private const int MainBarSizeVersion = 1;
     private const int TopBarButtonGap = 12;
+    /// <summary>图标按下后移动超过该像素才视为拖拽窗口，否则视为点击折叠/展开。</summary>
+    private const int HeaderIconDragThresholdPx = 4;
+    /// <summary>圆形程序图标相对容器略偏左，向右微调以利水平居中（展开/折叠共用）。</summary>
+    private const int HeaderIconNudgeX = 2;
     private const string HeaderIconResourcePath = "Assets.arasaka-icon-transparent.png";
     private const string ModuleWebsiteUrl = "https://www.shigure.club";
     private static readonly Color DefaultHeaderIconColor = Color.White;
@@ -49,8 +52,8 @@ public sealed class MainForm : Form, IMessageFilter
     private Button _toggleKeyButton = null!;
     private UiDropDown _modeComboBox = null!;
     private UiDropDown _captureMethodComboBox = null!;
-    private NumericUpDown _scanIntervalBox = null!;
-    private NumericUpDown _logicIntervalBox = null!;
+    private UiSlider _scanIntervalSlider = null!;
+    private UiSlider _logicIntervalSlider = null!;
     private UiDropDown _moduleComboBox = null!;
     private Label _moduleFilterLabel = null!;
     private Label _moduleCountLabel = null!;
@@ -89,10 +92,16 @@ public sealed class MainForm : Form, IMessageFilter
     private readonly List<Label> _runtimeStatusLabels = [];
     private Control _horizontalTopBar = null!;
     private Control _verticalTopBar = null!;
+    private FlowLayoutPanel _horizontalButtons = null!;
+    private FlowLayoutPanel _verticalButtons = null!;
     private MainWindowLayout _mainWindowLayout = MainWindowLayout.Horizontal;
     private CloseButtonBehavior _closeButtonBehavior = CloseButtonBehavior.MinimizeToTray;
     private Bitmap? _headerIconMask;
     private Color? _currentHeaderIconColor;
+    private bool _mainBarCollapsed;
+    private WindowBounds? _expandedMainWindowBounds;
+    private Point? _headerIconPointerScreen;
+    private bool _headerIconDragging;
 
     private readonly StatusForm _statusForm;
     private readonly string _baseDirectory;
@@ -159,6 +168,13 @@ public sealed class MainForm : Form, IMessageFilter
         _runtimeSession = runtimeSession;
         _uiCache = UiCacheStore.Load();
         _statusForm = new StatusForm();
+        _statusForm.VisibleChanged += (_, _) =>
+        {
+            if (!IsDisposed && !Disposing)
+            {
+                TopMost = !_statusForm.Visible;
+            }
+        };
         _roundedCornerResizeTimer = new System.Windows.Forms.Timer
         {
             Interval = RoundedCornerResizeDebounceMs
@@ -211,6 +227,7 @@ public sealed class MainForm : Form, IMessageFilter
             _gamepadCaptureTimer.Dispose();
             SaveUiCache();
         };
+        _statusForm.SidebarLayoutChanged += (_, _) => SaveUiCache();
         ApplyCachedWindowState();
         ApplyInitialOptions();
         WireSettingEvents();
@@ -571,13 +588,13 @@ public sealed class MainForm : Form, IMessageFilter
 
     protected override void WndProc(ref Message m)
     {
-        const int WmNcHitTest = 0x0084;
-        if (m.Msg == WmNcHitTest)
+        // 主条矮客户区不能套 Form.Padding 热区（会裁切标题/按钮）；仅保留轻量边缘命中。
+        if (m.Msg == BorderlessFormChrome.WmNcHitTest)
         {
             base.WndProc(ref m);
-            if (m.Result == NativeMethods.HtClient)
+            if (WindowState == FormWindowState.Normal)
             {
-                m.Result = HitTestResizeGrip(PointToClient(Cursor.Position));
+                BorderlessFormChrome.TryHandleNcHitTest(this, ref m);
             }
 
             return;
@@ -595,6 +612,8 @@ public sealed class MainForm : Form, IMessageFilter
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.None;
         TopMost = true;
+        // 浮动条高度仅 ~64：禁止 Form.Padding 缩放热区，否则标题/按钮会被上下 Padding 裁切。
+        Padding = Padding.Empty;
         ClientSize = new Size(DefaultMainBarLongEdge, DefaultMainBarShortEdge);
         MinimumSize = new Size(MinimumMainBarLongEdge, MinimumMainBarShortEdge);
         BackColor = Color.FromArgb(18, 21, 26);
@@ -682,18 +701,18 @@ public sealed class MainForm : Form, IMessageFilter
 
         brand.Controls.Add(headerIcon);
         brand.Controls.Add(titleLabel);
-        var buttons = BuildTopBarButtons(vertical: false);
+        _horizontalButtons = BuildTopBarButtons(vertical: false);
 
         RegisterTopBarPresentation(headerIcon, titleLabel, runtimeStatusLabel);
         EnableDrag(bar);
         EnableDrag(brand);
-        EnableDrag(headerIcon);
+        EnableHeaderIconCollapseToggle(headerIcon);
         EnableDrag(titleLabel);
         EnableDrag(runtimeStatusLabel);
 
         bar.Controls.Add(brand, 0, 0);
         bar.Controls.Add(runtimeStatusLabel, 1, 0);
-        bar.Controls.Add(buttons, 2, 0);
+        bar.Controls.Add(_horizontalButtons, 2, 0);
         return bar;
     }
 
@@ -751,18 +770,18 @@ public sealed class MainForm : Form, IMessageFilter
 
         brand.Controls.Add(headerIcon);
         brand.Controls.Add(titleLabel);
-        var buttons = BuildTopBarButtons(vertical: true);
+        _verticalButtons = BuildTopBarButtons(vertical: true);
 
         RegisterTopBarPresentation(headerIcon, titleLabel, runtimeStatusLabel);
         EnableDrag(bar);
         EnableDrag(brand);
-        EnableDrag(headerIcon);
+        EnableHeaderIconCollapseToggle(headerIcon);
         EnableDrag(titleLabel);
         EnableDrag(runtimeStatusLabel);
 
         bar.Controls.Add(brand, 0, 0);
         bar.Controls.Add(runtimeStatusLabel, 0, 1);
-        bar.Controls.Add(buttons, 0, 2);
+        bar.Controls.Add(_verticalButtons, 0, 2);
         return bar;
     }
 
@@ -811,16 +830,21 @@ public sealed class MainForm : Form, IMessageFilter
             MaximumSize = new Size(32, 32),
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = Color.Transparent,
-            Margin = new Padding(0),
-            Anchor = AnchorStyles.Left
+            Margin = new Padding(HeaderIconNudgeX, 0, 0, 0),
+            Anchor = AnchorStyles.Left,
+            Cursor = Cursors.Hand
         };
 
         return box;
     }
 
-    private void UpdateHeaderIconColor(int? classId)
+    /// <summary>
+    /// 着色圆形程序图标：逻辑开启用 Success 绿；关闭时用职业色（ClassIconColors），未知职业回退白。
+    /// </summary>
+    private void UpdateHeaderIconColor(int? classId, bool enabled = false)
     {
-        var color = ResolveClassIconColor(classId);
+        // 与托盘开启色一致，复用现有职业色表，不另造映射。
+        var color = enabled ? UiTheme.Success : ResolveClassIconColor(classId);
         if (_currentHeaderIconColor == color)
         {
             return;
@@ -888,6 +912,8 @@ public sealed class MainForm : Form, IMessageFilter
         const int settingsContentWidth = 1200;
         const int settingsActionButtonHeight = UiTheme.ActionButtonHeight;
         const int primaryControlWidth = 200;
+        var settingRows = new List<(TableLayoutPanel Row, Control Actions)>();
+        var settingCards = new List<UiCardPanel>();
 
         var scrollHost = new Panel
         {
@@ -922,20 +948,30 @@ public sealed class MainForm : Form, IMessageFilter
         {
             Text = text,
             AutoSize = true,
-            MaximumSize = new Size(720, 0),
+            MaximumSize = new Size(580, 0),
             ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,
             Margin = new Padding(0)
         };
 
+        // Cursor 风格：分类用较小字重的 Muted 标题，不再加粗。
         Label CreateSectionHeader(string text, bool first = false) => new()
         {
             Text = text,
             AutoSize = true,
-            Font = new Font(Font.FontFamily, 12F, FontStyle.Bold),
-            ForeColor = UiTheme.Text,
+            Font = new Font(Font.FontFamily, 11F, FontStyle.Regular),
+            ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,
-            Margin = new Padding(2, first ? 0 : 18, 0, 8)
+            Margin = new Padding(2, first ? 0 : 20, 0, 8)
+        };
+
+        Panel CreateRowDivider() => new()
+        {
+            Height = 1,
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Border,
+            Margin = new Padding(UiTheme.CardPadding, 0, UiTheme.CardPadding, 0),
+            Padding = new Padding(0)
         };
 
         FlowLayoutPanel CreateActionsHost() => new()
@@ -957,56 +993,53 @@ public sealed class MainForm : Form, IMessageFilter
             control.Margin = new Padding(0, 0, rightGap, 0);
         }
 
-        NumericUpDown CreateIntervalBox(int minimum, int defaultValue = 100)
+        UiSlider CreateIntervalSlider(string toolTip)
         {
-            var box = new NumericUpDown
+            var slider = new UiSlider
             {
-                Minimum = minimum,
-                Maximum = 2000,
-                Increment = 10,
-                Value = defaultValue,
-                DecimalPlaces = 0,
-                ThousandsSeparator = true,
-                TextAlign = HorizontalAlignment.Right
+                Minimum = 50,
+                Maximum = 150,
+                Value = 100
             };
-            UiTheme.StyleNumericUpDown(box);
-            SizeActionControl(box, 150, rightGap: 10);
-            return box;
+            SizeActionControl(slider, 280, rightGap: 12);
+            _settingsToolTip.SetToolTip(slider, toolTip);
+            return slider;
         }
 
-        FlowLayoutPanel CreateIntervalActions(NumericUpDown box, string toolTip)
+        FlowLayoutPanel CreateIntervalActions(UiSlider slider)
         {
-            _settingsToolTip.SetToolTip(box, toolTip);
-            var actions = CreateActionsHost();
-            actions.Controls.Add(box);
-            actions.Controls.Add(new Label
+            var valueLabel = new Label
             {
-                Text = "毫秒",
                 AutoSize = true,
-                ForeColor = UiTheme.Muted,
+                ForeColor = UiTheme.Text,
                 BackColor = Color.Transparent,
-                Margin = new Padding(0, 7, 0, 0)
-            });
+                Margin = new Padding(0, 8, 0, 0),
+                Text = $"{slider.Value} 毫秒"
+            };
+            slider.ValueChanged += (_, _) => valueLabel.Text = $"{slider.Value} 毫秒";
+            var actions = CreateActionsHost();
+            actions.Controls.Add(slider);
+            actions.Controls.Add(valueLabel);
             return actions;
         }
 
-        UiCardPanel CreateSettingRow(string title, Control description, Control actions)
+        // 行内「左文右控」布局；不再单独套卡片，由 CreateSettingsGroup 统一包一张大卡。
+        TableLayoutPanel CreateSettingRow(string title, Control description, Control actions)
         {
-            var card = new UiCardPanel
+            var row = new TableLayoutPanel
             {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 RowCount = 1,
-                Width = settingsContentWidth,
-                MinimumSize = new Size(settingsContentWidth, 0),
-                MaximumSize = new Size(settingsContentWidth, 0),
+                Dock = DockStyle.Fill,
+                BackColor = Color.Transparent,
                 Padding = new Padding(UiTheme.CardPadding, 14, UiTheme.CardPadding, 14),
-                Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+                Margin = new Padding(0)
             };
-            card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            card.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             var text = new FlowLayoutPanel
             {
@@ -1024,12 +1057,55 @@ public sealed class MainForm : Form, IMessageFilter
             actions.Margin = new Padding(24, 0, 0, 0);
             // Anchor.None：在自动增高的行里垂直居中，并落在右侧 AutoSize 列。
             actions.Anchor = AnchorStyles.None;
-            card.Controls.Add(text, 0, 0);
-            card.Controls.Add(actions, 1, 0);
-            return card;
+            row.Controls.Add(text, 0, 0);
+            row.Controls.Add(actions, 1, 0);
+            settingRows.Add((row, actions));
+            return row;
         }
 
-        stack.Controls.Add(CreateSectionHeader("输入与运行", first: true));
+        // 分类标题 + 一张大卡；行间 1px Border 分割线。
+        void AddSettingsGroup(string title, bool first, params Control[] rows)
+        {
+            stack.Controls.Add(CreateSectionHeader(title, first));
+            if (rows.Length == 0)
+            {
+                return;
+            }
+
+            var card = new UiCardPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                Width = settingsContentWidth,
+                MinimumSize = new Size(settingsContentWidth, 0),
+                MaximumSize = new Size(settingsContentWidth, 0),
+                Padding = new Padding(0),
+                Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+            };
+            card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            card.RowStyles.Clear();
+            card.RowCount = 0;
+
+            for (var i = 0; i < rows.Length; i++)
+            {
+                if (i > 0)
+                {
+                    card.RowCount++;
+                    card.RowStyles.Add(new RowStyle(SizeType.Absolute, 1));
+                    card.Controls.Add(CreateRowDivider(), 0, card.RowCount - 1);
+                }
+
+                card.RowCount++;
+                card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                rows[i].Dock = DockStyle.Fill;
+                rows[i].Margin = new Padding(0);
+                card.Controls.Add(rows[i], 0, card.RowCount - 1);
+            }
+
+            stack.Controls.Add(card);
+            settingCards.Add(card);
+        }
 
         _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_toggleKeyButton, primaryControlWidth);
@@ -1038,10 +1114,6 @@ public sealed class MainForm : Form, IMessageFilter
         _settingsToolTip.SetToolTip(_toggleKeyButton, "点击后按下新的键盘键或鼠标侧键");
         var toggleActions = CreateActionsHost();
         toggleActions.Controls.Add(_toggleKeyButton);
-        stack.Controls.Add(CreateSettingRow(
-            "触发键",
-            CreateRowDescription("点击后按下新的键盘键或鼠标侧键；修改后运行循环会自动重启"),
-            toggleActions));
 
         _modeComboBox = new UiDropDown();
         UiTheme.StyleComboBox(_modeComboBox);
@@ -1051,10 +1123,6 @@ public sealed class MainForm : Form, IMessageFilter
         _settingsToolTip.SetToolTip(_modeComboBox, "开关：按一次切换；单击：每次触发发送一次；按住：持续按下时运行");
         var modeActions = CreateActionsHost();
         modeActions.Controls.Add(_modeComboBox);
-        stack.Controls.Add(CreateSettingRow(
-            "发送模式",
-            CreateRowDescription("开关：按一次切换；单击：每次触发发送一次；按住：持续按下时运行"),
-            modeActions));
 
         _captureMethodComboBox = new UiDropDown();
         UiTheme.StyleComboBox(_captureMethodComboBox);
@@ -1070,26 +1138,36 @@ public sealed class MainForm : Form, IMessageFilter
             "WGC 可在游戏窗口被遮挡时继续读取；原版读取显示器实际画面，会受遮挡影响");
         var captureActions = CreateActionsHost();
         captureActions.Controls.Add(_captureMethodComboBox);
-        stack.Controls.Add(CreateSettingRow(
-            "画面捕获",
-            CreateRowDescription("WGC 支持窗口被遮挡；窗口最小化或捕获停止时会暂停扫描"),
-            captureActions));
 
-        stack.Controls.Add(CreateSectionHeader("性能"));
+        AddSettingsGroup(
+            "输入与运行",
+            first: true,
+            CreateSettingRow(
+                "触发键",
+                CreateRowDescription("点击后按下新的键盘键或鼠标侧键；修改后运行循环会自动重启"),
+                toggleActions),
+            CreateSettingRow(
+                "发送模式",
+                CreateRowDescription("开关：按一次切换；单击：每次触发发送一次；按住：持续按下时运行"),
+                modeActions),
+            CreateSettingRow(
+                "画面捕获",
+                CreateRowDescription("WGC 支持窗口被遮挡；窗口最小化或捕获停止时会暂停扫描"),
+                captureActions));
 
-        _scanIntervalBox = CreateIntervalBox(minimum: 50);
-        stack.Controls.Add(CreateSettingRow(
-            "扫描频率",
-            CreateRowDescription("两次读取游戏画面之间的间隔；数值越小，状态更新越及时，资源占用越高"),
-            CreateIntervalActions(_scanIntervalBox, "扫描间隔，范围 50–2000 毫秒")));
-
-        _logicIntervalBox = CreateIntervalBox(minimum: 50);
-        stack.Controls.Add(CreateSettingRow(
-            "计算频率",
-            CreateRowDescription("两次模块规则计算之间的间隔；计算使用最近一次扫描到的状态"),
-            CreateIntervalActions(_logicIntervalBox, "计算间隔，范围 50–2000 毫秒")));
-
-        stack.Controls.Add(CreateSectionHeader("配置同步"));
+        _scanIntervalSlider = CreateIntervalSlider("扫描间隔，范围 50–150 毫秒");
+        _logicIntervalSlider = CreateIntervalSlider("计算间隔，范围 50–150 毫秒");
+        AddSettingsGroup(
+            "性能",
+            first: false,
+            CreateSettingRow(
+                "扫描频率",
+                CreateRowDescription("两次读取游戏画面之间的间隔；数值越小，状态更新越及时，资源占用越高"),
+                CreateIntervalActions(_scanIntervalSlider)),
+            CreateSettingRow(
+                "计算频率",
+                CreateRowDescription("两次模块规则计算之间的间隔；计算使用最近一次扫描到的状态"),
+                CreateIntervalActions(_logicIntervalSlider)));
 
         _configSourceLabel = CreateRowDescription("项目目录是唯一配置源；尚未执行手动更新");
         _settingsToolTip.SetToolTip(_configSourceLabel, _configSourceLabel.Text);
@@ -1098,12 +1176,10 @@ public sealed class MainForm : Form, IMessageFilter
         _updateConfigButton.Click += async (_, _) => await UpdateConfigFromProjectWithFeedbackAsync();
         var configActions = CreateActionsHost();
         configActions.Controls.Add(_updateConfigButton);
-        stack.Controls.Add(CreateSettingRow(
-            "更新配置",
-            _configSourceLabel,
-            configActions));
-
-        stack.Controls.Add(CreateSectionHeader("模块"));
+        AddSettingsGroup(
+            "配置同步",
+            first: false,
+            CreateSettingRow("更新配置", _configSourceLabel, configActions));
 
         var moduleDescription = new FlowLayoutPanel
         {
@@ -1135,7 +1211,6 @@ public sealed class MainForm : Form, IMessageFilter
         var moduleActions = CreateActionsHost();
         moduleActions.Controls.Add(_moduleComboBox);
         moduleActions.Controls.Add(refreshModulesButton);
-        stack.Controls.Add(CreateSettingRow("模块选择", moduleDescription, moduleActions));
 
         _defaultClassComboBox = CreateDefaultFilterComboBox();
         _defaultSpecComboBox = CreateDefaultFilterComboBox();
@@ -1152,8 +1227,11 @@ public sealed class MainForm : Form, IMessageFilter
         {
             var filter = defaultFilters[i];
             filter.AutoSize = false;
-            filter.Dock = DockStyle.Fill;
-            filter.Margin = new Padding(i == 0 ? 0 : 5, 0, i == defaultFilters.Length - 1 ? 0 : 5, 0);
+            filter.Dock = DockStyle.None;
+            filter.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            filter.Height = settingsActionButtonHeight;
+            // 筛选项之间加大间距，缓解四列拥挤。
+            filter.Margin = new Padding(i == 0 ? 0 : 10, 0, i == defaultFilters.Length - 1 ? 0 : 10, 0);
         }
 
         _settingsToolTip.SetToolTip(_defaultClassComboBox, "职业");
@@ -1170,22 +1248,22 @@ public sealed class MainForm : Form, IMessageFilter
         SizeActionControl(_setDefaultModuleButton, primaryControlWidth);
         _setDefaultModuleButton.Click += HandleSetDefaultModuleClick;
 
-        var defaultModuleCard = new UiCardPanel
+        // 默认模块多行块并入「模块」大卡，不再单独一张散卡。
+        var defaultModuleBlock = new TableLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 3,
-            Width = settingsContentWidth,
-            MinimumSize = new Size(settingsContentWidth, 0),
-            MaximumSize = new Size(settingsContentWidth, 0),
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
             Padding = new Padding(UiTheme.CardPadding, 14, UiTheme.CardPadding, 14),
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap)
+            Margin = new Padding(0)
         };
-        defaultModuleCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        defaultModuleCard.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        defaultModuleCard.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 12));
-        defaultModuleCard.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 4));
+        defaultModuleBlock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 20));
+        defaultModuleBlock.RowStyles.Add(new RowStyle(SizeType.Absolute, settingsActionButtonHeight + 12));
 
         var defaultModuleHeader = new FlowLayoutPanel
         {
@@ -1194,13 +1272,13 @@ public sealed class MainForm : Form, IMessageFilter
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             BackColor = Color.Transparent,
-            Margin = new Padding(0, 0, 0, 10),
+            Margin = new Padding(0, 0, 0, 14),
             Padding = new Padding(0)
         };
         defaultModuleHeader.Controls.Add(CreateRowTitle("默认模块"));
         defaultModuleHeader.Controls.Add(
             CreateRowDescription("为指定环境设置自动选择时优先使用的模块，并将选中项保存为默认"));
-        defaultModuleCard.Controls.Add(defaultModuleHeader, 0, 0);
+        defaultModuleBlock.Controls.Add(defaultModuleHeader, 0, 0);
 
         var defaultFilterRow = new TableLayoutPanel
         {
@@ -1222,7 +1300,7 @@ public sealed class MainForm : Form, IMessageFilter
             defaultFilterRow.Controls.Add(defaultFilters[i], i, 0);
         }
 
-        defaultModuleCard.Controls.Add(defaultFilterRow, 0, 1);
+        defaultModuleBlock.Controls.Add(defaultFilterRow, 0, 1);
 
         var defaultModuleRow = new TableLayoutPanel
         {
@@ -1240,8 +1318,7 @@ public sealed class MainForm : Form, IMessageFilter
         defaultModuleRow.Controls.Add(_defaultModuleComboBox, 0, 0);
         _setDefaultModuleButton.Anchor = AnchorStyles.Right;
         defaultModuleRow.Controls.Add(_setDefaultModuleButton, 1, 0);
-        defaultModuleCard.Controls.Add(defaultModuleRow, 0, 2);
-        stack.Controls.Add(defaultModuleCard);
+        defaultModuleBlock.Controls.Add(defaultModuleRow, 0, 2);
 
         ResetDefaultClassOptions();
         ResetDefaultSpecOptions(null);
@@ -1294,9 +1371,13 @@ public sealed class MainForm : Form, IMessageFilter
         var getModuleActions = CreateActionsHost();
         getModuleActions.Controls.Add(openModuleWebsiteButton);
         getModuleActions.Controls.Add(openModuleDirectoryButton);
-        stack.Controls.Add(CreateSettingRow("获取模块", moduleWebsiteLabel, getModuleActions));
 
-        stack.Controls.Add(CreateSectionHeader("界面"));
+        AddSettingsGroup(
+            "模块",
+            first: false,
+            CreateSettingRow("模块选择", moduleDescription, moduleActions),
+            defaultModuleBlock,
+            CreateSettingRow("获取模块", moduleWebsiteLabel, getModuleActions));
 
         _horizontalLayoutButton = UiTheme.CreateButton("横向布局", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_horizontalLayoutButton, primaryControlWidth, rightGap: 10);
@@ -1307,10 +1388,6 @@ public sealed class MainForm : Form, IMessageFilter
         var layoutActions = CreateActionsHost();
         layoutActions.Controls.Add(_horizontalLayoutButton);
         layoutActions.Controls.Add(_verticalLayoutButton);
-        stack.Controls.Add(CreateSettingRow(
-            "界面布局",
-            CreateRowDescription("选择主界面浮动条的排列方向；切换时会交换宽高"),
-            layoutActions));
 
         _minimizeToTrayButton = UiTheme.CreateButton("最小化到系统栏", UiTheme.ButtonKind.Secondary);
         SizeActionControl(_minimizeToTrayButton, primaryControlWidth, rightGap: 10);
@@ -1321,12 +1398,18 @@ public sealed class MainForm : Form, IMessageFilter
         var closeBehaviorActions = CreateActionsHost();
         closeBehaviorActions.Controls.Add(_minimizeToTrayButton);
         closeBehaviorActions.Controls.Add(_exitOnCloseButton);
-        stack.Controls.Add(CreateSettingRow(
-            "点击 X 时",
-            CreateRowDescription("最小化后可通过系统栏图标重新打开；完全退出会停止运行"),
-            closeBehaviorActions));
 
-        stack.Controls.Add(CreateSectionHeader("资源"));
+        AddSettingsGroup(
+            "界面",
+            first: false,
+            CreateSettingRow(
+                "界面布局",
+                CreateRowDescription("选择主界面浮动条的排列方向；切换时会交换宽高"),
+                layoutActions),
+            CreateSettingRow(
+                "点击 X 时",
+                CreateRowDescription("最小化后可通过系统栏图标重新打开；完全退出会停止运行"),
+                closeBehaviorActions));
 
         _spellIconPackageStatusLabel = CreateRowDescription(
             "从 GitHub Release 下载或更新技能/物品图标数据包");
@@ -1335,41 +1418,98 @@ public sealed class MainForm : Form, IMessageFilter
         _downloadSpellIconPackageButton.Click += (_, _) => StartSpellIconPackageDownload();
         var spellIconActions = CreateActionsHost();
         spellIconActions.Controls.Add(_downloadSpellIconPackageButton);
-        stack.Controls.Add(CreateSettingRow(
-            "下载数据包",
-            _spellIconPackageStatusLabel,
-            spellIconActions));
+        AddSettingsGroup(
+            "资源",
+            first: false,
+            CreateSettingRow(
+                "下载数据包",
+                _spellIconPackageStatusLabel,
+                spellIconActions));
 
         UpdateLayoutButtons();
         UpdateCloseBehaviorButtons();
         UpdateSpellIconPackageCard();
         RefreshDefaultModuleSelector();
 
+        var syncingContentLayout = false;
         void SyncContentLayout()
         {
-            if (stack.Width != settingsContentWidth)
+            if (syncingContentLayout || scrollHost.IsDisposed)
             {
-                stack.Width = settingsContentWidth;
+                return;
             }
 
-            var viewWidth = scrollHost.ClientSize.Width;
-            var left = viewWidth > settingsContentWidth
-                ? (viewWidth - settingsContentWidth) / 2
-                : 0;
-            if (stack.Left != left)
+            syncingContentLayout = true;
+            try
             {
-                stack.Left = left;
-            }
+                var viewWidth = Math.Max(1, scrollHost.ClientSize.Width);
+                var contentWidth = Math.Min(settingsContentWidth, viewWidth);
+                var narrow = contentWidth < 920;
+                foreach (var (row, actions) in settingRows)
+                {
+                    var desiredColumns = narrow ? 1 : 2;
+                    if (row.ColumnCount == desiredColumns)
+                    {
+                        continue;
+                    }
 
-            if (stack.Top != 0)
-            {
-                stack.Top = 0;
-            }
+                    row.SuspendLayout();
+                    row.ColumnCount = desiredColumns;
+                    row.RowCount = narrow ? 2 : 1;
+                    row.ColumnStyles.Clear();
+                    row.RowStyles.Clear();
+                    if (narrow)
+                    {
+                        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                        row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        row.SetCellPosition(actions, new TableLayoutPanelCellPosition(0, 1));
+                        actions.Margin = new Padding(0, 12, 0, 0);
+                        actions.Anchor = AnchorStyles.Left;
+                    }
+                    else
+                    {
+                        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                        row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                        row.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        row.SetCellPosition(actions, new TableLayoutPanelCellPosition(1, 0));
+                        actions.Margin = new Padding(24, 0, 0, 0);
+                        actions.Anchor = AnchorStyles.None;
+                    }
+                    row.ResumeLayout(true);
+                }
 
-            var minSize = new Size(settingsContentWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
+                foreach (var card in settingCards)
+                {
+                    if (card.MinimumSize.Width != contentWidth || card.MaximumSize.Width != contentWidth)
+                    {
+                        card.MaximumSize = Size.Empty;
+                        card.MinimumSize = new Size(contentWidth, 0);
+                        card.MaximumSize = new Size(contentWidth, 0);
+                    }
+                    if (card.Width != contentWidth)
+                    {
+                        card.Width = contentWidth;
+                    }
+                }
+
+                if (stack.Width != contentWidth)
+                {
+                    stack.Width = contentWidth;
+                }
+                var left = Math.Max(0, (viewWidth - contentWidth) / 2);
+                if (stack.Left != left || stack.Top != 0)
+                {
+                    stack.Location = new Point(left, 0);
+                }
+                if (scrollHost.AutoScrollMinSize != Size.Empty)
+                {
+                    scrollHost.AutoScrollMinSize = Size.Empty;
+                }
+            }
+            finally
             {
-                scrollHost.AutoScrollMinSize = minSize;
+                syncingContentLayout = false;
             }
         }
 
@@ -1953,14 +2093,14 @@ public sealed class MainForm : Form, IMessageFilter
             CaptureMethod.ScreenCopy => 1,
             _ => 0
         };
-        _scanIntervalBox.Value = ReadCachedInterval(
+        _scanIntervalSlider.Value = ReadCachedInterval(
             _uiCache.ScanIntervalMs,
             _initialOptions.ScanInterval,
-            _scanIntervalBox);
-        _logicIntervalBox.Value = ReadCachedInterval(
+            _scanIntervalSlider);
+        _logicIntervalSlider.Value = ReadCachedInterval(
             _uiCache.LogicIntervalMs,
             _initialOptions.LogicInterval,
-            _logicIntervalBox);
+            _logicIntervalSlider);
         RefreshModuleSelector(_lastSnapshot, forceRefresh: false);
     }
 
@@ -1968,8 +2108,8 @@ public sealed class MainForm : Form, IMessageFilter
     {
         _modeComboBox.SelectedIndexChanged += HandleSettingCommitted;
         _captureMethodComboBox.SelectedIndexChanged += HandleCaptureMethodChanged;
-        _scanIntervalBox.ValueChanged += HandlePerformanceSettingChanged;
-        _logicIntervalBox.ValueChanged += HandlePerformanceSettingChanged;
+        _scanIntervalSlider.ValueChanged += HandlePerformanceSettingChanged;
+        _logicIntervalSlider.ValueChanged += HandlePerformanceSettingChanged;
         _moduleComboBox.SelectedIndexChanged += HandleModuleSelectionChanged;
     }
 
@@ -2153,8 +2293,8 @@ public sealed class MainForm : Form, IMessageFilter
             Mode = ReadMode(),
             ModuleId = _selectedModuleId,
             CaptureMethod = ReadCaptureMethod(),
-            ScanInterval = ReadInterval(_scanIntervalBox),
-            LogicInterval = ReadInterval(_logicIntervalBox)
+            ScanInterval = ReadInterval(_scanIntervalSlider),
+            LogicInterval = ReadInterval(_logicIntervalSlider)
         };
     }
 
@@ -2212,7 +2352,7 @@ public sealed class MainForm : Form, IMessageFilter
     {
         _lastSnapshot = snapshot;
 
-        UpdateHeaderIconColor(snapshot.ClassId);
+        UpdateHeaderIconColor(snapshot.ClassId, snapshot.Enabled);
         UpdateLogicStatusLabel(snapshot.Enabled);
         foreach (var enableButton in _enableButtons)
         {
@@ -2363,8 +2503,8 @@ public sealed class MainForm : Form, IMessageFilter
     {
         var comboBox = new UiDropDown();
         UiTheme.StyleComboBox(comboBox);
-        comboBox.Dock = DockStyle.Fill;
-        comboBox.Margin = new Padding(0, 4, 8, 4);
+        comboBox.Height = UiTheme.ActionButtonHeight;
+        comboBox.Margin = new Padding(0);
         return comboBox;
     }
 
@@ -2653,7 +2793,8 @@ public sealed class MainForm : Form, IMessageFilter
     {
         if (!running)
         {
-            UpdateHeaderIconColor(null);
+            // 运行时停掉后不再扫描：保留最后职业色，开启态强制关闭。
+            UpdateHeaderIconColor(_lastSnapshot?.ClassId, enabled: false);
             UpdateLogicStatusLabel(enabled: false);
         }
 
@@ -2864,6 +3005,7 @@ public sealed class MainForm : Form, IMessageFilter
 
         _statusForm.ApplyCachedBounds(_uiCache.SettingsWindowBounds);
         _statusForm.ApplyCachedPage(_uiCache.SelectedSettingsPage);
+        _statusForm.ApplyCachedSidebar(_uiCache.SettingsSidebarWidth, _uiCache.SettingsSidebarCollapsed);
     }
 
     private void MigrateMainBarWindowSizeIfNeeded()
@@ -2909,8 +3051,14 @@ public sealed class MainForm : Form, IMessageFilter
         _uiCache.ColumnWidths = latestCache.ColumnWidths;
         _uiCache.ConditionEditorWindowSize = latestCache.ConditionEditorWindowSize;
         _uiCache.UnitEditorWindowSize = latestCache.UnitEditorWindowSize;
+        _uiCache.FormulaEditorWindowSize = latestCache.FormulaEditorWindowSize;
+        _uiCache.RuleTextEditorWindowSize = latestCache.RuleTextEditorWindowSize;
+        _uiCache.ConditionEditorWindowLocation = latestCache.ConditionEditorWindowLocation;
+        _uiCache.UnitEditorWindowLocation = latestCache.UnitEditorWindowLocation;
+        _uiCache.FormulaEditorWindowLocation = latestCache.FormulaEditorWindowLocation;
+        _uiCache.RuleTextEditorWindowLocation = latestCache.RuleTextEditorWindowLocation;
 
-        var currentBounds = CaptureMainWindowBounds();
+        var currentBounds = CapturePersistableMainWindowBounds();
         _uiCache.MainWindowBounds = currentBounds;
         SetCachedMainWindowBounds(_mainWindowLayout, currentBounds);
         _uiCache.MainWindowLocation = new WindowLocation
@@ -2925,6 +3073,8 @@ public sealed class MainForm : Form, IMessageFilter
         }
 
         _uiCache.SelectedSettingsPage = _statusForm.SelectedPageKey;
+        _uiCache.SettingsSidebarWidth = _statusForm.SidebarExpandedWidth;
+        _uiCache.SettingsSidebarCollapsed = _statusForm.SidebarCollapsed;
 
         _uiCache.MainWindowLayout = _mainWindowLayout.ToString();
         _uiCache.CloseButtonBehavior = _closeButtonBehavior.ToString();
@@ -2932,8 +3082,8 @@ public sealed class MainForm : Form, IMessageFilter
         _uiCache.ToggleKey = _toggleKeyName;
         _uiCache.SelectedModuleId = _selectedModuleId;
         _uiCache.CaptureMethod = ReadCaptureMethod().ToString();
-        _uiCache.ScanIntervalMs = decimal.ToInt32(_scanIntervalBox.Value);
-        _uiCache.LogicIntervalMs = decimal.ToInt32(_logicIntervalBox.Value);
+        _uiCache.ScanIntervalMs = _scanIntervalSlider.Value;
+        _uiCache.LogicIntervalMs = _logicIntervalSlider.Value;
         UiCacheStore.Save(_uiCache);
     }
 
@@ -3019,16 +3169,16 @@ public sealed class MainForm : Form, IMessageFilter
     private static string CaptureMethodLabel(CaptureMethod method)
         => method == CaptureMethod.ScreenCopy ? "屏幕截图" : "Windows 图形捕获";
 
-    private static TimeSpan ReadInterval(NumericUpDown box)
-        => TimeSpan.FromMilliseconds(decimal.ToInt32(box.Value));
+    private static TimeSpan ReadInterval(UiSlider slider)
+        => TimeSpan.FromMilliseconds(slider.Value);
 
-    private static decimal ReadCachedInterval(
+    private static int ReadCachedInterval(
         int? cachedMilliseconds,
         TimeSpan fallback,
-        NumericUpDown box)
+        UiSlider slider)
     {
         var milliseconds = cachedMilliseconds ?? (int)Math.Round(fallback.TotalMilliseconds);
-        return Math.Min(box.Maximum, Math.Max(box.Minimum, milliseconds));
+        return Math.Clamp(milliseconds, slider.Minimum, slider.Maximum);
     }
 
     private void ConfigureTrayModuleDropDown()
@@ -3201,56 +3351,6 @@ public sealed class MainForm : Form, IMessageFilter
         _toggleKeyButton.Text = _toggleKeyName;
     }
 
-    private nint HitTestResizeGrip(Point clientPoint)
-    {
-        var left = clientPoint.X <= ResizeGripSize;
-        var right = clientPoint.X >= ClientSize.Width - ResizeGripSize;
-        var top = clientPoint.Y <= ResizeGripSize;
-        var bottom = clientPoint.Y >= ClientSize.Height - ResizeGripSize;
-
-        if (top && left)
-        {
-            return NativeMethods.HtTopLeft;
-        }
-
-        if (top && right)
-        {
-            return NativeMethods.HtTopRight;
-        }
-
-        if (bottom && left)
-        {
-            return NativeMethods.HtBottomLeft;
-        }
-
-        if (bottom && right)
-        {
-            return NativeMethods.HtBottomRight;
-        }
-
-        if (left)
-        {
-            return NativeMethods.HtLeft;
-        }
-
-        if (right)
-        {
-            return NativeMethods.HtRight;
-        }
-
-        if (top)
-        {
-            return NativeMethods.HtTop;
-        }
-
-        if (bottom)
-        {
-            return NativeMethods.HtBottom;
-        }
-
-        return NativeMethods.HtClient;
-    }
-
     private string? TryMapKeyToHotkey(Keys key)
     {
         var keyName = key.ToString().ToUpperInvariant();
@@ -3320,6 +3420,181 @@ public sealed class MainForm : Form, IMessageFilter
         };
     }
 
+    /// <summary>
+    /// 程序图标同时承担折叠 toggle 与拖拽移动：按下后位移超过阈值才开始拖窗口，否则在松开时切换折叠。
+    /// </summary>
+    private void EnableHeaderIconCollapseToggle(PictureBox icon)
+    {
+        _settingsToolTip.SetToolTip(icon, "折叠主界面");
+        icon.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            _headerIconPointerScreen = icon.PointToScreen(e.Location);
+            _headerIconDragging = false;
+        };
+        icon.MouseMove += (_, e) =>
+        {
+            if (_headerIconPointerScreen is null
+                || e.Button != MouseButtons.Left
+                || _headerIconDragging)
+            {
+                return;
+            }
+
+            var current = icon.PointToScreen(e.Location);
+            if (Math.Abs(current.X - _headerIconPointerScreen.Value.X) <= HeaderIconDragThresholdPx
+                && Math.Abs(current.Y - _headerIconPointerScreen.Value.Y) <= HeaderIconDragThresholdPx)
+            {
+                return;
+            }
+
+            _headerIconDragging = true;
+            NativeMethods.ReleaseCapture();
+            NativeMethods.SendMessageW(Handle, NativeMethods.WmNcLButtonDown, NativeMethods.HtCaption, 0);
+        };
+        icon.MouseUp += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            var shouldToggle = _headerIconPointerScreen is not null && !_headerIconDragging;
+            _headerIconPointerScreen = null;
+            _headerIconDragging = false;
+            if (shouldToggle)
+            {
+                ToggleMainBarCollapsed();
+            }
+        };
+        icon.MouseCaptureChanged += (_, _) =>
+        {
+            // 拖拽改走系统标题栏消息后会丢失捕获，清空按下状态以免误触发折叠。
+            if (_headerIconDragging)
+            {
+                _headerIconPointerScreen = null;
+            }
+        };
+    }
+
+    private void ToggleMainBarCollapsed()
+        => SetMainBarCollapsed(!_mainBarCollapsed);
+
+    private void SetMainBarCollapsed(bool collapsed, bool persist = true)
+    {
+        if (_mainBarCollapsed == collapsed)
+        {
+            return;
+        }
+
+        var location = Location;
+        SuspendLayout();
+        try
+        {
+            if (collapsed)
+            {
+                _expandedMainWindowBounds = CaptureMainWindowBounds();
+                SetCollapsedChromeVisible(false);
+                // 折叠成短边正方形：横条用高度，纵条用宽度。
+                var side = _mainWindowLayout == MainWindowLayout.Vertical ? Width : Height;
+                side = Math.Max(side, MinimumMainBarShortEdge);
+                MinimumSize = Size.Empty;
+                Size = new Size(side, side);
+            }
+            else
+            {
+                SetCollapsedChromeVisible(true);
+                var vertical = _mainWindowLayout == MainWindowLayout.Vertical;
+                MinimumSize = vertical
+                    ? new Size(MinimumMainBarShortEdge, MinimumMainBarLongEdge)
+                    : new Size(MinimumMainBarLongEdge, MinimumMainBarShortEdge);
+
+                if (_expandedMainWindowBounds is { } expanded)
+                {
+                    Size = new Size(
+                        Math.Max(MinimumSize.Width, expanded.Width),
+                        Math.Max(MinimumSize.Height, expanded.Height));
+                }
+
+                _expandedMainWindowBounds = null;
+            }
+
+            // 以左上角为锚点，避免折叠/展开时窗口乱跳；拖拽后的当前位置优先。
+            Location = location;
+            _mainBarCollapsed = collapsed;
+            UpdateHeaderIconCollapseToolTips();
+        }
+        finally
+        {
+            ResumeLayout(true);
+        }
+
+        if (!_usesDwmRoundedCorners && IsHandleCreated)
+        {
+            UiTheme.ApplyFallbackRoundedCorners(this);
+        }
+
+        if (persist)
+        {
+            SaveUiCache();
+        }
+    }
+
+    private void SetCollapsedChromeVisible(bool visible)
+    {
+        foreach (var title in _titleLabels)
+        {
+            title.Visible = visible;
+        }
+
+        foreach (var status in _runtimeStatusLabels)
+        {
+            status.Visible = visible;
+        }
+
+        if (_horizontalButtons is not null)
+        {
+            _horizontalButtons.Visible = visible;
+        }
+
+        if (_verticalButtons is not null)
+        {
+            _verticalButtons.Visible = visible;
+        }
+    }
+
+    private void UpdateHeaderIconCollapseToolTips()
+    {
+        var tip = _mainBarCollapsed ? "展开主界面" : "折叠主界面";
+        foreach (var icon in _headerIcons)
+        {
+            _settingsToolTip.SetToolTip(icon, tip);
+        }
+    }
+
+    /// <summary>写入缓存时始终记录展开尺寸；折叠态只同步当前位置。</summary>
+    private WindowBounds CapturePersistableMainWindowBounds()
+    {
+        if (_mainBarCollapsed && _expandedMainWindowBounds is { } expanded)
+        {
+            var bounds = new WindowBounds
+            {
+                X = Left,
+                Y = Top,
+                Width = expanded.Width,
+                Height = expanded.Height
+            };
+            _expandedMainWindowBounds = bounds;
+            return bounds;
+        }
+
+        return CaptureMainWindowBounds();
+    }
+
     private static void ConfigureTopBarButton(Button button)
     {
         button.AutoSize = false;
@@ -3370,6 +3645,12 @@ public sealed class MainForm : Form, IMessageFilter
         {
             UpdateLayoutButtons();
             return;
+        }
+
+        // 布局切换前先展开，避免折叠正方形与纵横尺寸互换互相干扰。
+        if (_mainBarCollapsed)
+        {
+            SetMainBarCollapsed(false, persist: false);
         }
 
         if (persist)
@@ -3621,7 +3902,7 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private sealed class TopBarIconButton : Button
+    private sealed class TopBarIconButton : UiButton
     {
         private string _iconName = string.Empty;
         private bool _suppressBaseText;
@@ -3688,7 +3969,7 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private sealed class StackedTextButton : Button
+    private sealed class StackedTextButton : UiButton
     {
         private string _displayText = string.Empty;
         private bool _suppressBaseText;

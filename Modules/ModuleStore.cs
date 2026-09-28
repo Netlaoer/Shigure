@@ -684,40 +684,39 @@ public sealed class ModuleStore
         module.ValueAdjustments.RemoveAll(adjustment => string.IsNullOrWhiteSpace(adjustment.Field));
         foreach (var unit in module.Units)
         {
-            UpgradeLegacyUnitFilters(unit);
             unit.Name = unit.Name.Trim();
-            unit.HealthName = string.IsNullOrWhiteSpace(unit.HealthName) ? null : unit.HealthName.Trim();
-            unit.HealthThresholdField = string.IsNullOrWhiteSpace(unit.HealthThresholdField) ? null : unit.HealthThresholdField.Trim();
-            unit.HealingAbsorbThresholdField = string.IsNullOrWhiteSpace(unit.HealingAbsorbThresholdField)
-                ? null
-                : unit.HealingAbsorbThresholdField.Trim();
-            unit.AuraDurationThresholdField = string.IsNullOrWhiteSpace(unit.AuraDurationThresholdField)
-                ? null
-                : unit.AuraDurationThresholdField.Trim();
+            unit.ValueName = string.IsNullOrWhiteSpace(unit.ValueName) ? null : unit.ValueName.Trim();
+            unit.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(unit.FilterGroups);
+            if (unit.TargetField != UnitTargetFieldKind.Aura)
+            {
+                unit.TargetAuraSpellId = null;
+            }
+            else if (unit.TargetAuraSpellId is not > 0)
+            {
+                unit.TargetAuraSpellId = null;
+            }
         }
 
         foreach (var count in module.Counts)
         {
-            UpgradeLegacyCountFilters(count);
             count.Name = count.Name.Trim();
-            count.HealthThresholdField = string.IsNullOrWhiteSpace(count.HealthThresholdField) ? null : count.HealthThresholdField.Trim();
-            count.HealingAbsorbThresholdField = string.IsNullOrWhiteSpace(count.HealingAbsorbThresholdField)
-                ? null
-                : count.HealingAbsorbThresholdField.Trim();
+            count.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(count.FilterGroups);
         }
 
         foreach (var count in module.EnemyCounts)
         {
             count.Name = count.Name.Trim();
-            count.HealthThresholdField = string.IsNullOrWhiteSpace(count.HealthThresholdField) ? null : count.HealthThresholdField.Trim();
-            count.RangeThresholdField = string.IsNullOrWhiteSpace(count.RangeThresholdField) ? null : count.RangeThresholdField.Trim();
+            count.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(count.FilterGroups);
         }
 
         foreach (var field in module.AverageHealthFields)
         {
             field.Name = field.Name.Trim();
-            field.HealthThresholdField = string.IsNullOrWhiteSpace(field.HealthThresholdField) ? null : field.HealthThresholdField.Trim();
-            field.RangeThresholdField = string.IsNullOrWhiteSpace(field.RangeThresholdField) ? null : field.RangeThresholdField.Trim();
+            field.FilterGroups ??= new List<ModuleCountConditionGroup>();
+            NormalizeCountFilterGroups(field.FilterGroups);
         }
 
         foreach (var adjustment in module.ValueAdjustments)
@@ -802,216 +801,22 @@ public sealed class ModuleStore
         }
     }
 
-    private static void UpgradeLegacyCountFilters(ModuleCountField count)
+    private static void NormalizeCountFilterGroups(List<ModuleCountConditionGroup> groups)
     {
-        if (count.FilterVersion == ModuleCountField.CurrentFilterVersion)
+        foreach (var group in groups)
         {
-            return;
-        }
-
-        count.HealthFilter = count.Kind is CountKind.UnitsBelowHealth
-            or CountKind.UnitsWithoutAuraBelowHealth
-            or CountKind.UnitsWithAuraBelowHealth
-                ? EnemyThresholdFilterKind.Below
-                : EnemyThresholdFilterKind.None;
-        count.PositiveHealthOnly = count.HealthFilter != EnemyThresholdFilterKind.None;
-        count.HealingAbsorbFilter = count.Kind is CountKind.UnitsAboveHealingAbsorb
-            or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-            or CountKind.UnitsWithAuraAboveHealingAbsorb
-                ? EnemyThresholdFilterKind.Above
-                : EnemyThresholdFilterKind.None;
-        if (count.HealingAbsorbFilter != EnemyThresholdFilterKind.None)
-        {
-            count.HealingAbsorbThreshold = count.HealthThreshold;
-            count.HealingAbsorbThresholdField = count.HealthThresholdField;
-            count.HealthThreshold = null;
-            count.HealthThresholdField = null;
-        }
-
-        count.AuraFilter = count.Kind switch
-        {
-            CountKind.UnitsWithoutAuraBelowHealth or CountKind.UnitsWithoutAuraAboveHealingAbsorb
-                => EnemyAuraFilterKind.WithoutAura,
-            CountKind.UnitsWithAura or CountKind.UnitsWithAuraBelowHealth
-                or CountKind.UnitsWithAuraAboveHealingAbsorb
-                => EnemyAuraFilterKind.WithAura,
-            _ => EnemyAuraFilterKind.None
-        };
-        count.AuraSpellIds = count.AuraSpellId is { } auraSpellId ? [auraSpellId] : null;
-        count.FilterVersion = ModuleCountField.CurrentFilterVersion;
-    }
-
-    private static void UpgradeLegacyUnitFilters(ModuleUnit unit)
-    {
-        if (unit.FilterVersion == ModuleUnit.CurrentFilterVersion)
-        {
-            return;
-        }
-
-        if (unit.FilterVersion == 1)
-        {
-            if (unit.Kind is UnitSelectorKind.UnitWithAura or UnitSelectorKind.UnitWithAuraShortest)
+            group.Conditions ??= new List<ModuleCountCondition>();
+            foreach (var condition in group.Conditions)
             {
-                unit.AuraDurationSpellId = unit.AuraSpellIds is { Count: > 0 }
-                    ? unit.AuraSpellIds[0]
-                    : null;
-                unit.AuraDurationFilter = unit.Kind == UnitSelectorKind.UnitWithAura
-                    ? AuraDurationFilterKind.Longest
-                    : AuraDurationFilterKind.Shortest;
-                unit.Kind = UnitSelectorKind.UnitWithRole;
-                unit.Reverse = false;
+                condition.ValueField = condition.ValueKind == CountConditionValueKind.StateField
+                    && !string.IsNullOrWhiteSpace(condition.ValueField)
+                        ? condition.ValueField.Trim()
+                        : null;
+                condition.AuraSpellId = condition.Field == CountConditionFieldKind.Aura
+                    && condition.AuraSpellId is > 0
+                        ? condition.AuraSpellId
+                        : null;
             }
-            else if (unit.AuraDurationFilter != AuraDurationFilterKind.None)
-            {
-                unit.AuraDurationSpellId = unit.AuraSpellIds is { Count: > 0 }
-                    ? unit.AuraSpellIds[0]
-                    : null;
-            }
-
-            unit.FilterVersion = 2;
-        }
-
-        if (unit.FilterVersion == 2)
-        {
-            UpgradeUnitTargetSelectionV3(unit);
-            unit.FilterVersion = ModuleUnit.CurrentFilterVersion;
-            return;
-        }
-
-        var legacyKind = unit.Kind;
-        var lowestHealth = legacyKind is UnitSelectorKind.LowestHealth
-            or UnitSelectorKind.LowestHealthWithAnyAura
-            or UnitSelectorKind.LowestHealthWithoutAnyAura
-            or UnitSelectorKind.LowestHealthWithoutAura
-            or UnitSelectorKind.LowestHealthWithAura
-            or UnitSelectorKind.LowestHealthWithAuraCount;
-        var highestAbsorb = legacyKind is UnitSelectorKind.HighestHealingAbsorb
-            or UnitSelectorKind.HighestHealingAbsorbWithAnyAura
-            or UnitSelectorKind.HighestHealingAbsorbWithoutAnyAura
-            or UnitSelectorKind.HighestHealingAbsorbWithoutAura
-            or UnitSelectorKind.HighestHealingAbsorbWithAura
-            or UnitSelectorKind.HighestHealingAbsorbWithAuraCount;
-
-        unit.Kind = lowestHealth
-            ? UnitSelectorKind.LowestHealth
-            : highestAbsorb
-                ? UnitSelectorKind.HighestHealingAbsorb
-                : legacyKind switch
-                {
-                    UnitSelectorKind.UnitWithRoleWithoutAura => UnitSelectorKind.UnitWithRole,
-                    UnitSelectorKind.UnitWithDispelType => UnitSelectorKind.UnitWithRole,
-                    UnitSelectorKind.UnitWithAura or UnitSelectorKind.UnitWithAuraShortest
-                        => UnitSelectorKind.UnitWithRole,
-                    _ => legacyKind
-                };
-
-        unit.HealthFilter = lowestHealth
-            ? EnemyThresholdFilterKind.Below
-            : EnemyThresholdFilterKind.None;
-        if (lowestHealth && unit.HealthThreshold is null && string.IsNullOrWhiteSpace(unit.HealthThresholdField))
-        {
-            unit.HealthThreshold = 100;
-        }
-
-        unit.HealingAbsorbFilter = highestAbsorb
-            ? EnemyThresholdFilterKind.Above
-            : EnemyThresholdFilterKind.None;
-        if (highestAbsorb)
-        {
-            unit.HealingAbsorbThreshold = unit.HealthThreshold ?? 0;
-            unit.HealingAbsorbThresholdField = unit.HealthThresholdField;
-            unit.HealthThreshold = null;
-            unit.HealthThresholdField = null;
-        }
-
-        if (legacyKind is UnitSelectorKind.UnitWithRole or UnitSelectorKind.UnitWithRoleWithoutAura)
-        {
-            unit.RoleFilter = unit.Role is null ? null : UnitRoleFilterKind.Include;
-        }
-
-        unit.AuraFilter = legacyKind switch
-        {
-            UnitSelectorKind.LowestHealthWithAnyAura
-                or UnitSelectorKind.HighestHealingAbsorbWithAnyAura
-                => EnemyAuraFilterKind.WithAnyAura,
-            UnitSelectorKind.LowestHealthWithoutAnyAura
-                or UnitSelectorKind.HighestHealingAbsorbWithoutAnyAura
-                => EnemyAuraFilterKind.WithoutAnyAura,
-            UnitSelectorKind.LowestHealthWithoutAura
-                or UnitSelectorKind.UnitWithRoleWithoutAura
-                or UnitSelectorKind.HighestHealingAbsorbWithoutAura
-                => EnemyAuraFilterKind.WithoutAura,
-            UnitSelectorKind.LowestHealthWithAura
-                or UnitSelectorKind.LowestHealthWithAuraCount
-                or UnitSelectorKind.HighestHealingAbsorbWithAura
-                or UnitSelectorKind.HighestHealingAbsorbWithAuraCount
-                => EnemyAuraFilterKind.WithAura,
-            _ => EnemyAuraFilterKind.None
-        };
-
-        if (legacyKind is UnitSelectorKind.LowestHealthWithAuraCount
-            or UnitSelectorKind.HighestHealingAbsorbWithAuraCount)
-        {
-            unit.AuraDurationFilter = AuraDurationFilterKind.Equal;
-            unit.AuraDurationSpellId = unit.AuraSpellIds is { Count: > 0 }
-                ? unit.AuraSpellIds[0]
-                : null;
-            unit.AuraDurationThreshold = unit.AuraCount ?? 0;
-        }
-
-        if (legacyKind is UnitSelectorKind.UnitWithAura or UnitSelectorKind.UnitWithAuraShortest)
-        {
-            unit.AuraDurationFilter = legacyKind == UnitSelectorKind.UnitWithAura
-                ? AuraDurationFilterKind.Longest
-                : AuraDurationFilterKind.Shortest;
-            unit.AuraDurationSpellId = unit.AuraSpellIds is { Count: > 0 }
-                ? unit.AuraSpellIds[0]
-                : null;
-        }
-
-        if (legacyKind == UnitSelectorKind.UnitWithDispelType)
-        {
-            unit.DispelFilter = AllyDispelFilterKind.WithType;
-        }
-
-        UpgradeUnitTargetSelectionV3(unit);
-        unit.FilterVersion = ModuleUnit.CurrentFilterVersion;
-    }
-
-    private static void UpgradeUnitTargetSelectionV3(ModuleUnit unit)
-    {
-        if (unit.AuraDurationFilter is AuraDurationFilterKind.Longest or AuraDurationFilterKind.Shortest)
-        {
-            unit.Kind = UnitSelectorKind.UnitWithRole;
-            unit.Reverse = false;
-            return;
-        }
-
-        unit.Kind = unit.Kind switch
-        {
-            UnitSelectorKind.LowestHealthWithAnyAura
-                or UnitSelectorKind.LowestHealthWithoutAnyAura
-                or UnitSelectorKind.LowestHealthWithoutAura
-                or UnitSelectorKind.LowestHealthWithAura
-                or UnitSelectorKind.LowestHealthWithAuraCount
-                => UnitSelectorKind.LowestHealth,
-            UnitSelectorKind.HighestHealingAbsorbWithAnyAura
-                or UnitSelectorKind.HighestHealingAbsorbWithoutAnyAura
-                or UnitSelectorKind.HighestHealingAbsorbWithoutAura
-                or UnitSelectorKind.HighestHealingAbsorbWithAura
-                or UnitSelectorKind.HighestHealingAbsorbWithAuraCount
-                => UnitSelectorKind.HighestHealingAbsorb,
-            UnitSelectorKind.LowestHealth or UnitSelectorKind.HighestHealingAbsorb
-                => unit.Kind,
-            _ => UnitSelectorKind.UnitWithRole
-        };
-
-        if (unit.Kind == UnitSelectorKind.UnitWithRole
-            && unit.RoleFilter is null
-            && unit.DispelFilter == AllyDispelFilterKind.None
-            && unit.AuraFilter == EnemyAuraFilterKind.None)
-        {
-            unit.Reverse = false;
         }
     }
 
@@ -1311,7 +1116,7 @@ public static class ModuleLogic
     private static Dictionary<string, string?> ResolveUnits(ModuleDefinition module, GameState state)
     {
         var unitSlots = new Dictionary<string, string?>(StringComparer.Ordinal);
-        // 生命值名 → 该单位槽位的 生命值 值(未解析则为 null), 供条件直接按名引用。
+        // 值名称 → 所选单位目标字段值(未解析则为 null), 供条件直接按名引用。
         var unitHealth = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var unit in module.Units)
         {
@@ -1323,13 +1128,9 @@ public static class ModuleLogic
             var slot = UnitSelector.Resolve(unit, state);
             unitSlots[unit.Name] = slot;
 
-            if (!string.IsNullOrWhiteSpace(unit.HealthName))
+            if (!string.IsNullOrWhiteSpace(unit.ValueName))
             {
-                unitHealth[unit.HealthName] = slot is not null
-                    && state.Group.TryGetValue(slot, out var member)
-                    && member.TryGetValue("生命值", out var value)
-                        ? value
-                        : null;
+                unitHealth[unit.ValueName] = UnitSelector.ResolveValue(unit, slot, state);
             }
         }
 
@@ -1429,62 +1230,39 @@ public static class ModuleLogic
         var fields = new HashSet<string>(StringComparer.Ordinal);
         foreach (var unit in module.Units)
         {
-            if (!string.IsNullOrWhiteSpace(unit.HealthThresholdField))
-            {
-                fields.Add(unit.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(unit.HealingAbsorbThresholdField))
-            {
-                fields.Add(unit.HealingAbsorbThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(unit.AuraDurationThresholdField))
-            {
-                fields.Add(unit.AuraDurationThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, unit.FilterGroups);
         }
 
         foreach (var count in module.Counts)
         {
-            if (!string.IsNullOrWhiteSpace(count.HealthThresholdField))
-            {
-                fields.Add(count.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(count.HealingAbsorbThresholdField))
-            {
-                fields.Add(count.HealingAbsorbThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, count.FilterGroups);
         }
 
         foreach (var count in module.EnemyCounts)
         {
-            if (!string.IsNullOrWhiteSpace(count.HealthThresholdField))
-            {
-                fields.Add(count.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(count.RangeThresholdField))
-            {
-                fields.Add(count.RangeThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, count.FilterGroups);
         }
 
         foreach (var field in module.AverageHealthFields)
         {
-            if (!string.IsNullOrWhiteSpace(field.HealthThresholdField))
-            {
-                fields.Add(field.HealthThresholdField.Trim());
-            }
-
-            if (!string.IsNullOrWhiteSpace(field.RangeThresholdField))
-            {
-                fields.Add(field.RangeThresholdField.Trim());
-            }
+            AddCountConditionValueFields(fields, field.FilterGroups);
         }
 
         return fields;
+    }
+
+    private static void AddCountConditionValueFields(
+        ISet<string> fields,
+        IReadOnlyList<ModuleCountConditionGroup> groups)
+    {
+        foreach (var condition in groups
+                     .SelectMany(group => group.Conditions)
+                     .Where(condition => condition.Enabled
+                         && condition.ValueKind == CountConditionValueKind.StateField
+                         && !string.IsNullOrWhiteSpace(condition.ValueField)))
+        {
+            fields.Add(condition.ValueField!.Trim());
+        }
     }
 
     private static bool ApplyValueAdjustment(GameState state, ModuleValueAdjustment adjustment)
@@ -1840,7 +1618,7 @@ public static class ModuleConditionEvaluator
             }
 
             var inLeft = ResolveValue(state, inField, failedSpells, insertItems);
-            if (inLeft is null && IsStructuredSpellReference(inField))
+            if (inLeft is null && (IsStructuredSpellReference(inField) || NameplateStateLayout.IsComputedTtdField(inField)))
             {
                 matched = false;
                 return true;
@@ -1856,7 +1634,7 @@ public static class ModuleConditionEvaluator
             var invert = trimmed.StartsWith('!');
             var fieldName = invert ? trimmed[1..].Trim() : trimmed;
             var value = ResolveValue(state, fieldName, failedSpells, insertItems);
-            if (value is null && IsStructuredSpellReference(fieldName))
+            if (value is null && (IsStructuredSpellReference(fieldName) || NameplateStateLayout.IsComputedTtdField(fieldName)))
             {
                 matched = false;
                 return true;
@@ -1867,7 +1645,7 @@ public static class ModuleConditionEvaluator
 
         var comparisonField = comparison.Groups["field"].Value.Trim();
         var left = ResolveValue(state, comparisonField, failedSpells, insertItems);
-        if (left is null && IsStructuredSpellReference(comparisonField))
+        if (left is null && (IsStructuredSpellReference(comparisonField) || NameplateStateLayout.IsComputedTtdField(comparisonField)))
         {
             matched = false;
             return true;

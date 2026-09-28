@@ -1816,13 +1816,49 @@
         "type": "int"
       }
     },
+    "姓名板目标": {
+      "step": 151,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板焦点": {
+      "step": 152,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领1": {
+      "step": 153,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领2": {
+      "step": 154,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领3": {
+      "step": 155,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 156,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 157,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
       "start": 151,
       "healthPercent": 1,
       "range": 2,
       "combat": 3,
       "auraStart": 4,
-      "num": 3
+      "num": 3,
+      "mappingCount": 7
     }
   }
 }

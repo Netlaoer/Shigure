@@ -36,9 +36,6 @@ internal static class UiIconCatalog
         }
     }
 
-    public static void Draw(Graphics graphics, SettingsNavIcon icon, Rectangle bounds, Color color)
-        => Draw(graphics, icon.ToString(), bounds, color);
-
     public static void Draw(Graphics graphics, string name, Rectangle bounds, Color color)
     {
         var size = Math.Max(1, Math.Min(bounds.Width, bounds.Height));

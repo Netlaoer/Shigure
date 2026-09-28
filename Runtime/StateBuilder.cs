@@ -87,7 +87,7 @@ public sealed class StateBuilder : IRuntimeStateBuilder
         var result = new Dictionary<string, IReadOnlyDictionary<string, object?>>();
         var start = JsonHelpers.GetInt(JsonHelpers.Get(config, "start")) ?? 0;
         var fieldCount = JsonHelpers.GetInt(JsonHelpers.Get(config, "num")) ?? 0;
-        // 生命值/距离/战斗/光环起点都是固定偏移，与插件分配一致。
+        // 生命值/距离/战斗/光环起点都是固定偏移，与插件分配一致；槽位数据接在 7 格映射之后。
         const int healthOffset = NameplateStateLayout.HealthPercentOffset;
         const int rangeOffset = NameplateStateLayout.RangeOffset;
         const int combatOffset = NameplateStateLayout.CombatOffset;
@@ -96,10 +96,14 @@ public sealed class StateBuilder : IRuntimeStateBuilder
 
         for (var slot = 1; slot <= NameplateStateLayout.SlotCount; slot++)
         {
-            var firstPixel = start + (slot - 1) * fieldCount;
+            var firstPixel = NameplateStateLayout.SlotPixelIndex(start, fieldCount, slot, 1);
             var present = start > 0 && fieldCount > 0 && rowData.ContainsKey(firstPixel);
             int ReadField(int offset) => present && offset > 0 && offset <= fieldCount
-                && rowData.TryGetValue(firstPixel + offset - 1, out var value) ? value : 0;
+                && rowData.TryGetValue(
+                    NameplateStateLayout.SlotPixelIndex(start, fieldCount, slot, offset),
+                    out var value)
+                    ? value
+                    : 0;
             var values = new Dictionary<string, object?>
             {
                 ["存在"] = present,

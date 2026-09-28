@@ -17,27 +17,17 @@ internal enum SettingsPage
     Logic,
     Logs,
     BossNumbers,
-    CommonFields,
-    About
-}
-
-internal enum SettingsNavIcon
-{
-    General,
-    Config,
-    Macros,
-    Modules,
-    Status,
-    Party,
-    Nameplates,
-    Logic,
-    Logs,
-    BossNumbers,
+    Event,
+    BigWigsEvent,
     CommonFields,
     About
 }
 
 internal sealed record BossNumberOption(int Number, string Dungeon, string Name);
+internal sealed record ExBossEventFilterOption(string Display, string? Value)
+{
+    public override string ToString() => Display;
+}
 
 internal sealed record StateFieldDisplay(string Name, string SpellId, string Type, long IconId = 0, bool IsItem = false);
 internal sealed record StatusListIcon(long Id, bool IsItem);
@@ -45,12 +35,24 @@ internal sealed record StatusListIcon(long Id, bool IsItem);
 public sealed class StatusForm : Form
 {
     private const string AboutLogoResourcePath = "Assets.arasaka-icon-transparent.png";
-    private const int AboutCardWidth = 1600;
-    private const int SectionCardWidth = 1600;
+    private const int SettingsContentWidth = 1200;
     private const int AboutLogoSize = 220;
     private const float AboutLogoOpacity = 0.55F;
-    private const int BossNumberCardWidth = 400;
     private const int AboutScaleIconSize = 18;
+    /// <summary>独立标题栏高度；页面导航位于左侧栏。</summary>
+    private const int TopBarHeight = 52;
+    private const int SidebarWidth = 244;
+    private const int CompactSidebarWidth = 84;
+    private const int MinExpandedSidebarWidth = 208;
+    private const int MaxSidebarWidth = 360;
+    private const int SidebarCompactThreshold = 136;
+    private const int SidebarSplitterWidth = 5;
+    private const int SidebarItemHeight = 40;
+    /// <summary>导航行左侧独立品牌图标边长（与导航文字垂直对齐）。</summary>
+    private const int NavBrandIconSize = 32;
+    /// <summary>Windows 风格标题栏按钮宽。</summary>
+    private const int ChromeButtonWidth = 46;
+    private const int NavItemDirtyReserve = 22;
 
     private const string AboutDisclaimerText =
         """
@@ -299,6 +301,7 @@ public sealed class StatusForm : Form
     ];
 
     private readonly List<(SettingsNavButton Button, Control View, SettingsPage Page)> _navItems = new();
+    private readonly List<Label> _sidebarGroups = new();
     private readonly Dictionary<ListView, Label> _listCounts = new();
     private readonly HashSet<SettingsPage> _dirtyPages = new();
     private readonly ToolTip _toolTip = new();
@@ -316,17 +319,46 @@ public sealed class StatusForm : Form
     private ListView _unitInfoList = null!;
     private TextBox _logTextBox = null!;
     private Panel _contentHost = null!;
+    private TableLayoutPanel _bodyLayout = null!;
+    private FlowLayoutPanel _sidebarNav = null!;
+    private Button _sidebarToggle = null!;
+    private int _sidebarExpandedWidth = SidebarWidth;
+    private bool _sidebarCollapsed;
+    private bool _sidebarDragging;
+    private int _sidebarDragStartX;
+    private int _sidebarDragStartWidth;
     private Panel _settingsHost = null!;
     private Panel _configHost = null!;
     private Panel _macrosHost = null!;
     private Panel _moduleHost = null!;
     private Panel _aboutHost = null!;
+    private Button _maximizeButton = null!;
+    private bool _usesDwmRoundedCorners;
+    private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
+    private BorderlessFormChrome.EdgeHitTransparentScope? _edgeHitScope;
 
     internal string SelectedPageKey => _selectedPage.ToString();
+    internal int SidebarExpandedWidth => _sidebarExpandedWidth;
+    internal bool SidebarCollapsed => _sidebarCollapsed;
+    internal event EventHandler? SidebarLayoutChanged;
 
     public StatusForm()
     {
+        _roundedCornerResizeTimer = new System.Windows.Forms.Timer
+        {
+            Interval = 50
+        };
+        _roundedCornerResizeTimer.Tick += (_, _) =>
+        {
+            _roundedCornerResizeTimer.Stop();
+            if (IsHandleCreated && !_usesDwmRoundedCorners)
+            {
+                UiTheme.ApplyFallbackRoundedCorners(this);
+            }
+        };
         InitializeComponent();
+        BorderlessFormChrome.ApplyResizePadding(this);
+        _edgeHitScope = BorderlessFormChrome.InstallEdgeHitTransparent(this);
         UiTheme.SetListViewSubItemIconResolver(_stateList, ResolveStatusListIcon);
         UiTheme.SetListViewRowAccentResolver(_stateList, ResolveStateListAccent);
         UiTheme.SetListViewSubItemIconResolver(_auraList, ResolveStatusListIcon);
@@ -340,6 +372,10 @@ public sealed class StatusForm : Form
         if (disposing)
         {
             SpellIconCatalog.CatalogChanged -= OnSpellIconCatalogChanged;
+            _roundedCornerResizeTimer.Dispose();
+            _toolTip.Dispose();
+            _edgeHitScope?.Dispose();
+            _edgeHitScope = null;
         }
 
         base.Dispose(disposing);
@@ -349,11 +385,65 @@ public sealed class StatusForm : Form
     {
         base.OnHandleCreated(e);
         UiTheme.ApplyDarkTitleBar(this);
+        _usesDwmRoundedCorners = UiTheme.ApplyRoundedCorners(this);
+        BorderlessFormChrome.ApplyResizePadding(this);
+        SyncMaximizedBounds();
+    }
+
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        base.OnDpiChanged(e);
+        BorderlessFormChrome.ApplyResizePadding(this);
+        SyncMaximizedBounds();
+    }
+
+    protected override void OnMove(EventArgs e)
+    {
+        base.OnMove(e);
+        SyncMaximizedBounds();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        UpdateMaximizeButton();
+        SyncMaximizedBounds();
+        if (!_usesDwmRoundedCorners && IsHandleCreated && WindowState == FormWindowState.Normal)
+        {
+            _roundedCornerResizeTimer.Stop();
+            _roundedCornerResizeTimer.Start();
+        }
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == BorderlessFormChrome.WmGetMinMaxInfo)
+        {
+            base.WndProc(ref m);
+            BorderlessFormChrome.TryHandleGetMinMaxInfo(this, ref m);
+            return;
+        }
+
+        if (m.Msg == BorderlessFormChrome.WmNcHitTest)
+        {
+            base.WndProc(ref m);
+            // 最大化时不启用边缘缩放命中。
+            if (WindowState == FormWindowState.Normal)
+            {
+                BorderlessFormChrome.TryHandleNcHitTest(this, ref m);
+            }
+
+            return;
+        }
+
+        base.WndProc(ref m);
     }
 
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
+        BorderlessFormChrome.ApplyResizePadding(this);
+        SyncMaximizedBounds();
         if (_hasKnownBounds)
         {
             return;
@@ -436,9 +526,10 @@ public sealed class StatusForm : Form
 
         Text = "设置";
         StartPosition = FormStartPosition.CenterScreen;
+        FormBorderStyle = FormBorderStyle.None;
         MinimumSize = new Size(1040, 640);
         Size = new Size(1280, 800);
-        BackColor = UiTheme.Background;
+        BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
         ShowInTaskbar = true;
         TopMost = false;
@@ -448,14 +539,14 @@ public sealed class StatusForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Background,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(0),
-            RowCount = 1,
-            ColumnCount = 2,
+            RowCount = 2,
+            ColumnCount = 1,
             Margin = new Padding(0)
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 216));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, TopBarHeight));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         Controls.Add(root);
 
@@ -465,27 +556,28 @@ public sealed class StatusForm : Form
         _moduleHost = CreatePageHost();
         _aboutHost = CreatePageHost();
 
-        _stateList = UiTheme.CreateListView(Font, "status-state-v3",
+        // 四张状态卡等宽；短字段保持定宽，名称列吸收剩余空间。
+        _stateList = UiTheme.CreateListView(Font, "status-state-v5",
             new UiTheme.ListColumn("#", 28, 28, FixedWidth: true),
-            new UiTheme.ListColumn("分类", 56, 88),
-            new UiTheme.ListColumn("名称", 40, 200),
-            new UiTheme.ListColumn("值", 40, 900, FillRemaining: true));
-        _auraList = UiTheme.CreateListView(Font, "status-aura-v3",
+            new UiTheme.ListColumn("分类", 56, 56, FixedWidth: true),
+            new UiTheme.ListColumn("名称", 40, 1000, FillRemaining: true),
+            new UiTheme.ListColumn("值", 64, 64, FixedWidth: true));
+        _auraList = UiTheme.CreateListView(Font, "status-aura-v4",
             new UiTheme.ListColumn("#", 28, 28, FixedWidth: true),
-            new UiTheme.ListColumn("名称", 70, 240, FillRemaining: true),
-            new UiTheme.ListColumn("spellId", 64, 100),
-            new UiTheme.ListColumn("类型", 48, 80),
-            new UiTheme.ListColumn("值", 44, 100));
-        _dynamicUnitList = UiTheme.CreateListView(Font, "status-dynamic-unit-v2",
-            new UiTheme.ListColumn("类型", 40, 140),
-            new UiTheme.ListColumn("名称", 40, 240),
-            new UiTheme.ListColumn("值", 40, 900, FillRemaining: true));
-        _spellList = UiTheme.CreateListView(Font, "status-spell-v3",
+            new UiTheme.ListColumn("名称", 70, 1000, FillRemaining: true),
+            new UiTheme.ListColumn("spellId", 64, 64, FixedWidth: true),
+            new UiTheme.ListColumn("类型", 48, 48, FixedWidth: true),
+            new UiTheme.ListColumn("值", 64, 64, FixedWidth: true));
+        _dynamicUnitList = UiTheme.CreateListView(Font, "status-dynamic-unit-v4",
+            new UiTheme.ListColumn("类型", 72, 72, FixedWidth: true),
+            new UiTheme.ListColumn("名称", 40, 1000, FillRemaining: true),
+            new UiTheme.ListColumn("值", 64, 64, FixedWidth: true));
+        _spellList = UiTheme.CreateListView(Font, "status-spell-v4",
             new UiTheme.ListColumn("#", 28, 28, FixedWidth: true),
-            new UiTheme.ListColumn("名称", 70, 240, FillRemaining: true),
-            new UiTheme.ListColumn("spellId", 64, 100),
-            new UiTheme.ListColumn("类型", 58, 100),
-            new UiTheme.ListColumn("值", 44, 100));
+            new UiTheme.ListColumn("名称", 70, 1000, FillRemaining: true),
+            new UiTheme.ListColumn("spellId", 64, 64, FixedWidth: true),
+            new UiTheme.ListColumn("类型", 58, 58, FixedWidth: true),
+            new UiTheme.ListColumn("值", 64, 64, FixedWidth: true));
 
         _partyList = UiTheme.CreateListView(Font, "status-party",
             new UiTheme.ListColumn("单位", 120, 180, FixedWidth: true),
@@ -508,37 +600,55 @@ public sealed class StatusForm : Form
             Font = new Font("Cascadia Mono", 9.5F, FontStyle.Regular, GraphicsUnit.Point)
         };
 
-        var navShell = BuildNavigationShell(out var nav);
+        var navShell = BuildNavigationShell();
+        var sidebar = BuildSidebar(out var nav);
 
         _contentHost = new Panel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            Padding = new Padding(16),
+            Padding = new Padding(20, 0, 20, 16),
             Margin = new Padding(0)
         };
 
-        AddNavGroup(nav, "常用");
-        AddNavItem(nav, SettingsPage.General, SettingsNavIcon.General, "通用", CreatePageShell("通用", "运行控制、配置同步、数据包与模块选择", _settingsHost));
-        AddNavGroup(nav, "编辑");
-        AddNavItem(nav, SettingsPage.Config, SettingsNavIcon.Config, "配置", CreatePageShell("配置", "编辑职业、专精和扫描字段", _configHost));
-        AddNavItem(nav, SettingsPage.Macros, SettingsNavIcon.Macros, "宏", CreatePageShell("宏", "维护职业动态宏、静态宏与特殊宏", _macrosHost));
-        AddNavItem(nav, SettingsPage.Modules, SettingsNavIcon.Modules, "模块", CreatePageShell("模块", "创建、匹配并维护运行模块", _moduleHost));
-        AddNavGroup(nav, "监控");
-        AddNavItem(nav, SettingsPage.Status, SettingsNavIcon.Status, "状态", CreatePageShell("状态", string.Empty, BuildStatusPage()));
-        AddNavItem(nav, SettingsPage.Party, SettingsNavIcon.Party, "队伍", CreatePageShell("队伍", "当前队伍单位与扫描字段摘要", BuildFixedWidthSectionPage("队伍成员", _partyList, "实时队伍数据")));
-        AddNavItem(nav, SettingsPage.Nameplates, SettingsNavIcon.Party, "姓名板", CreatePageShell("姓名板", $"{NameplateStateLayout.SlotCount} 个敌对姓名板与配置字段", BuildFixedWidthSectionPage("姓名板", _nameplateList, "实时姓名板数据")));
-        AddNavItem(nav, SettingsPage.Logic, SettingsNavIcon.Logic, "逻辑", CreatePageShell("逻辑", "运行时推荐目标与调试值", BuildFixedWidthSectionPage("逻辑信息", _unitInfoList, "当前模块的决策输出")));
-        AddNavItem(nav, SettingsPage.Logs, SettingsNavIcon.Logs, "日志", CreatePageShell("日志", "运行、模块匹配与施放记录", BuildLogPage()));
-        AddNavGroup(nav, "说明");
-        AddNavItem(nav, SettingsPage.BossNumbers, SettingsNavIcon.BossNumbers, "首领", CreatePageShell("首领编号", "副本首领的序号、名称与扫描编号", BuildBossNumbersPage()));
-        AddNavItem(nav, SettingsPage.CommonFields, SettingsNavIcon.CommonFields, "字段", CreatePageShell("常用字段", "模块条件可用的状态字段参考", BuildCommonFieldsPanel()));
-        AddNavGroup(nav, "系统");
-        AddNavItem(nav, SettingsPage.About, SettingsNavIcon.About, "关于", CreatePageShell("关于", "应用信息、免责声明、许可证与来源", _aboutHost));
+        AddSidebarGroup(nav, "设置");
+        AddNavItem(nav, SettingsPage.General, "通用", "General", _settingsHost);
+        AddNavItem(nav, SettingsPage.Config, "配置", "Config", _configHost);
+        AddNavItem(nav, SettingsPage.Macros, "宏", "Macros", _macrosHost);
+        AddNavItem(nav, SettingsPage.Modules, "模块", "Modules", _moduleHost);
+        AddSidebarGroup(nav, "实时数据");
+        AddNavItem(nav, SettingsPage.Status, "状态", "Status", BuildStatusPage());
+        AddNavItem(nav, SettingsPage.Party, "队伍", "Party", BuildFixedWidthSectionPage("队伍成员", _partyList, "实时队伍数据"));
+        AddNavItem(nav, SettingsPage.Nameplates, "姓名板", "Nameplates", BuildFixedWidthSectionPage("姓名板", _nameplateList, "实时姓名板数据"));
+        AddNavItem(nav, SettingsPage.Logic, "逻辑", "Logic", BuildFixedWidthSectionPage("逻辑信息", _unitInfoList, "当前模块的决策输出"));
+        AddNavItem(nav, SettingsPage.Logs, "日志", "Logs", BuildLogPage());
+        AddSidebarGroup(nav, "参考");
+        AddNavItem(nav, SettingsPage.BossNumbers, "首领", "BossNumbers", CreateLazyBossNumbersPage());
+        AddNavItem(nav, SettingsPage.Event, "EX 事件", "Event", BuildExBossEventsPage());
+        AddNavItem(nav, SettingsPage.BigWigsEvent, "BW 事件", "BigWigsEvent", BuildBigWigsEventsPage());
+        AddNavItem(nav, SettingsPage.CommonFields, "字段", "CommonFields", CreateLazyCommonFieldsPage());
+        AddSidebarGroup(nav, "其他");
+        AddNavItem(nav, SettingsPage.About, "关于", "About", _aboutHost);
         _aboutHost.Controls.Add(BuildAboutPanel());
 
+        _bodyLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        _bodyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SidebarWidth));
+        _bodyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SidebarSplitterWidth));
+        _bodyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _bodyLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        _bodyLayout.Controls.Add(sidebar, 0, 0);
+        _bodyLayout.Controls.Add(BuildSidebarSplitter(), 1, 0);
+        _bodyLayout.Controls.Add(_contentHost, 2, 0);
         root.Controls.Add(navShell, 0, 0);
-        root.Controls.Add(_contentHost, 1, 0);
+        root.Controls.Add(_bodyLayout, 0, 1);
 
         InitializeEmptyLists();
         ResumeLayout(false);
@@ -556,76 +666,502 @@ public sealed class StatusForm : Form
         ReplaceItems(_unitInfoList, [new ListViewItem(["逻辑信息", "无推荐目标"])]);
     }
 
-    private Control BuildNavigationShell(out FlowLayoutPanel nav)
+    private Control BuildNavigationShell()
     {
+        // 标题栏只承载品牌和窗口操作，页面入口放在独立侧栏。
         var shell = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Background,
-            ColumnCount = 1,
-            RowCount = 3,
-            Padding = new Padding(12, 10, 12, 8),
+            BackColor = UiTheme.Surface,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(18, 0, 0, 0),
             Margin = new Padding(0)
         };
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        shell.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
-
-        var brand = new TableLayoutPanel
+        var brandIcon = new PictureBox
         {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Background,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(10, 0, 0, 0)
+            Size = new Size(NavBrandIconSize, NavBrandIconSize),
+            MinimumSize = new Size(NavBrandIconSize, NavBrandIconSize),
+            MaximumSize = new Size(NavBrandIconSize, NavBrandIconSize),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0, 0, 10, 0),
+            Anchor = AnchorStyles.None,
+            TabStop = false,
+            AccessibleName = "Shigure"
         };
-        brand.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-        brand.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
-        brand.Controls.Add(new Label
-        {
-            Text = "SHIGURE",
-            Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 13F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0)
-        }, 0, 0);
-        brand.Controls.Add(new Label
-        {
-            Text = "CONTROL CENTER",
-            Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Accent,
-            Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
-            TextAlign = ContentAlignment.TopLeft,
-            Margin = new Padding(0)
-        }, 0, 1);
-        shell.Controls.Add(brand, 0, 0);
+        brandIcon.Image = LoadNavBrandIcon();
+        EnableDrag(brandIcon);
 
+        var brand = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoScroll = false,
+            BackColor = UiTheme.Surface,
+            Margin = new Padding(0),
+            Padding = new Padding(0, 10, 0, 10)
+        };
+        var brandTitle = new Label
+        {
+            Text = "Shigure",
+            AutoSize = true,
+            MinimumSize = new Size(0, NavBrandIconSize),
+            Margin = new Padding(0, 0, 12, 0),
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = UiTheme.Text,
+            Font = new Font(Font.FontFamily, 11F, FontStyle.Bold),
+            BackColor = Color.Transparent
+        };
+        var windowTitle = new Label
+        {
+            Text = "设置",
+            AutoSize = true,
+            MinimumSize = new Size(0, NavBrandIconSize),
+            Margin = Padding.Empty,
+            TextAlign = ContentAlignment.MiddleLeft,
+            ForeColor = UiTheme.Muted,
+            Font = new Font(Font.FontFamily, 9F),
+            BackColor = Color.Transparent
+        };
+        brand.Controls.Add(brandIcon);
+        brand.Controls.Add(brandTitle);
+        brand.Controls.Add(windowTitle);
+        EnableDrag(brand);
+        EnableDrag(brandTitle);
+        EnableDrag(windowTitle);
+
+        var chromeActions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        var minimizeButton = CreateChromeButton("─", "最小化");
+        minimizeButton.Click += (_, _) => WindowState = FormWindowState.Minimized;
+        _maximizeButton = CreateChromeButton("□", "最大化");
+        _maximizeButton.Click += (_, _) => ToggleMaximize();
+        var closeButton = CreateChromeButton("✕", "关闭", isClose: true);
+        closeButton.Click += (_, _) => Close();
+        chromeActions.Controls.Add(minimizeButton);
+        chromeActions.Controls.Add(_maximizeButton);
+        chromeActions.Controls.Add(closeButton);
+
+        shell.Controls.Add(brand, 0, 0);
+        shell.Controls.Add(chromeActions, 1, 0);
+        EnableDrag(shell);
+        UpdateMaximizeButton();
+        return shell;
+    }
+
+    private Control BuildSidebar(out FlowLayoutPanel nav)
+    {
+        var cardHost = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Padding = new Padding(8),
+            Margin = Padding.Empty
+        };
+        var sidebar = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.SettingsNavigation,
+            Padding = new Padding(1),
+            Margin = Padding.Empty
+        };
+        cardHost.Controls.Add(sidebar);
+        sidebar.Resize += (_, _) =>
+        {
+            if (sidebar.ClientSize.Width <= 0 || sidebar.ClientSize.Height <= 0)
+            {
+                return;
+            }
+
+            using var shape = UiTheme.CreateRoundedRectanglePath(
+                sidebar.ClientRectangle, UiTheme.Scale(sidebar, UiTheme.CardCornerRadius));
+            var previous = sidebar.Region;
+            sidebar.Region = new Region(shape);
+            previous?.Dispose();
+        };
+        sidebar.Paint += (_, e) =>
+        {
+            var bounds = new Rectangle(0, 0,
+                Math.Max(1, sidebar.ClientSize.Width - 1),
+                Math.Max(1, sidebar.ClientSize.Height - 1));
+            using var shape = UiTheme.CreateRoundedRectanglePath(
+                bounds, UiTheme.Scale(sidebar, UiTheme.CardCornerRadius));
+            using var border = new Pen(UiTheme.SettingsNavigationBorder);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.DrawPath(border, shape);
+        };
+
+        var viewport = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.SettingsNavigation,
+            Margin = Padding.Empty
+        };
         nav = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.None,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = UiTheme.Background,
-            Margin = new Padding(0)
+            BackColor = UiTheme.SettingsNavigation,
+            Margin = Padding.Empty,
+            Padding = new Padding(12, 10, 12 + SystemInformation.VerticalScrollBarWidth, 14)
         };
-        shell.Paint += (_, e) =>
+        _sidebarNav = nav;
+        var navPanel = nav;
+        void FitItems()
         {
-            using var divider = new Pen(UiTheme.Border);
-            e.Graphics.DrawLine(divider, shell.ClientSize.Width - 1, 0, shell.ClientSize.Width - 1, shell.ClientSize.Height);
+            var width = Math.Max(1, navPanel.ClientSize.Width - navPanel.Padding.Horizontal);
+            foreach (Control item in navPanel.Controls)
+            {
+                if (item.Width != width)
+                {
+                    item.Width = width;
+                }
+            }
+        }
+        nav.Resize += (_, _) => FitItems();
+        nav.Layout += (_, _) => FitItems();
+        viewport.Controls.Add(nav);
+        viewport.Resize += (_, _) => navPanel.SetBounds(
+            0, 0,
+            viewport.ClientSize.Width + SystemInformation.VerticalScrollBarWidth,
+            viewport.ClientSize.Height);
+        sidebar.Controls.Add(viewport);
+
+        var header = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 44,
+            BackColor = UiTheme.SettingsNavigation,
+            Margin = Padding.Empty
         };
-        shell.Controls.Add(nav, 0, 1);
-        shell.Controls.Add(new Label
+        _sidebarToggle = new UiButton
         {
-            Text = $"v{AppInfo.Version}",
-            Dock = DockStyle.Fill,
+            Size = new Size(40, 40),
+            Text = string.Empty,
+            AccessibleName = "收起侧栏",
+            Cursor = Cursors.Hand,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = UiTheme.SettingsNavigation,
             ForeColor = UiTheme.Muted,
-            TextAlign = ContentAlignment.BottomLeft,
-            Padding = new Padding(4, 0, 0, 0),
-            Margin = new Padding(0)
-        }, 0, 2);
-        return shell;
+            Margin = Padding.Empty
+        };
+        _sidebarToggle.FlatAppearance.BorderSize = 0;
+        _sidebarToggle.FlatAppearance.MouseOverBackColor = UiTheme.Hover;
+        _sidebarToggle.FlatAppearance.MouseDownBackColor = UiTheme.Pressed;
+        var toggleHovered = false;
+        var togglePressed = false;
+        _sidebarToggle.MouseEnter += (_, _) => { toggleHovered = true; _sidebarToggle.Invalidate(); };
+        _sidebarToggle.MouseLeave += (_, _) => { toggleHovered = false; togglePressed = false; _sidebarToggle.Invalidate(); };
+        _sidebarToggle.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                togglePressed = true;
+                _sidebarToggle.Invalidate();
+            }
+        };
+        _sidebarToggle.MouseUp += (_, _) => { togglePressed = false; _sidebarToggle.Invalidate(); };
+        _sidebarToggle.Paint += (_, e) =>
+        {
+            e.Graphics.Clear(togglePressed ? UiTheme.Pressed
+                : toggleHovered ? UiTheme.Hover : UiTheme.SettingsNavigation);
+            var iconSize = Math.Max(18, (int)Math.Round(18 * DeviceDpi / 96.0));
+            UiIconCatalog.Draw(e.Graphics, "window-sidebar",
+                new Rectangle((_sidebarToggle.Width - iconSize) / 2,
+                    (_sidebarToggle.Height - iconSize) / 2, iconSize, iconSize),
+                UiTheme.Muted);
+        };
+        _sidebarToggle.Click += (_, _) =>
+        {
+            SetSidebarWidth(_sidebarCollapsed ? _sidebarExpandedWidth : CompactSidebarWidth);
+            SidebarLayoutChanged?.Invoke(this, EventArgs.Empty);
+        };
+        _toolTip.SetToolTip(_sidebarToggle, "收起侧栏");
+        header.Controls.Add(_sidebarToggle);
+        header.Resize += (_, _) => PositionSidebarToggle();
+        navPanel.Resize += (_, _) => PositionSidebarToggle();
+        sidebar.Controls.Add(header);
+        PositionSidebarToggle();
+
+        var scrollBar = new UiDarkScrollBar();
+        sidebar.Controls.Add(scrollBar);
+        scrollBar.BringToFront();
+        void PositionScrollBar() => scrollBar.SetBounds(
+            Math.Max(0, viewport.Right - SystemInformation.VerticalScrollBarWidth),
+            viewport.Top,
+            SystemInformation.VerticalScrollBarWidth,
+            viewport.Height);
+        void SyncScrollBar() => scrollBar.SetMetrics(
+            Math.Max(0, navPanel.DisplayRectangle.Height),
+            Math.Max(1, navPanel.ClientSize.Height),
+            navPanel.VerticalScroll.Value);
+        viewport.Resize += (_, _) => { PositionScrollBar(); SyncScrollBar(); };
+        navPanel.Resize += (_, _) => SyncScrollBar();
+        navPanel.Layout += (_, _) => SyncScrollBar();
+        navPanel.Scroll += (_, _) => SyncScrollBar();
+        scrollBar.ScrollRequested += value =>
+        {
+            navPanel.AutoScrollPosition = new Point(0, value);
+            SyncScrollBar();
+        };
+        PositionScrollBar();
+        SyncScrollBar();
+        return cardHost;
+    }
+
+    private Control BuildSidebarSplitter()
+    {
+        var splitter = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Cursor = Cursors.VSplit,
+            Margin = Padding.Empty
+        };
+        var splitterHovered = false;
+        splitter.Paint += (_, e) =>
+        {
+            if (!splitterHovered && !_sidebarDragging)
+            {
+                return;
+            }
+
+            using var divider = new Pen(UiTheme.Border);
+            var x = splitter.ClientSize.Width / 2;
+            e.Graphics.DrawLine(divider, x, 0, x, splitter.ClientSize.Height);
+        };
+        splitter.MouseEnter += (_, _) => { splitterHovered = true; splitter.Invalidate(); };
+        splitter.MouseLeave += (_, _) => { splitterHovered = false; splitter.Invalidate(); };
+        splitter.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            _sidebarDragging = true;
+            splitter.Invalidate();
+            _sidebarDragStartX = Cursor.Position.X;
+            _sidebarDragStartWidth = (int)_bodyLayout.ColumnStyles[0].Width;
+            splitter.Capture = true;
+        };
+        splitter.MouseMove += (_, _) =>
+        {
+            if (_sidebarDragging)
+            {
+                SetSidebarWidth(_sidebarDragStartWidth + Cursor.Position.X - _sidebarDragStartX);
+            }
+        };
+        splitter.MouseUp += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left && _sidebarDragging)
+            {
+                FinishSidebarDrag();
+                splitter.Invalidate();
+            }
+        };
+        splitter.MouseCaptureChanged += (_, _) =>
+        {
+            if (_sidebarDragging)
+            {
+                FinishSidebarDrag();
+                splitter.Invalidate();
+            }
+        };
+        return splitter;
+    }
+
+    private void FinishSidebarDrag()
+    {
+        _sidebarDragging = false;
+        var width = (int)_bodyLayout.ColumnStyles[0].Width;
+        SetSidebarWidth(width < SidebarCompactThreshold
+            ? CompactSidebarWidth
+            : Math.Max(MinExpandedSidebarWidth, width));
+        SidebarLayoutChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SetSidebarWidth(int requestedWidth)
+    {
+        var width = Math.Clamp(requestedWidth, CompactSidebarWidth, MaxSidebarWidth);
+        var collapsed = width < SidebarCompactThreshold;
+        _bodyLayout.ColumnStyles[0].Width = width;
+        _sidebarCollapsed = collapsed;
+        if (!collapsed && width >= MinExpandedSidebarWidth)
+        {
+            _sidebarExpandedWidth = width;
+        }
+
+        _sidebarNav.Padding = collapsed
+            ? new Padding(8, 10, 8 + SystemInformation.VerticalScrollBarWidth, 14)
+            : new Padding(12, 10, 12 + SystemInformation.VerticalScrollBarWidth, 14);
+        foreach (var group in _sidebarGroups)
+        {
+            group.Visible = !collapsed;
+        }
+
+        foreach (var (button, _, _) in _navItems)
+        {
+            button.IsCompact = collapsed;
+        }
+
+        _sidebarToggle.AccessibleName = collapsed ? "展开侧栏" : "收起侧栏";
+        _toolTip.SetToolTip(_sidebarToggle, _sidebarToggle.AccessibleName);
+        _sidebarNav.PerformLayout();
+        PositionSidebarToggle();
+    }
+
+    private void PositionSidebarToggle()
+    {
+        if (_sidebarToggle is null || _sidebarNav is null || _sidebarToggle.Parent is not { } header)
+        {
+            return;
+        }
+
+        var scale = Math.Max(1f, _sidebarToggle.DeviceDpi / 96f);
+        var iconSize = Math.Max(16, (int)Math.Round(18 * scale));
+        var iconCenter = _sidebarCollapsed
+            ? _sidebarNav.Padding.Left
+                + Math.Max(1, _sidebarNav.ClientSize.Width - _sidebarNav.Padding.Horizontal) / 2
+            : _sidebarNav.Padding.Left + (int)Math.Round(14 * scale) + iconSize / 2;
+        _sidebarToggle.Left = Math.Clamp(iconCenter - _sidebarToggle.Width / 2,
+            0, Math.Max(0, header.ClientSize.Width - _sidebarToggle.Width));
+        _sidebarToggle.Top = (header.ClientSize.Height - _sidebarToggle.Height) / 2;
+    }
+
+    private void SyncMaximizedBounds()
+    {
+        var working = BorderlessFormChrome.GetWorkingArea(this);
+        if (MaximizedBounds != working)
+        {
+            MaximizedBounds = working;
+        }
+    }
+
+    private void ToggleMaximize()
+    {
+        SyncMaximizedBounds();
+        if (WindowState == FormWindowState.Maximized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
+        else
+        {
+            // 先同步工作区，再最大化，避免盖住任务栏；还原由系统记回 Maximize 前的 Normal bounds。
+            WindowState = FormWindowState.Maximized;
+        }
+
+        UpdateMaximizeButton();
+    }
+
+    private void UpdateMaximizeButton()
+    {
+        if (_maximizeButton is null || _maximizeButton.IsDisposed)
+        {
+            return;
+        }
+
+        var maximized = WindowState == FormWindowState.Maximized;
+        _maximizeButton.Text = maximized ? "❐" : "□";
+        _toolTip.SetToolTip(_maximizeButton, maximized ? "还原" : "最大化");
+    }
+
+    private static Image? LoadNavBrandIcon()
+    {
+        // 优先 32px 资源，高度贴近导航文字行。
+        const string resourceName = "Shigure.Assets.arasaka-icon-32.png";
+        using var stream = typeof(StatusForm).Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var image = Image.FromStream(stream);
+        return new Bitmap(image);
+    }
+
+    private Button CreateChromeButton(string text, string tooltip, bool isClose = false)
+    {
+        // Windows 风格：矩形命中区、无圆角胶囊底，默认与顶栏同色。
+        var button = new UiButton
+        {
+            Text = text,
+            AutoSize = false,
+            Size = new Size(ChromeButtonWidth, TopBarHeight),
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = UiTheme.Surface,
+            ForeColor = UiTheme.Muted,
+            UseVisualStyleBackColor = false,
+            Cursor = Cursors.Hand,
+            TabStop = false,
+            Font = new Font("Segoe UI Symbol", 10F, FontStyle.Regular)
+        };
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.BorderColor = UiTheme.Surface;
+        button.FlatAppearance.MouseOverBackColor = isClose
+            ? Color.FromArgb(196, 43, 28)
+            : UiTheme.Hover;
+        button.FlatAppearance.MouseDownBackColor = isClose
+            ? Color.FromArgb(153, 27, 21)
+            : UiTheme.Pressed;
+        var hovered = false;
+        var pressed = false;
+        button.MouseEnter += (_, _) => { hovered = true; button.Invalidate(); };
+        button.MouseLeave += (_, _) => { hovered = false; pressed = false; button.Invalidate(); };
+        button.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                pressed = true;
+                button.Invalidate();
+            }
+        };
+        button.MouseUp += (_, _) => { pressed = false; button.Invalidate(); };
+        button.Paint += (_, e) =>
+        {
+            e.Graphics.Clear(pressed ? button.FlatAppearance.MouseDownBackColor
+                : hovered ? button.FlatAppearance.MouseOverBackColor : UiTheme.Surface);
+            TextRenderer.DrawText(e.Graphics, button.Text, button.Font, button.ClientRectangle,
+                button.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
+                    | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+        };
+        if (isClose)
+        {
+            button.MouseEnter += (_, _) => button.ForeColor = Color.White;
+            button.MouseLeave += (_, _) => button.ForeColor = UiTheme.Muted;
+        }
+
+        _toolTip.SetToolTip(button, tooltip);
+        return button;
+    }
+
+    private void EnableDrag(Control control)
+    {
+        control.MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                NativeMethods.ReleaseCapture();
+                NativeMethods.SendMessageW(Handle, NativeMethods.WmNcLButtonDown, NativeMethods.HtCaption, 0);
+            }
+        };
     }
 
     private static Panel CreatePageHost()
@@ -638,92 +1174,19 @@ public sealed class StatusForm : Form
         };
     }
 
-    private Control CreatePageShell(string title, string subtitle, Control content)
-    {
-        var hasSubtitle = !string.IsNullOrWhiteSpace(subtitle);
-        var shell = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0)
-        };
-        // 所有页面统一使用单行页头，标题与说明文字保持各自原有字号。
-        shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-        shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var header = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
-            ColumnCount = hasSubtitle ? 2 : 1,
-            RowCount = 1,
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap)
-        };
-        header.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        if (hasSubtitle)
-        {
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        }
-
-        header.Controls.Add(new Label
-        {
-            Text = title,
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 16F, FontStyle.Bold),
-            TextAlign = ContentAlignment.BottomLeft,
-            Margin = new Padding(0, 0, hasSubtitle ? 14 : 0, 0)
-        }, 0, 0);
-        if (hasSubtitle)
-        {
-            header.Controls.Add(new Label
-            {
-                Text = subtitle,
-                Dock = DockStyle.Fill,
-                AutoEllipsis = true,
-                ForeColor = UiTheme.Muted,
-                Font = new Font(Font.FontFamily, 9.5F, FontStyle.Regular),
-                TextAlign = ContentAlignment.BottomLeft,
-                Margin = new Padding(0)
-            }, 1, 0);
-        }
-        shell.Controls.Add(header, 0, 0);
-
-        content.Dock = DockStyle.Fill;
-        content.Margin = new Padding(0);
-        shell.Controls.Add(content, 0, 1);
-        return shell;
-    }
-
-    private const int StatusCardWidth = 600;
+    private const int StatusCardWidth = 380;
 
     private Control BuildStatusPage()
     {
-        var contentWidth = StatusCardWidth * 4 + UiTheme.PageGap * 3;
-        var scrollHost = new Panel
+        var scrollHost = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
             BackColor = UiTheme.Surface,
             Margin = new Padding(0)
         };
-
-        var statusSplit = new TableLayoutPanel
-        {
-            Dock = DockStyle.None,
-            Location = Point.Empty,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 4,
-            RowCount = 1,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            Width = contentWidth
-        };
-        statusSplit.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var sections = new[]
         {
@@ -733,52 +1196,60 @@ public sealed class StatusForm : Form
             BuildSection("动态单位", _dynamicUnitList, "模块运行时计算值")
         };
 
-        for (var i = 0; i < sections.Length; i++)
+        foreach (var card in sections)
         {
-            var hasGap = i < sections.Length - 1;
-            statusSplit.ColumnStyles.Add(new ColumnStyle(
-                SizeType.Absolute,
-                StatusCardWidth + (hasGap ? UiTheme.PageGap : 0)));
-            sections[i].Dock = DockStyle.Fill;
-            sections[i].MinimumSize = new Size(StatusCardWidth, 0);
-            sections[i].MaximumSize = new Size(StatusCardWidth, 0);
-            sections[i].Margin = new Padding(0, 0, hasGap ? UiTheme.PageGap : 0, 0);
-            statusSplit.Controls.Add(sections[i], i, 0);
+            card.Dock = DockStyle.None;
+            card.Margin = new Padding(0, 0, UiTheme.PageGap, UiTheme.PageGap);
+            scrollHost.Controls.Add(card);
+        }
+        scrollHost.SetFlowBreak(sections[1], true);
+
+        var syncing = false;
+        void SyncLayout()
+        {
+            if (syncing || scrollHost.IsDisposed || scrollHost.ClientSize.Width <= 0)
+            {
+                return;
+            }
+
+            syncing = true;
+            try
+            {
+                var availableWidth = Math.Max(1, scrollHost.ClientSize.Width - UiTheme.PageGap);
+                var cardWidth = Math.Min(availableWidth, UiTheme.Scale(scrollHost, StatusCardWidth));
+                var cardsPerRow = Math.Min(2, Math.Max(1, availableWidth / (cardWidth + UiTheme.PageGap)));
+                var rows = (sections.Length + cardsPerRow - 1) / cardsPerRow;
+
+                var cardHeight = rows == 1
+                    ? Math.Max(280, scrollHost.ClientSize.Height - UiTheme.PageGap)
+                    : Math.Max(270, (scrollHost.ClientSize.Height - UiTheme.PageGap * 2) / 2);
+                foreach (var card in sections)
+                {
+                    var target = new Size(cardWidth, cardHeight);
+                    if (card.Size != target)
+                    {
+                        card.Size = target;
+                    }
+                }
+                scrollHost.AutoScrollMinSize = Size.Empty;
+            }
+            finally
+            {
+                syncing = false;
+            }
         }
 
-        void SyncScrollLayout()
-        {
-            // 内容比视口宽时预留底栏横向滚动条高度，避免再挤出纵向滚动条。
-            var viewHeight = scrollHost.ClientSize.Height;
-            var needsHorizontalScroll = contentWidth > scrollHost.ClientSize.Width;
-            if (needsHorizontalScroll && !scrollHost.HorizontalScroll.Visible)
-            {
-                viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
-            }
-
-            var height = Math.Max(200, viewHeight);
-            var nextSize = new Size(contentWidth, height);
-            if (statusSplit.Size != nextSize)
-            {
-                statusSplit.Size = nextSize;
-            }
-
-            // 只声明最小内容宽度，强制出现底部横向滚动条。
-            var minSize = new Size(contentWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
-        }
-
-        scrollHost.Controls.Add(statusSplit);
-        scrollHost.Resize += (_, _) => SyncScrollLayout();
-        scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncScrollLayout);
-        SyncScrollLayout();
+        scrollHost.Resize += (_, _) => SyncLayout();
+        scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncLayout);
+        SyncLayout();
         return scrollHost;
     }
 
-    private TableLayoutPanel BuildSection(string title, Control content, string subtitle)
+    private TableLayoutPanel BuildSection(
+        string title,
+        Control content,
+        string subtitle,
+        ListView? countListView = null)
     {
         var section = new UiCardPanel
         {
@@ -812,7 +1283,8 @@ public sealed class StatusForm : Form
             AutoEllipsis = true,
             Margin = new Padding(0)
         }, 0, 0);
-        if (content is ListView listView)
+        countListView ??= content as ListView;
+        if (countListView is { } listView)
         {
             var countLabel = new Label
             {
@@ -844,8 +1316,51 @@ public sealed class StatusForm : Form
         return section;
     }
 
-    private Control BuildFixedWidthSectionPage(string title, Control content, string subtitle)
+    private static void SyncCenteredContentLayout(
+        Panel scrollHost,
+        Control content,
+        int contentWidth,
+        int? contentHeight = null)
     {
+        var viewWidth = Math.Max(1, scrollHost.ClientSize.Width);
+        var targetWidth = Math.Min(contentWidth, viewWidth);
+        if (content.Width != targetWidth)
+        {
+            content.Width = targetWidth;
+        }
+
+        if (contentHeight is { } height && content.Height != height)
+        {
+            content.Height = height;
+        }
+
+        var left = viewWidth > targetWidth
+            ? (viewWidth - targetWidth) / 2
+            : 0;
+        if (content.Left != left)
+        {
+            content.Left = left;
+        }
+
+        if (content.Top != 0)
+        {
+            content.Top = 0;
+        }
+
+        if (scrollHost.AutoScrollMinSize != Size.Empty)
+        {
+            scrollHost.AutoScrollMinSize = Size.Empty;
+        }
+    }
+
+    private Control BuildFixedWidthSectionPage(
+        string title,
+        Control content,
+        string subtitle,
+        ListView? countListView = null,
+        int? contentWidth = null)
+    {
+        var pageWidth = contentWidth ?? SettingsContentWidth;
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
@@ -854,33 +1369,16 @@ public sealed class StatusForm : Form
             Margin = new Padding(0)
         };
 
-        var section = BuildSection(title, content, subtitle);
+        var section = BuildSection(title, content, subtitle, countListView);
         section.Dock = DockStyle.None;
         section.Location = Point.Empty;
-        section.Width = SectionCardWidth;
-        section.MinimumSize = new Size(SectionCardWidth, 0);
-        section.MaximumSize = new Size(SectionCardWidth, 0);
+        section.Width = pageWidth;
 
         void SyncScrollLayout()
         {
             var viewHeight = scrollHost.ClientSize.Height;
-            if (SectionCardWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
-            {
-                viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
-            }
-
             var height = Math.Max(200, viewHeight);
-            var nextSize = new Size(SectionCardWidth, height);
-            if (section.Size != nextSize)
-            {
-                section.Size = nextSize;
-            }
-
-            var minSize = new Size(SectionCardWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
+            SyncCenteredContentLayout(scrollHost, section, pageWidth, height);
         }
 
         scrollHost.Controls.Add(section);
@@ -892,7 +1390,6 @@ public sealed class StatusForm : Form
 
     private Control BuildLogPage()
     {
-        const int logCardWidth = 1600;
         var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
@@ -909,9 +1406,7 @@ public sealed class StatusForm : Form
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0),
-            Width = logCardWidth,
-            MinimumSize = new Size(logCardWidth, 0),
-            MaximumSize = new Size(logCardWidth, 0)
+            Width = SettingsContentWidth
         };
         card.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -957,23 +1452,8 @@ public sealed class StatusForm : Form
         void SyncScrollLayout()
         {
             var viewHeight = scrollHost.ClientSize.Height;
-            if (logCardWidth > scrollHost.ClientSize.Width && !scrollHost.HorizontalScroll.Visible)
-            {
-                viewHeight = Math.Max(1, viewHeight - SystemInformation.HorizontalScrollBarHeight);
-            }
-
             var height = Math.Max(200, viewHeight);
-            var nextSize = new Size(logCardWidth, height);
-            if (card.Size != nextSize)
-            {
-                card.Size = nextSize;
-            }
-
-            var minSize = new Size(logCardWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
+            SyncCenteredContentLayout(scrollHost, card, SettingsContentWidth, height);
         }
 
         scrollHost.Controls.Add(card);
@@ -1055,6 +1535,16 @@ public sealed class StatusForm : Form
         }
     }
 
+    internal void ApplyCachedSidebar(int? expandedWidth, bool? collapsed)
+    {
+        if (expandedWidth is { } width)
+        {
+            _sidebarExpandedWidth = Math.Clamp(width, MinExpandedSidebarWidth, MaxSidebarWidth);
+        }
+
+        SetSidebarWidth(collapsed == true ? CompactSidebarWidth : _sidebarExpandedWidth);
+    }
+
     internal void SetPageDirty(SettingsPage page, bool dirty)
     {
         if (dirty)
@@ -1073,40 +1563,46 @@ public sealed class StatusForm : Form
         }
     }
 
-    private void AddNavGroup(FlowLayoutPanel nav, string text)
+    private void AddSidebarGroup(FlowLayoutPanel nav, string title)
     {
-        nav.Controls.Add(new Label
+        var group = new Label
         {
-            Text = text,
+            Text = title,
             AutoSize = false,
-            Size = new Size(192, 25),
+            Size = new Size(SidebarWidth - 24, 32),
+            Margin = new Padding(10, nav.Controls.Count == 0 ? 6 : 16, 0, 2),
+            Padding = Padding.Empty,
             ForeColor = UiTheme.Muted,
-            Font = new Font(Font.FontFamily, 9F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(10, 0, 0, 0),
-            Margin = new Padding(0, nav.Controls.Count == 0 ? 0 : 6, 0, 2)
-        });
+            BackColor = Color.Transparent,
+            Font = new Font(Font.FontFamily, 8.5F, FontStyle.Bold),
+            TextAlign = ContentAlignment.BottomLeft
+        };
+        _sidebarGroups.Add(group);
+        nav.Controls.Add(group);
     }
 
-    private void AddNavItem(FlowLayoutPanel nav, SettingsPage page, SettingsNavIcon icon, string text, Control view)
+    private void AddNavItem(FlowLayoutPanel nav, SettingsPage page, string text, string iconName, Control view)
     {
         view.Dock = DockStyle.Fill;
         view.Visible = false;
         _contentHost.Controls.Add(view);
 
-        var button = new SettingsNavButton(icon)
+        var button = new SettingsNavButton
         {
             Text = text,
+            IconName = iconName,
             AutoSize = false,
-            Size = new Size(192, 39),
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Regular),
-            Margin = new Padding(0, 0, 0, 8),
+            Size = new Size(SidebarWidth - 24, SidebarItemHeight),
+            Font = new Font(Font.FontFamily, 9.5F, FontStyle.Regular),
+            Margin = new Padding(0, 2, 0, 2),
             Cursor = Cursors.Hand,
             TabStop = true,
+            AccessibleRole = AccessibleRole.PageTab,
             AccessibleName = text
         };
 
         button.Click += (_, _) => SelectView(page);
+        _toolTip.SetToolTip(button, text);
         _navItems.Add((button, view, page));
         nav.Controls.Add(button);
     }
@@ -1126,30 +1622,43 @@ public sealed class StatusForm : Form
         }
     }
 
-    private Control BuildBossNumbersPage()
+    /// <summary>
+    /// 首领页首次点开时再构建（避免启动/进设置就创建大量控件）。
+    /// </summary>
+    private Control CreateLazyBossNumbersPage()
     {
-        var scrollHost = new Panel
+        var host = new Panel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = true,
             BackColor = UiTheme.Surface,
             Margin = new Padding(0)
         };
-
-        var cards = new TableLayoutPanel
+        var built = false;
+        host.VisibleChanged += (_, _) =>
         {
-            Dock = DockStyle.None,
-            Anchor = AnchorStyles.Top | AnchorStyles.Left,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 4,
-            RowCount = 0,
-            MinimumSize = new Size(BossNumberCardWidth * 4 + UiTheme.PageGap * 3, 0),
-            Padding = new Padding(0),
-            Margin = new Padding(0)
-        };
+            if (!host.Visible || built || host.IsDisposed)
+            {
+                return;
+            }
 
+            built = true;
+            host.SuspendLayout();
+            try
+            {
+                var page = BuildBossNumbersPage();
+                page.Dock = DockStyle.Fill;
+                host.Controls.Add(page);
+            }
+            finally
+            {
+                host.ResumeLayout(true);
+            }
+        };
+        return host;
+    }
+
+    private Control BuildBossNumbersPage()
+    {
         var allDungeons = BossNumberGroups
             .SelectMany(group => group.Dungeons)
             .ToDictionary(dungeon => dungeon.Name, StringComparer.Ordinal);
@@ -1163,165 +1672,446 @@ public sealed class StatusForm : Form
                 .ToArray())
         ];
 
-        var seasonViews = seasonGroups
-            .Select(group =>
-            {
-                var title = new Label
-                {
-                    Text = group.Title,
-                    AutoSize = true,
-                    ForeColor = UiTheme.Text,
-                    BackColor = Color.Transparent,
-                    Font = new Font(Font.FontFamily, 12F, FontStyle.Bold)
-                };
-                var groupCards = group.Dungeons.Select(CreateBossNumberCard).ToArray();
-                foreach (var card in groupCards)
-                {
-                    card.Margin = new Padding(0, 0, 0, UiTheme.PageGap);
-                }
-
-                return (Title: title, Cards: groupCards);
-            })
-            .ToArray();
-
-        void ApplyLayout()
+        // 两张赛季大卡各挂一个 ListView（分组=副本），避免每副本一套 TableLayout+Label。
+        var root = new TableLayoutPanel
         {
-            const int columnCount = 4;
-            cards.SuspendLayout();
-            cards.Controls.Clear();
-            cards.ColumnStyles.Clear();
-            cards.RowStyles.Clear();
-            cards.ColumnCount = columnCount;
-            cards.RowCount = 0;
-            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+
+        root.SuspendLayout();
+        try
+        {
+            for (var i = 0; i < seasonGroups.Count; i++)
             {
-                var columnWidth = BossNumberCardWidth
-                    + (columnIndex < columnCount - 1 ? UiTheme.PageGap : 0);
-                cards.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, columnWidth));
+                var card = CreateBossSeasonCard(seasonGroups[i]);
+                card.Margin = new Padding(0, 0, 0, i == 0 ? UiTheme.PageGap : 0);
+                root.Controls.Add(card, 0, i);
             }
-
-            var row = 0;
-            var column = 0;
-            foreach (var (title, groupCards) in seasonViews)
-            {
-                if (column != 0)
-                {
-                    row++;
-                    column = 0;
-                }
-
-                cards.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                cards.RowCount = row + 1;
-                title.Margin = new Padding(2, row == 0 ? 0 : UiTheme.PageGap, 0, UiTheme.PageGap);
-                cards.Controls.Add(title, 0, row);
-                cards.SetColumnSpan(title, columnCount);
-                row++;
-
-                foreach (var card in groupCards)
-                {
-                    if (cards.RowStyles.Count <= row)
-                    {
-                        cards.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                        cards.RowCount = row + 1;
-                    }
-
-                    cards.Controls.Add(card, column, row);
-
-                    column++;
-                    if (column == columnCount)
-                    {
-                        column = 0;
-                        row++;
-                    }
-                }
-            }
-
-            cards.ResumeLayout(true);
+        }
+        finally
+        {
+            root.ResumeLayout(true);
         }
 
-        scrollHost.Controls.Add(cards);
-        ApplyLayout();
-        return scrollHost;
+        return root;
     }
 
-    private Control CreateBossNumberCard(BossDungeon dungeon)
+    private Control CreateBossSeasonCard(BossNumberGroup group)
     {
         var card = new UiCardPanel
         {
-            AutoSize = false,
-            Size = new Size(
-                BossNumberCardWidth,
-                UiTheme.CardPadding * 2 + 34 + (dungeon.Bosses.Count + 1) * 28),
+            Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
-            MinimumSize = new Size(0, 0)
+            Margin = new Padding(0)
         };
-        card.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-        card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
         card.Controls.Add(new Label
         {
-            Text = dungeon.Name,
+            Text = group.Title,
             Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Accent,
+            ForeColor = UiTheme.Text,
             BackColor = Color.Transparent,
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
+            Font = new Font(Font.FontFamily, 12F, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
             Margin = new Padding(0)
         }, 0, 0);
 
-        var table = new TableLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            BackColor = Color.Transparent,
-            ColumnCount = 3,
-            RowCount = dungeon.Bosses.Count + 1,
-            Margin = new Padding(0)
-        };
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 64));
-        AddBossNumberCell(table, "序号", 0, 0, UiTheme.Muted, FontStyle.Bold, ContentAlignment.MiddleCenter);
-        AddBossNumberCell(table, "名称", 1, 0, UiTheme.Muted, FontStyle.Bold, ContentAlignment.MiddleLeft);
-        AddBossNumberCell(table, "编号", 2, 0, UiTheme.Muted, FontStyle.Bold, ContentAlignment.MiddleCenter);
+        // 名称列 FillRemaining 上限须够大，否则宽窗口右侧会留出空白深灰条。
+        // 不用 ShowGroups：.NET ListView 组头无法 OwnerDraw，系统默认呈链接色。
+        var cacheKey = group.Title == "当前赛季" ? "boss-numbers-current-v2" : "boss-numbers-season1-v2";
+        var list = UiTheme.CreateListView(
+            Font,
+            cacheKey,
+            new UiTheme.ListColumn("副本", 96, 220),
+            new UiTheme.ListColumn("序号", 48, 56, FixedWidth: true),
+            new UiTheme.ListColumn("名称", 120, 2000, FillRemaining: true),
+            new UiTheme.ListColumn("编号", 56, 72));
+        list.BackColor = UiTheme.SurfaceRaised;
+        list.ShowGroups = false;
+        UiTheme.EmphasizeListViewPrimaryColumn(list, Font);
 
-        for (var index = 0; index < dungeon.Bosses.Count; index++)
+        list.BeginUpdate();
+        try
         {
-            var boss = dungeon.Bosses[index];
-            var tableRow = index + 1;
-            AddBossNumberCell(table, boss.Sequence.ToString(), 0, tableRow, UiTheme.Muted, FontStyle.Regular, ContentAlignment.MiddleCenter);
-            AddBossNumberCell(table, boss.Name, 1, tableRow, UiTheme.Text, FontStyle.Regular, ContentAlignment.MiddleLeft);
-            AddBossNumberCell(table, boss.Number.ToString(), 2, tableRow, UiTheme.Accent, FontStyle.Regular, ContentAlignment.MiddleCenter);
+            foreach (var dungeon in group.Dungeons)
+            {
+                var firstInDungeon = true;
+                foreach (var boss in dungeon.Bosses)
+                {
+                    // 同副本仅首行显示副本名，避免整列重复；字重/颜色由 Emphasize 统一。
+                    var item = new ListViewItem(
+                    [
+                        firstInDungeon ? dungeon.Name : string.Empty,
+                        boss.Sequence.ToString(),
+                        boss.Name,
+                        boss.Number.ToString()
+                    ]);
+                    list.Items.Add(item);
+                    firstInDungeon = false;
+                }
+            }
+        }
+        finally
+        {
+            list.EndUpdate();
         }
 
-        card.Controls.Add(table, 0, 1);
+        card.Controls.Add(list, 0, 1);
         return card;
     }
 
-    private void AddBossNumberCell(
-        TableLayoutPanel table,
-        string text,
-        int column,
-        int row,
-        Color color,
-        FontStyle style,
-        ContentAlignment alignment)
+    private Control BuildExBossEventsPage()
     {
-        table.Controls.Add(new Label
+        var allEvents = ExBossEventCatalog.Events;
+        var eventList = UiTheme.CreateListView(Font, "ex-boss-events",
+            new UiTheme.ListColumn("键", 56, 72, FixedWidth: true),
+            new UiTheme.ListColumn("像素编码", 88, 110, FixedWidth: true),
+            new UiTheme.ListColumn("事件 ID", 82, 100, FixedWidth: true),
+            new UiTheme.ListColumn("技能 ID", 92, 112, FixedWidth: true),
+            new UiTheme.ListColumn("类型", 72, 92, FixedWidth: true),
+            new UiTheme.ListColumn("事件", 150, 260),
+            new UiTheme.ListColumn("副本", 190, 320),
+            new UiTheme.ListColumn("首领", 190, 520, FillRemaining: true));
+
+        var dungeonFilter = CreateExBossEventFilter(250);
+        var bossFilter = CreateExBossEventFilter(250);
+        var typeFilter = CreateExBossEventFilter(190);
+        dungeonFilter.Items.Add(new ExBossEventFilterOption("副本：全部", null));
+        foreach (var dungeon in allEvents
+                     .Select(item => item.MapName)
+                     .Where(name => name.Length > 0)
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderBy(name => name, StringComparer.Ordinal))
         {
-            Text = text,
+            dungeonFilter.Items.Add(new ExBossEventFilterOption($"副本：{dungeon}", dungeon));
+        }
+
+        typeFilter.Items.Add(new ExBossEventFilterOption("类型：全部", null));
+        foreach (var type in ExBossEventCatalog.MechanicTypes.Where(item => item.Value > 0))
+        {
+            typeFilter.Items.Add(new ExBossEventFilterOption($"类型：{type.Name}", type.Name));
+        }
+
+        var filterRow = new FlowLayoutPanel
+        {
             Dock = DockStyle.Fill,
-            AutoSize = false,
-            Height = 28,
-            AutoEllipsis = true,
-            ForeColor = color,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
             BackColor = Color.Transparent,
-            Font = new Font(Font.FontFamily, 9F, style),
-            TextAlign = alignment,
-            Margin = new Padding(column == 1 ? 6 : 0, 0, column == 1 ? 6 : 0, 0)
-        }, column, row);
+            Margin = new Padding(0)
+        };
+        filterRow.Controls.Add(new Label
+        {
+            Text = "筛选",
+            AutoSize = false,
+            Size = new Size(52, 36),
+            ForeColor = UiTheme.Muted,
+            BackColor = Color.Transparent,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0, 4, 8, 4)
+        });
+        filterRow.Controls.Add(dungeonFilter);
+        filterRow.Controls.Add(bossFilter);
+        filterRow.Controls.Add(typeFilter);
+
+        var eventContent = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0)
+        };
+        eventContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        eventContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        eventContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        eventContent.Controls.Add(filterRow, 0, 0);
+        eventList.Dock = DockStyle.Fill;
+        eventList.Margin = new Padding(0);
+        eventContent.Controls.Add(eventList, 0, 1);
+
+        var page = BuildFixedWidthSectionPage(
+            "EX 首领技能事件",
+            eventContent,
+            "事件键按 eventID 升序生成；像素写入键 / 255，模块条件使用整数键 1–247",
+            eventList,
+            UiTheme.EventPageWidth);
+
+        var updatingFilters = false;
+
+        void ResetBossFilter()
+        {
+            updatingFilters = true;
+            try
+            {
+                var selectedDungeon = (dungeonFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+                bossFilter.BeginUpdate();
+                bossFilter.Items.Clear();
+                bossFilter.Items.Add(new ExBossEventFilterOption("首领：全部", null));
+                foreach (var boss in allEvents
+                             .Where(item => selectedDungeon is null
+                                 || string.Equals(item.MapName, selectedDungeon, StringComparison.Ordinal))
+                             .Select(item => item.BossName)
+                             .Where(name => name.Length > 0)
+                             .Distinct(StringComparer.Ordinal)
+                             .OrderBy(name => name, StringComparer.Ordinal))
+                {
+                    bossFilter.Items.Add(new ExBossEventFilterOption($"首领：{boss}", boss));
+                }
+
+                bossFilter.SelectedIndex = 0;
+                bossFilter.EndUpdate();
+            }
+            finally
+            {
+                updatingFilters = false;
+            }
+        }
+
+        void ApplyFilters()
+        {
+            if (updatingFilters)
+            {
+                return;
+            }
+
+            var selectedDungeon = (dungeonFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+            var selectedBoss = (bossFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+            var selectedType = (typeFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+            var filteredEvents = allEvents.Where(item =>
+                (selectedDungeon is null || string.Equals(item.MapName, selectedDungeon, StringComparison.Ordinal))
+                && (selectedBoss is null || string.Equals(item.BossName, selectedBoss, StringComparison.Ordinal))
+                && (selectedType is null || string.Equals(item.MechanicType, selectedType, StringComparison.Ordinal)));
+            ReplaceItems(eventList, CreateExBossEventItems(filteredEvents));
+        }
+
+        dungeonFilter.SelectedIndexChanged += (_, _) =>
+        {
+            ResetBossFilter();
+            ApplyFilters();
+        };
+        bossFilter.SelectedIndexChanged += (_, _) => ApplyFilters();
+        typeFilter.SelectedIndexChanged += (_, _) => ApplyFilters();
+        dungeonFilter.SelectedIndex = 0;
+        typeFilter.SelectedIndex = 0;
+        ResetBossFilter();
+        ApplyFilters();
+        return page;
+    }
+
+    private static UiDropDown CreateExBossEventFilter(int width)
+    {
+        var filter = new UiDropDown
+        {
+            AutoSize = false,
+            Size = new Size(width, 36),
+            DropDownWidth = Math.Max(width, 280),
+            Margin = new Padding(0, 4, 10, 4)
+        };
+        UiTheme.StyleComboBox(filter);
+        return filter;
+    }
+
+    private static IReadOnlyList<ListViewItem> CreateExBossEventItems(IEnumerable<ExBossEventInfo> events)
+        => events
+            .Select(item => new ListViewItem(
+            [
+                item.Key.ToString(),
+                $"{item.Key} / 255",
+                item.EventId.ToString(),
+                item.SpellId.ToString(),
+                item.MechanicType,
+                item.Name,
+                item.MapName,
+                item.BossName
+            ])
+            {
+                Tag = item,
+                ToolTipText = $"键 {item.Key} · eventID {item.EventId} · spellID {item.SpellId} · {item.MapName} / {item.BossName} / {item.Name}"
+            })
+            .ToArray();
+
+    private Control BuildBigWigsEventsPage()
+    {
+        var allEvents = BigWigsEventCatalog.Events;
+        var eventList = UiTheme.CreateListView(Font, "bigwigs-boss-events",
+            new UiTheme.ListColumn("键", 56, 72, FixedWidth: true),
+            new UiTheme.ListColumn("像素编码", 88, 110, FixedWidth: true),
+            new UiTheme.ListColumn("技能 ID", 100, 120, FixedWidth: true),
+            new UiTheme.ListColumn("类型", 170, 280),
+            new UiTheme.ListColumn("事件", 170, 300),
+            new UiTheme.ListColumn("副本", 180, 300),
+            new UiTheme.ListColumn("首领", 190, 460, FillRemaining: true));
+
+        var dungeonFilter = CreateExBossEventFilter(250);
+        var bossFilter = CreateExBossEventFilter(250);
+        var typeFilter = CreateExBossEventFilter(190);
+        dungeonFilter.Items.Add(new ExBossEventFilterOption("副本：全部", null));
+        foreach (var dungeon in allEvents
+                     .Select(item => item.MapName)
+                     .Where(name => name.Length > 0)
+                     .Distinct(StringComparer.Ordinal)
+                     .OrderBy(name => name, StringComparer.Ordinal))
+        {
+            dungeonFilter.Items.Add(new ExBossEventFilterOption($"副本：{dungeon}", dungeon));
+        }
+
+        typeFilter.Items.Add(new ExBossEventFilterOption("类型：全部", null));
+        foreach (var type in BigWigsEventCatalog.EventTypes.Where(type =>
+                     type.Value > 0 && allEvents.Any(item => BigWigsEventHasType(item, type.Name))))
+        {
+            typeFilter.Items.Add(new ExBossEventFilterOption($"类型：{type.Name}", type.Name));
+        }
+
+        var filterRow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0)
+        };
+        filterRow.Controls.Add(new Label
+        {
+            Text = "筛选",
+            AutoSize = false,
+            Size = new Size(52, 36),
+            ForeColor = UiTheme.Muted,
+            BackColor = Color.Transparent,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Margin = new Padding(0, 4, 8, 4)
+        });
+        filterRow.Controls.Add(dungeonFilter);
+        filterRow.Controls.Add(bossFilter);
+        filterRow.Controls.Add(typeFilter);
+
+        var eventContent = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Color.Transparent,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0)
+        };
+        eventContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        eventContent.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        eventContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        eventContent.Controls.Add(filterRow, 0, 0);
+        eventList.Dock = DockStyle.Fill;
+        eventList.Margin = new Padding(0);
+        eventContent.Controls.Add(eventList, 0, 1);
+
+        var page = BuildFixedWidthSectionPage(
+            "BigWigs 团队首领技能事件",
+            eventContent,
+            $"按 spellID 升序生成 {allEvents.Count} 个键；像素写入键 / 255，模块条件使用整数键",
+            eventList,
+            UiTheme.EventPageWidth);
+
+        var updatingFilters = false;
+
+        void ResetBossFilter()
+        {
+            updatingFilters = true;
+            try
+            {
+                var selectedDungeon = (dungeonFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+                bossFilter.BeginUpdate();
+                bossFilter.Items.Clear();
+                bossFilter.Items.Add(new ExBossEventFilterOption("首领：全部", null));
+                foreach (var boss in allEvents
+                             .Where(item => selectedDungeon is null
+                                 || string.Equals(item.MapName, selectedDungeon, StringComparison.Ordinal))
+                             .Select(item => item.BossName)
+                             .Where(name => name.Length > 0)
+                             .Distinct(StringComparer.Ordinal)
+                             .OrderBy(name => name, StringComparer.Ordinal))
+                {
+                    bossFilter.Items.Add(new ExBossEventFilterOption($"首领：{boss}", boss));
+                }
+
+                bossFilter.SelectedIndex = 0;
+                bossFilter.EndUpdate();
+            }
+            finally
+            {
+                updatingFilters = false;
+            }
+        }
+
+        void ApplyFilters()
+        {
+            if (updatingFilters)
+            {
+                return;
+            }
+
+            var selectedDungeon = (dungeonFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+            var selectedBoss = (bossFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+            var selectedType = (typeFilter.SelectedItem as ExBossEventFilterOption)?.Value;
+            var filteredEvents = allEvents.Where(item =>
+                (selectedDungeon is null || string.Equals(item.MapName, selectedDungeon, StringComparison.Ordinal))
+                && (selectedBoss is null || string.Equals(item.BossName, selectedBoss, StringComparison.Ordinal))
+                && (selectedType is null || BigWigsEventHasType(item, selectedType)));
+            ReplaceItems(eventList, CreateBigWigsEventItems(filteredEvents));
+        }
+
+        dungeonFilter.SelectedIndexChanged += (_, _) =>
+        {
+            ResetBossFilter();
+            ApplyFilters();
+        };
+        bossFilter.SelectedIndexChanged += (_, _) => ApplyFilters();
+        typeFilter.SelectedIndexChanged += (_, _) => ApplyFilters();
+        dungeonFilter.SelectedIndex = 0;
+        typeFilter.SelectedIndex = 0;
+        ResetBossFilter();
+        ApplyFilters();
+        return page;
+    }
+
+    private static bool BigWigsEventHasType(BigWigsEventInfo item, string selectedType)
+        => item.Methods.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Contains(selectedType, StringComparer.Ordinal);
+
+    private static IReadOnlyList<ListViewItem> CreateBigWigsEventItems(IEnumerable<BigWigsEventInfo> events)
+        => events
+            .Select(item => new ListViewItem(
+            [
+                item.Key.ToString(),
+                $"{item.Key} / 255",
+                item.SpellId.ToString(),
+                DescribeBigWigsEventTypes(item),
+                item.Name,
+                item.MapName,
+                item.BossName
+            ])
+            {
+                Tag = item,
+                ToolTipText = $"键 {item.Key} · spellID {item.SpellId} · {DescribeBigWigsEventTypes(item)} · {item.MapName} / {item.BossName} / {item.Name}"
+            })
+            .ToArray();
+
+    private static string DescribeBigWigsEventTypes(BigWigsEventInfo item)
+    {
+        var types = BigWigsEventCatalog.EventTypes
+            .Where(type => type.Value > 0 && BigWigsEventHasType(item, type.Name))
+            .Select(type => type.Name)
+            .ToArray();
+        return types.Length > 0 ? string.Join(" / ", types) : "未分类";
     }
 
     private Control BuildAboutPanel()
@@ -1345,8 +2135,8 @@ public sealed class StatusForm : Form
             Padding = new Padding(0),
             Margin = new Padding(0)
         };
-        ApplyAboutCardWidth(panel);
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, AboutCardWidth));
+        ApplySettingsCardWidth(panel);
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1362,7 +2152,7 @@ public sealed class StatusForm : Form
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap)
         };
-        ApplyAboutCardWidth(infoCard);
+        ApplySettingsCardWidth(infoCard);
         infoCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         infoCard.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, AboutLogoSize + UiTheme.PageGap));
         infoCard.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1395,7 +2185,7 @@ public sealed class StatusForm : Form
             ForeColor = UiTheme.Muted,
             BackColor = Color.Transparent,
             Font = new Font(Font.FontFamily, 9.5F, FontStyle.Regular),
-            MaximumSize = new Size(GetAboutInfoTextWidth(), 0),
+            MaximumSize = new Size(500, 0),
             Margin = new Padding(0)
         }, 0, 1);
         infoCard.Controls.Add(heading, 0, 0);
@@ -1442,24 +2232,60 @@ public sealed class StatusForm : Form
         panel.Controls.Add(CreateAboutArticleCard("界面图标来源", AboutBootstrapIconsAttributionText), 0, 3);
         panel.Controls.Add(CreateAboutArticleCard("技能与物品图标来源", AboutCleanIconsAttributionText), 0, 4);
         panel.Controls.Add(CreateAboutArticleCard("数据来源", AboutWowListfileAttributionText), 0, 5);
+
+        var syncingAboutLayout = false;
+        void SyncAboutLayout()
+        {
+            if (syncingAboutLayout || scrollHost.IsDisposed)
+            {
+                return;
+            }
+
+            syncingAboutLayout = true;
+            try
+            {
+                var width = Math.Min(SettingsContentWidth, Math.Max(1, scrollHost.ClientSize.Width));
+                if (panel.MinimumSize.Width != width || panel.MaximumSize.Width != width)
+                {
+                    panel.MaximumSize = Size.Empty;
+                    panel.MinimumSize = new Size(width, 0);
+                    panel.MaximumSize = new Size(width, 0);
+                }
+                SyncCenteredContentLayout(scrollHost, panel, SettingsContentWidth);
+                foreach (Control card in panel.Controls)
+                {
+                    if (card.MinimumSize.Width != width || card.MaximumSize.Width != width)
+                    {
+                        card.MaximumSize = Size.Empty;
+                        card.MinimumSize = new Size(width, 0);
+                        card.MaximumSize = new Size(width, 0);
+                    }
+                    if (card.Width != width)
+                    {
+                        card.Width = width;
+                    }
+                }
+            }
+            finally
+            {
+                syncingAboutLayout = false;
+            }
+        }
+
         scrollHost.Controls.Add(panel);
+        scrollHost.Resize += (_, _) => SyncAboutLayout();
+        scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncAboutLayout);
+        panel.SizeChanged += (_, _) => SyncAboutLayout();
+        SyncAboutLayout();
         return scrollHost;
     }
 
-    private static void ApplyAboutCardWidth(Control card)
+    private static void ApplySettingsCardWidth(Control card)
     {
         card.Dock = DockStyle.None;
         card.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        card.Width = AboutCardWidth;
-        card.MinimumSize = new Size(AboutCardWidth, 0);
-        card.MaximumSize = new Size(AboutCardWidth, 0);
+        card.Width = SettingsContentWidth;
     }
-
-    private static int GetAboutCardInnerWidth()
-        => Math.Max(80, AboutCardWidth - UiTheme.CardPadding * 2);
-
-    private static int GetAboutInfoTextWidth()
-        => Math.Max(80, GetAboutCardInnerWidth() - AboutLogoSize - UiTheme.PageGap);
 
     private Control CreateAboutArticleCard(string title, string body)
     {
@@ -1471,7 +2297,7 @@ public sealed class StatusForm : Form
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0, 0, 0, UiTheme.PageGap)
         };
-        ApplyAboutCardWidth(card);
+        ApplySettingsCardWidth(card);
         card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         card.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -1513,128 +2339,162 @@ public sealed class StatusForm : Form
             ForeColor = UiTheme.Text,
             BackColor = Color.Transparent,
             Font = new Font(Font.FontFamily, 9F, FontStyle.Regular),
-            MaximumSize = new Size(GetAboutCardInnerWidth(), 0),
+            MaximumSize = new Size(680, 0),
             Margin = new Padding(0)
         };
         card.Controls.Add(bodyLabel, 0, 1);
         return card;
     }
 
-    private const int CommonFieldCardWidth = 800;
+    /// <summary>
+    /// 字段页分组：与 ClassStateCatalog.TopCategories 对齐，拆成两张全宽卡（对齐首领页两赛季）。
+    /// </summary>
+    private static readonly string[] PlayerCommonFieldCategories =
+    [
+        ClassStateCatalog.CategoryState,
+        ClassStateCatalog.CategorySpecial,
+        ClassStateCatalog.CategoryResource,
+        ClassStateCatalog.CategoryConfig
+    ];
 
-    private Control BuildCommonFieldsPanel()
+    private static readonly string[] UnitCommonFieldCategories =
+    [
+        ClassStateCatalog.CategoryTarget,
+        ClassStateCatalog.CategoryFocus,
+        ClassStateCatalog.CategoryMouseover,
+        ClassStateCatalog.CategoryPet,
+        ClassStateCatalog.CategoryBoss1,
+        ClassStateCatalog.CategoryBoss2,
+        ClassStateCatalog.CategoryBoss3,
+        ClassStateCatalog.CategoryBoss4,
+        ClassStateCatalog.CategoryBoss5
+    ];
+
+    /// <summary>
+    /// 字段页首次点开时再构建（与首领页一致，避免启动即创建大量 ListView 行）。
+    /// </summary>
+    private Control CreateLazyCommonFieldsPage()
     {
-        var contentWidth = CommonFieldCardWidth * 2 + UiTheme.PageGap;
-        var scrollHost = new Panel
+        var host = new Panel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            AutoScroll = true,
-            Margin = new Padding(0),
-            AutoScrollMinSize = new Size(contentWidth, 0)
+            Margin = new Padding(0)
         };
-
-        var fields = new TableLayoutPanel
+        var built = false;
+        host.VisibleChanged += (_, _) =>
         {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Dock = DockStyle.None,
-            Location = Point.Empty,
+            if (!host.Visible || built || host.IsDisposed)
+            {
+                return;
+            }
+
+            built = true;
+            host.SuspendLayout();
+            try
+            {
+                var page = BuildCommonFieldsPanel();
+                page.Dock = DockStyle.Fill;
+                host.Controls.Add(page);
+            }
+            finally
+            {
+                host.ResumeLayout(true);
+            }
+        };
+        return host;
+    }
+
+    private Control BuildCommonFieldsPanel()
+    {
+        // 两张全宽大卡各挂一个 ListView（分组=分类），视觉对齐首领页两赛季卡片。
+        var root = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 2,
-            RowCount = 5,
-            Width = contentWidth,
+            ColumnCount = 1,
+            RowCount = 2,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, CommonFieldCardWidth + UiTheme.PageGap));
-        fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, CommonFieldCardWidth));
-        for (var i = 0; i < 5; i++)
+        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+
+        root.SuspendLayout();
+        try
         {
-            fields.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var playerCard = CreateCommonFieldCard(
+                "玩家与资源",
+                "common-fields-player-v1",
+                EnumerateCatalogFieldRows(PlayerCommonFieldCategories));
+            playerCard.Margin = new Padding(0, 0, 0, UiTheme.PageGap);
+            root.Controls.Add(playerCard, 0, 0);
+
+            var unitRows = EnumerateCatalogFieldRows(UnitCommonFieldCategories)
+                .Concat(EnumerateNameplateFieldRows())
+                .ToArray();
+            var unitCard = CreateCommonFieldCard("单位字段", "common-fields-unit-v1", unitRows);
+            unitCard.Margin = new Padding(0);
+            root.Controls.Add(unitCard, 0, 1);
+        }
+        finally
+        {
+            root.ResumeLayout(true);
         }
 
-        fields.Controls.Add(CreateCommonFieldCard(
-            "状态",
-            [
-                "有效性", "战斗时间", "移动", "生命值", "一键辅助", "插入法术", "插入物品",
-                "队伍类型", "队伍人数", "首领战", "难度", "英雄天赋", "施法目标",
-                "施法技能", "敌人数量", "敌人数-无仇恨", "敌人数-有仇恨",
-                "施法(正计时)", "施法(倒计时)", "引导", "蓄力", "蓄力层数",
-                "上个技能", "公共冷却"
-            ],
-            150), 0, 0);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "特殊",
-            [
-                "计时器", "循环计时器", "战斗计时(秒)", "战斗计时(分)",
-                "酒池", "符文", "姿态", "神圣军备", "自律", "天启骑士数量",
-                "英勇打击", "吸血鬼打击", "收割者战刃", "沸点",
-                "风暴涌流图腾", "风暴涌流图腾数量", "治疗之泉图腾", "治疗之泉图腾数量"
-            ],
-            150), 1, 0);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "能量",
-            [
-                "法力值", "怒气值", "集中值", "能量值", "符文", "符文能量",
-                "星界能量", "漩涡值", "狂乱值", "恶魔之怒", "痛苦值",
-                "连击点", "神圣能量", "精华能量", "灵魂碎片", "真气", "增压层数"
-            ],
-            150), 0, 1);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "配置开关",
-            ["爆发开关", "AOE开关", "输出模式", "爆发药水开关", "延迟"],
-            92), 1, 1);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "物品",
-            ["治疗药水", "魔法药水", "治疗石", "鲁莽药水", "圣光潜力"],
-            92), 0, 2);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "目标",
-            ["类型", "生命值", "能量值", "距离", "施法(倒计时)", "施法(正计时)", "施法可打断", "引导", "引导可打断"],
-            104), 1, 2);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "焦点",
-            ["类型", "生命值", "能量值", "距离", "施法(倒计时)", "施法(正计时)", "施法可打断", "引导", "引导可打断"],
-            104), 0, 3);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "鼠标",
-            ["类型", "生命值", "能量值", "距离", "施法(倒计时)", "施法(正计时)", "施法可打断", "引导", "引导可打断"],
-            104), 1, 3);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "宠物",
-            ["存在", "生命值", "能量值"],
-            104), 0, 4);
-        fields.Controls.Add(CreateCommonFieldCard(
-            "姓名板",
-            ["nameplates.N.存在", "nameplates.N.生命值", "nameplates.N.距离", "nameplates.N.光环N"],
-            104), 1, 4);
-
-        void SyncScrollLayout()
-        {
-            if (fields.Width != contentWidth)
-            {
-                fields.Width = contentWidth;
-            }
-
-            var minSize = new Size(contentWidth, 0);
-            if (scrollHost.AutoScrollMinSize != minSize)
-            {
-                scrollHost.AutoScrollMinSize = minSize;
-            }
-        }
-
-        scrollHost.Controls.Add(fields);
-        scrollHost.Resize += (_, _) => SyncScrollLayout();
-        scrollHost.HandleCreated += (_, _) => BeginInvoke(SyncScrollLayout);
-        SyncScrollLayout();
-        return scrollHost;
+        return root;
     }
 
-    private static string GetEmbeddedResourceName(string resourcePath)
-        => $"{typeof(StatusForm).Namespace}.{resourcePath}";
+    /// <summary>
+    /// 从 ClassStateCatalog 按分类顺序枚举字段行；分类显示名走 GetCategoryDisplayName（状态→玩家）。
+    /// </summary>
+    private static IReadOnlyList<(string Category, string Field)> EnumerateCatalogFieldRows(
+        IReadOnlyList<string> categories)
+    {
+        var rows = new List<(string Category, string Field)>();
+        foreach (var category in categories)
+        {
+            var displayCategory = ClassStateCatalog.GetCategoryDisplayName(category);
+            foreach (var option in ClassStateCatalog.GetOptions(category))
+            {
+                rows.Add((displayCategory, option.Name));
+            }
+        }
 
-    private Control CreateCommonFieldCard(string title, IReadOnlyList<string> items, int minimumHeight)
+        return rows;
+    }
+
+    /// <summary>
+    /// 姓名板条件字段来自 NameplateStateLayout（映射格、TTD 别名与槽位模式），不在 ClassStateCatalog 内。
+    /// </summary>
+    private static IReadOnlyList<(string Category, string Field)> EnumerateNameplateFieldRows()
+    {
+        const string category = NameplateStateLayout.MappingClassification;
+        var rows = new List<(string Category, string Field)>();
+        foreach (var name in NameplateStateLayout.MappingFieldNames)
+        {
+            rows.Add((category, name));
+        }
+
+        foreach (var alias in NameplateStateLayout.UnitTtdAliases)
+        {
+            rows.Add((category, alias.TtdField));
+        }
+
+        rows.Add((category, "nameplates.N.存在"));
+        rows.Add((category, "nameplates.N.生命值"));
+        rows.Add((category, "nameplates.N.距离"));
+        rows.Add((category, "nameplates.N.战斗"));
+        rows.Add((category, "nameplates.N.TTD"));
+        rows.Add((category, "nameplates.N.光环N"));
+        return rows;
+    }
+
+    private Control CreateCommonFieldCard(
+        string title,
+        string cacheKey,
+        IReadOnlyList<(string Category, string Field)> rows)
     {
         var card = new UiCardPanel
         {
@@ -1642,36 +2502,61 @@ public sealed class StatusForm : Form
             ColumnCount = 1,
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
-            Margin = new Padding(0, 0, 0, UiTheme.PageGap),
-            MinimumSize = new Size(CommonFieldCardWidth, minimumHeight),
-            MaximumSize = new Size(CommonFieldCardWidth, 0)
+            Margin = new Padding(0)
         };
-        card.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         card.Controls.Add(new Label
         {
             Text = title,
             Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Accent,
+            ForeColor = UiTheme.Text,
             BackColor = Color.Transparent,
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
+            Font = new Font(Font.FontFamily, 12F, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleLeft,
             Margin = new Padding(0)
         }, 0, 0);
-        card.Controls.Add(new Label
+
+        // 名称列 FillRemaining 上限须够大，否则宽窗口右侧会留出空白深灰条。
+        // 不用 ShowGroups：.NET ListView 组头无法 OwnerDraw，系统默认呈链接色。
+        var list = UiTheme.CreateListView(
+            Font,
+            cacheKey,
+            new UiTheme.ListColumn("分类", 96, 220),
+            new UiTheme.ListColumn("字段", 160, 2000, FillRemaining: true));
+        list.BackColor = UiTheme.SurfaceRaised;
+        list.ShowGroups = false;
+        UiTheme.EmphasizeListViewPrimaryColumn(list, Font);
+
+        list.BeginUpdate();
+        try
         {
-            Text = string.Join("  ·  ", items),
-            Dock = DockStyle.Fill,
-            AutoSize = false,
-            ForeColor = UiTheme.Text,
-            BackColor = Color.Transparent,
-            Font = new Font(Font.FontFamily, 9F, FontStyle.Regular),
-            TextAlign = ContentAlignment.TopLeft,
-            Margin = new Padding(0, 6, 0, 0)
-        }, 0, 1);
+            string? lastCategory = null;
+            foreach (var (category, field) in rows)
+            {
+                // 同分类仅首行显示分类名，避免整列重复；字重/颜色由 Emphasize 统一。
+                var showCategory = !string.Equals(category, lastCategory, StringComparison.Ordinal);
+                list.Items.Add(new ListViewItem(
+                [
+                    showCategory ? category : string.Empty,
+                    field
+                ]));
+                lastCategory = category;
+            }
+        }
+        finally
+        {
+            list.EndUpdate();
+        }
+
+        card.Controls.Add(list, 0, 1);
         return card;
     }
+
+    private static string GetEmbeddedResourceName(string resourcePath)
+        => $"{typeof(StatusForm).Namespace}.{resourcePath}";
 
     private static string FormatAboutPath(string path)
     {
@@ -1991,7 +2876,14 @@ public sealed class StatusForm : Form
     {
         var category = string.Equals(name, "匹配模块", StringComparison.Ordinal)
             ? "模块"
-            : ClassStateCatalog.GetCategoryDisplayName(ClassStateCatalog.ClassifyField(name));
+            : NameplateStateLayout.IsMappingField(name)
+                ? NameplateStateLayout.MappingClassification
+                : NameplateStateLayout.UnitTtdAliases.Any(alias =>
+                      string.Equals(alias.TtdField, name, StringComparison.Ordinal))
+                    ? NameplateStateLayout.UnitTtdAliases
+                        .First(alias => string.Equals(alias.TtdField, name, StringComparison.Ordinal))
+                        .Classification
+                    : ClassStateCatalog.GetCategoryDisplayName(ClassStateCatalog.ClassifyField(name));
         return new ListViewItem(new[] { index.ToString(), category, name, value })
         {
             Tag = category
@@ -2354,21 +3246,24 @@ public sealed class StatusForm : Form
         listView.EndUpdate();
     }
 
-    private sealed class SettingsNavButton : Button
+    private sealed class SettingsNavButton : UiButton
     {
-        private readonly SettingsNavIcon _icon;
         private bool _hovered;
         private bool _pressed;
         private bool _isSelected;
         private bool _isDirty;
+        private bool _isCompact;
 
-        public SettingsNavButton(SettingsNavIcon icon)
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public string IconName { get; set; } = string.Empty;
+
+        public SettingsNavButton()
         {
-            _icon = icon;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
             UseVisualStyleBackColor = false;
-            BackColor = UiTheme.Background;
+            BackColor = UiTheme.SettingsNavigation;
             ForeColor = UiTheme.Muted;
             SetStyle(
                 ControlStyles.AllPaintingInWmPaint
@@ -2408,6 +3303,23 @@ public sealed class StatusForm : Form
                 }
 
                 _isDirty = value;
+                Invalidate();
+            }
+        }
+
+        [System.ComponentModel.Browsable(false)]
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        public bool IsCompact
+        {
+            get => _isCompact;
+            set
+            {
+                if (_isCompact == value)
+                {
+                    return;
+                }
+
+                _isCompact = value;
                 Invalidate();
             }
         }
@@ -2459,7 +3371,7 @@ public sealed class StatusForm : Form
         protected override void OnPaint(PaintEventArgs pevent)
         {
             var graphics = pevent.Graphics;
-            graphics.Clear(UiTheme.Background);
+            graphics.Clear(UiTheme.SettingsNavigation);
             var scale = Math.Max(1f, DeviceDpi / 96f);
             var bounds = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
             var oldSmoothingMode = graphics.SmoothingMode;
@@ -2471,62 +3383,72 @@ public sealed class StatusForm : Form
                     ? UiTheme.Pressed
                     : _hovered
                         ? UiTheme.Hover
-                        : UiTheme.Background;
+                        : UiTheme.SettingsNavigation;
             using (var path = UiTheme.CreateRoundedRectanglePath(bounds, Math.Max(6, (int)Math.Round(8 * scale))))
             using (var background = new SolidBrush(backgroundColor))
             {
                 graphics.FillPath(background, path);
                 if (_isSelected)
                 {
-                    using var border = new Pen(Color.FromArgb(90, UiTheme.Accent));
-                    graphics.DrawPath(border, path);
+                    using var indicator = new SolidBrush(UiTheme.Accent);
+                    graphics.FillRectangle(indicator, 0, Math.Max(5, Height / 4),
+                        Math.Max(3, (int)Math.Round(3 * scale)), Math.Max(1, Height / 2));
                 }
             }
 
-            var iconSize = Math.Max(18, (int)Math.Round(20 * scale));
-            var iconBounds = new Rectangle(
-                (int)Math.Round(12 * scale),
-                (Height - iconSize) / 2,
-                iconSize,
-                iconSize);
-            var iconColor = _isSelected ? UiTheme.Accent : _hovered ? UiTheme.Text : UiTheme.Muted;
-            UiIconCatalog.Draw(graphics, _icon, iconBounds, iconColor);
             graphics.SmoothingMode = oldSmoothingMode;
 
-            var textLeft = iconBounds.Right + (int)Math.Round(12 * scale);
-            var dirtySpace = _isDirty ? (int)Math.Round(24 * scale) : (int)Math.Round(10 * scale);
-            var textBounds = new Rectangle(
-                textLeft,
-                0,
-                Math.Max(0, Width - textLeft - dirtySpace),
-                Height);
-            TextRenderer.DrawText(
-                graphics,
-                Text,
-                Font,
-                textBounds,
-                _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            var iconSize = Math.Max(16, (int)Math.Round(18 * scale));
+            var iconLeft = _isCompact
+                ? (Width - iconSize) / 2
+                : (int)Math.Round(14 * scale);
+            var dirtyReserve = (int)Math.Round(NavItemDirtyReserve * scale);
+            var itemColor = _isSelected ? UiTheme.Accent : _hovered ? UiTheme.Text : UiTheme.Muted;
+            UiIconCatalog.Draw(graphics, IconName,
+                new Rectangle(iconLeft, (Height - iconSize) / 2, iconSize, iconSize), itemColor);
+            if (!_isCompact)
+            {
+                var textLeft = iconLeft + iconSize + (int)Math.Round(12 * scale);
+                var textBounds = new Rectangle(
+                    textLeft,
+                    0,
+                    Math.Max(0, Width - textLeft - dirtyReserve),
+                    Height);
+                TextRenderer.DrawText(
+                    graphics,
+                    Text,
+                    Font,
+                    textBounds,
+                    _isSelected || _hovered ? UiTheme.Text : UiTheme.Muted,
+                    TextFormatFlags.Left
+                    | TextFormatFlags.VerticalCenter
+                    | TextFormatFlags.SingleLine
+                    | TextFormatFlags.NoPrefix
+                    | TextFormatFlags.EndEllipsis);
+            }
 
             if (_isDirty)
             {
-                var dotSize = Math.Max(6, (int)Math.Round(7 * scale));
+                var dotSize = Math.Max(5, (int)Math.Round(6 * scale));
+                var reserveLeft = Width - dirtyReserve;
+                var dotLeft = _isCompact
+                    ? Width - dotSize - Math.Max(6, (int)Math.Round(7 * scale))
+                    : reserveLeft + (dirtyReserve - dotSize) / 2;
                 using var warning = new SolidBrush(UiTheme.Warning);
                 graphics.FillEllipse(
                     warning,
-                    Width - (int)Math.Round(16 * scale) - dotSize,
-                    (Height - dotSize) / 2,
+                    Math.Max(0, Math.Min(dotLeft, Width - dotSize)),
+                    _isCompact ? Math.Max(5, (int)Math.Round(5 * scale)) : (Height - dotSize) / 2,
                     dotSize,
                     dotSize);
             }
 
             if (Focused && ShowFocusCues)
             {
-                var focusBounds = Rectangle.Inflate(bounds, -(int)Math.Round(4 * scale), -(int)Math.Round(4 * scale));
+                var focusBounds = Rectangle.Inflate(bounds, -(int)Math.Round(3 * scale), -(int)Math.Round(3 * scale));
                 ControlPaint.DrawFocusRectangle(graphics, focusBounds, UiTheme.Text, backgroundColor);
             }
         }
-
     }
 
     private sealed record BossNumberGroup(string Title, IReadOnlyList<BossDungeon> Dungeons);

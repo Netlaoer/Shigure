@@ -17,13 +17,21 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string?> _resolveClassDirectory;
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
-    private readonly ListBox _classList = new();
-    private readonly ListBox _specList = new();
+    private readonly ClassSpecTreeSidebar _classTree = new();
+    private readonly Panel _sidebarSplitter = new();
+    private readonly List<ClassListItem> _classItems = new();
+    private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
     private readonly Label _statusLabel = new();
     private readonly ToolTip _toolTip = new();
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
+    private TableLayoutPanel? _bodyLayout;
+    private bool _autoCollapsedTree;
+    private bool _splitterDragging;
+    private int _splitterDragStartX;
+    private int _splitterDragStartWidth;
+    private const int ConfigFooterBarHeight = 64;
 
     private readonly DataGridView _statesGrid = new();
     private readonly DataGridViewComboBoxColumn _stateNameColumn = new();
@@ -132,22 +140,220 @@ public sealed class ClassConfigEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var root = new TableLayoutPanel
+        var cache = UiCacheStore.Load();
+        if (cache.ConfigSidebarWidth is { } cachedWidth
+            && cachedWidth >= UiTheme.ConfigSidebarMinWidth
+            && cachedWidth <= UiTheme.ConfigSidebarMaxWidth)
+        {
+            _classTree.SetExpandedWidth(cachedWidth);
+        }
+
+        if (cache.ConfigSidebarCollapsed == true)
+        {
+            _classTree.SetCollapsed(true);
+        }
+
+        _classTree.Dock = DockStyle.Fill;
+        _classTree.Margin = new Padding(0);
+        _classTree.SelectionChanged += (_, _) =>
+        {
+            if (_suppressUi)
+            {
+                return;
+            }
+
+            SelectFromTree();
+        };
+        _classTree.CollapseChanged += (_, _) =>
+        {
+            _autoCollapsedTree = false;
+            SyncSidebarColumnWidth();
+            UpdateSplitterEnabled();
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            UiCacheStore.Save(state);
+        };
+        _classTree.ExpandedWidthChanged += (_, _) =>
+        {
+            SyncSidebarColumnWidth();
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            UiCacheStore.Save(state);
+        };
+
+        ConfigureSidebarSplitter();
+
+        var sidebarCard = WrapInEditorCard(_classTree);
+        var editorCard = WrapInEditorCard(BuildEditor());
+
+        var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 3,
+            ColumnCount = 5,
             RowCount = 1,
             Margin = new Padding(0)
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 146));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 184));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        Controls.Add(root);
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,
+            _classTree.PreferredWidth + sidebarCard.Padding.Horizontal));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitterThickness));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        body.Controls.Add(sidebarCard, 0, 0);
+        body.Controls.Add(CreateSplitGap(), 1, 0);
+        body.Controls.Add(_sidebarSplitter, 2, 0);
+        body.Controls.Add(CreateSplitGap(), 3, 0);
+        body.Controls.Add(editorCard, 4, 0);
+        _bodyLayout = body;
+        UpdateSplitterEnabled();
+        body.Resize += (_, _) =>
+        {
+            var width = body.ClientSize.Width;
+            if (width > 0 && width < UiTheme.Scale(this, 870) && !_classTree.Collapsed)
+            {
+                _autoCollapsedTree = true;
+                _classTree.SetCollapsed(true);
+                SyncSidebarColumnWidth();
+                UpdateSplitterEnabled();
+            }
+            else if (width >= UiTheme.Scale(this, 940) && _autoCollapsedTree)
+            {
+                _autoCollapsedTree = false;
+                _classTree.SetCollapsed(false);
+                SyncSidebarColumnWidth();
+                UpdateSplitterEnabled();
+            }
+        };
 
-        root.Controls.Add(BuildSidebar(), 0, 0);
-        root.Controls.Add(BuildSpecSidebar(), 1, 0);
-        root.Controls.Add(BuildEditor(), 2, 0);
+        var page = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 1,
+            Margin = new Padding(0)
+        };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(body, 0, 0);
+
+        Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+    }
+
+    private static Control CreateSplitGap()
+        => new Panel
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
+            BackColor = UiTheme.Surface
+        };
+
+    private static UiCardPanel WrapInEditorCard(Control content)
+    {
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = new Padding(UiTheme.EditorShellPadding)
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.Dock = DockStyle.Fill;
+        content.Margin = Padding.Empty;
+        card.Controls.Add(content, 0, 0);
+        return card;
+    }
+
+    private void ConfigureSidebarSplitter()
+    {
+        _sidebarSplitter.Dock = DockStyle.Fill;
+        _sidebarSplitter.Margin = new Padding(0);
+        _sidebarSplitter.BackColor = UiTheme.Border;
+        _sidebarSplitter.Cursor = Cursors.VSplit;
+        _sidebarSplitter.TabStop = false;
+        _toolTip.SetToolTip(_sidebarSplitter, "拖动调整侧栏宽度");
+        _sidebarSplitter.MouseEnter += (_, _) =>
+        {
+            if (_sidebarSplitter.Enabled)
+            {
+                _sidebarSplitter.BackColor = UiTheme.Accent;
+            }
+        };
+        _sidebarSplitter.MouseLeave += (_, _) =>
+        {
+            if (!_splitterDragging)
+            {
+                _sidebarSplitter.BackColor = UiTheme.Border;
+            }
+        };
+        _sidebarSplitter.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left || _classTree.Collapsed)
+            {
+                return;
+            }
+
+            _splitterDragging = true;
+            _splitterDragStartX = Cursor.Position.X;
+            _splitterDragStartWidth = _classTree.ExpandedContentWidth;
+            _sidebarSplitter.Capture = true;
+            _sidebarSplitter.BackColor = UiTheme.Accent;
+        };
+        _sidebarSplitter.MouseMove += (_, _) =>
+        {
+            if (!_splitterDragging)
+            {
+                return;
+            }
+
+            var delta = Cursor.Position.X - _splitterDragStartX;
+            _classTree.SetExpandedWidth(_splitterDragStartWidth + delta);
+            SyncSidebarColumnWidth();
+        };
+        _sidebarSplitter.MouseUp += (_, e) =>
+        {
+            if (!_splitterDragging || e.Button != MouseButtons.Left)
+            {
+                return;
+            }
+
+            _splitterDragging = false;
+            _sidebarSplitter.Capture = false;
+            _sidebarSplitter.BackColor = _sidebarSplitter.ClientRectangle.Contains(
+                _sidebarSplitter.PointToClient(Cursor.Position))
+                ? UiTheme.Accent
+                : UiTheme.Border;
+            var state = UiCacheStore.Load();
+            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
+            state.ConfigSidebarCollapsed = _classTree.Collapsed;
+            UiCacheStore.Save(state);
+        };
+    }
+
+    private void UpdateSplitterEnabled()
+    {
+        var enabled = !_classTree.Collapsed;
+        _sidebarSplitter.Enabled = enabled;
+        _sidebarSplitter.Cursor = enabled ? Cursors.VSplit : Cursors.Default;
+        _sidebarSplitter.BackColor = enabled ? UiTheme.Border : UiTheme.SurfaceRaised;
+        _toolTip.SetToolTip(_sidebarSplitter, enabled ? "拖动调整侧栏宽度" : "展开侧栏后可拖动调整宽度");
+    }
+
+    private void SyncSidebarColumnWidth()
+    {
+        if (_bodyLayout is null || _bodyLayout.ColumnStyles.Count == 0)
+        {
+            return;
+        }
+
+        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute,
+            _classTree.PreferredWidth + UiTheme.EditorShellPadding * 2);
+        _bodyLayout.PerformLayout();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -175,92 +381,6 @@ public sealed class ClassConfigEditorControl : UserControl
         return base.ProcessCmdKey(ref msg, keyData);
     }
 
-    private Control BuildSidebar()
-    {
-        var panel = new UiCardPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding),
-            Margin = new Padding(0, 0, UiTheme.PageGap, 0)
-        };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        panel.Controls.Add(new Label
-        {
-            Text = "职业",
-            Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
-        }, 0, 0);
-
-        _classList.Dock = DockStyle.Fill;
-        UiTheme.StyleClassIconListBox(
-            _classList,
-            item => (item as ClassListItem)?.ClassId,
-            iconSize: 40);
-        _classList.BackColor = UiTheme.SurfaceRaised;
-        _classList.SelectedIndexChanged += (_, _) =>
-        {
-            if (_suppressUi)
-            {
-                return;
-            }
-
-            SelectClassFromList();
-        };
-        panel.Controls.Add(_classList, 0, 1);
-        return panel;
-    }
-
-    private Control BuildSpecSidebar()
-    {
-        var panel = new UiCardPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding),
-            Margin = new Padding(0, 0, UiTheme.PageGap, 0)
-        };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        panel.Controls.Add(new Label
-        {
-            Text = "专精",
-            Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
-        }, 0, 0);
-
-        _specList.Dock = DockStyle.Fill;
-        UiTheme.StyleSpecIconListBox(
-            _specList,
-            item => item is SpecOption spec ? (spec.ClassId, spec.Id) : null,
-            iconSize: 40);
-        _specList.BackColor = UiTheme.SurfaceRaised;
-        _specList.SelectedIndexChanged += (_, _) =>
-        {
-            if (_suppressUi)
-            {
-                return;
-            }
-
-            SelectSpec(_specList.SelectedItem as SpecOption);
-        };
-        panel.Controls.Add(_specList, 0, 1);
-        return panel;
-    }
-
     private static void StyleActionButton(Button button)
     {
         UiTheme.StyleActionButton(button);
@@ -272,13 +392,13 @@ public sealed class ClassConfigEditorControl : UserControl
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0)
         };
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, ConfigFooterBarHeight));
 
         root.Controls.Add(BuildSectionTabs(), 0, 0);
 
@@ -288,7 +408,7 @@ public sealed class ClassConfigEditorControl : UserControl
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0, UiTheme.PageGap, 0, 0),
-            Padding = new Padding(UiTheme.CardPadding, 10, UiTheme.CardPadding, 10)
+            Padding = new Padding(UiTheme.CardPadding, 8, UiTheme.CardPadding, 8)
         };
         actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         actionRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 228));
@@ -311,7 +431,6 @@ public sealed class ClassConfigEditorControl : UserControl
         _toolTip.SetToolTip(_saveButton, "保存配置并同步游戏 (Ctrl+S)");
         actions.Controls.Add(_reloadButton);
         actions.Controls.Add(_saveButton);
-        actionRow.Controls.Add(BuildFooterInfo(), 0, 0);
         actionRow.Controls.Add(actions, 1, 0);
         root.Controls.Add(actionRow, 0, 1);
         return root;
@@ -327,7 +446,7 @@ public sealed class ClassConfigEditorControl : UserControl
             RowCount = 2,
             Margin = new Padding(0)
         };
-        info.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 56));
+        info.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 44));
         info.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         info.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
@@ -353,7 +472,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0)
@@ -364,7 +483,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var tabBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.Surface,
+            BackColor = UiTheme.SurfaceRaised,
             ColumnCount = 7,
             RowCount = 1,
             Margin = new Padding(0, 0, 0, 8),
@@ -399,11 +518,11 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             BuildStatesPage(),
             BuildAurasPage(),
-            BuildSpellsPage(),
-            BuildGroupPage(),
-            BuildNameplatesPage(),
-            BuildSpellsListPage(),
-            BuildItemsPage()
+            WrapInDarkSectionCard(BuildSpellsPage()),
+            WrapInDarkSectionCard(BuildGroupPage()),
+            WrapInDarkSectionCard(BuildNameplatesPage()),
+            WrapInDarkSectionCard(BuildSpellsListPage()),
+            WrapInDarkSectionCard(BuildItemsPage())
         };
         foreach (var page in pages)
         {
@@ -471,14 +590,32 @@ public sealed class ClassConfigEditorControl : UserControl
         return root;
     }
 
+    private static UiCardPanel WrapInDarkSectionCard(Control content)
+    {
+        var card = new UiCardPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 1,
+            FillColor = UiTheme.Surface
+        };
+        card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        card.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.Dock = DockStyle.Fill;
+        content.Margin = Padding.Empty;
+        card.Controls.Add(content, 0, 0);
+        return card;
+    }
+
     private Control BuildStatesPage()
     {
-        var panel = new TableLayoutPanel
+        var panel = new UiCardPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.SurfaceRaised,
+            FillColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -514,7 +651,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _statesGrid.DataError += (_, e) => e.ThrowException = false;
         _statesGrid.Disposed += (_, _) => CloseStateComboDropDown();
         panel.Controls.Add(_statesGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_statesGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_statesGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -525,7 +662,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
@@ -538,7 +675,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0, 0, 5, 0),
             Padding = new Padding(0)
         };
@@ -613,7 +750,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
         ConfigureGrid(_itemsListGrid, "class-config-items-list");
         _itemsListGrid.AllowUserToAddRows = false;
-        _itemsListGrid.CellContentClick += HandleItemsListDeleteClick;
+        _itemsListGrid.CellContentClick += HandleItemsListCellContentClick;
         _itemsListGrid.CellValueChanged += (_, e) =>
         {
             MarkDirty();
@@ -645,6 +782,7 @@ public sealed class ClassConfigEditorControl : UserControl
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
+        _itemsListGrid.Columns.Add(CreateAddToCooldownColumn());
         _itemsListGrid.Columns.Add(CreateDeleteColumn());
         currentListCard.Controls.Add(_itemsListGrid, 0, 1);
         leftColumn.Controls.Add(currentListCard, 0, 1);
@@ -655,7 +793,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(5, 0, 0, 0),
             Padding = new Padding(0)
         };
@@ -742,10 +880,10 @@ public sealed class ClassConfigEditorControl : UserControl
         _itemDatabaseGrid.Columns.Add(new DataGridViewButtonColumn
         {
             Name = "Add",
-            HeaderText = "添加",
-            Text = "添加",
+            HeaderText = "添加至列表",
+            Text = "添加至列表",
             UseColumnTextForButtonValue = true,
-            Width = 72,
+            Width = 134,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
         _itemDatabaseGrid.HandleCreated += (_, _) => RefreshItemDatabase();
@@ -759,6 +897,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
 
         split.Controls.Add(rightColumn, 1, 0);
+        UiTheme.ConfigureResponsiveSplit(split);
         return split;
     }
 
@@ -768,7 +907,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var tabBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             ColumnCount = categories.Length,
             RowCount = 1,
             Margin = new Padding(0),
@@ -819,12 +958,13 @@ public sealed class ClassConfigEditorControl : UserControl
 
     private Control BuildAurasPage()
     {
-        var panel = new TableLayoutPanel
+        var panel = new UiCardPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.SurfaceRaised,
+            FillColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -863,7 +1003,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
         _aurasGrid.UserAddedRow += (_, _) => MarkDirty();
         panel.Controls.Add(_aurasGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_aurasGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_aurasGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -872,7 +1012,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var tabBar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             ColumnCount = AuraBuckets.Length,
             RowCount = 1,
             Margin = new Padding(0),
@@ -934,12 +1074,13 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        // 右侧物品冷却相对原 50% 再窄约 30% → 35%；让出的宽度给左侧技能冷却。
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
+        split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
         split.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var leftColumn = new TableLayoutPanel
@@ -947,7 +1088,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0, 0, 5, 0),
             Padding = new Padding(0)
         };
@@ -1022,14 +1163,15 @@ public sealed class ClassConfigEditorControl : UserControl
         spellCard.Controls.Add(spellHeader, 0, 0);
 
         ConfigureGrid(_spellsGrid, "class-config-spells");
-        _spellsGrid.Columns.Add(CreateSpellIconColumn());
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 24, 160));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 14, 120));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 10, 80));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 14, 110));
-        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 14, 110));
+        // 冷却技能表：图标 ×0.8，法术 ID/最大充能/施法次数/强制已学/法术书中 ×0.9；名称仍为唯一 Fill。
+        _spellsGrid.Columns.Add(CreateSpellIconColumn(43));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("SpellId", "法术 ID", 108));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("Charge", "充能", 80));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("MaxCharge", "最大充能", 99));
+        _spellsGrid.Columns.Add(CreateSpellTextColumn("CastCount", "施法次数", 99));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("ForcedKnown", "强制已学", 99));
+        _spellsGrid.Columns.Add(CreateSpellCheckColumn("InSpellBook", "法术书中", 99));
         _spellsGrid.Columns.Add(CreateDeleteColumn());
         _spellsGrid.CellContentClick += HandleDeleteClick;
         _spellsGrid.CellValueChanged += (_, e) =>
@@ -1044,7 +1186,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _spellsGrid.DataError += (_, e) => e.ThrowException = false;
         spellCard.Controls.Add(_spellsGrid, 0, 1);
         leftColumn.Controls.Add(spellCard, 0, 1);
-        leftColumn.Controls.Add(BuildMoveButtons(_spellsGrid), 0, 2);
+        leftColumn.Controls.Add(BuildMoveButtons(_spellsGrid, UiTheme.Surface), 0, 2);
         split.Controls.Add(leftColumn, 0, 0);
 
         var rightColumn = new TableLayoutPanel
@@ -1052,7 +1194,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(5, 0, 0, 0),
             Padding = new Padding(0)
         };
@@ -1145,18 +1287,13 @@ public sealed class ClassConfigEditorControl : UserControl
             Width = 125,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
-        _itemsGrid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            Name = "Name",
-            HeaderText = "名称",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            SortMode = DataGridViewColumnSortMode.NotSortable
-        });
-        _itemsGrid.Columns.Add(CreateSpellCheckColumn("IsEquipped", "是否装备中", 12, 110));
+        _itemsGrid.Columns.Add(CreateSpellTextColumn("Name", "名称", 160, fill: true));
+        _itemsGrid.Columns.Add(CreateSpellCheckColumn("IsEquipped", "是否装备中", 110));
         _itemsGrid.Columns.Add(CreateDeleteColumn());
         itemCard.Controls.Add(_itemsGrid, 0, 1);
         rightColumn.Controls.Add(itemCard, 0, 1);
         split.Controls.Add(rightColumn, 1, 0);
+        UiTheme.ConfigureResponsiveSplit(split, 65F);
         return split;
     }
 
@@ -1167,7 +1304,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
@@ -1180,7 +1317,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(0, 0, 5, 0),
             Padding = new Padding(0)
         };
@@ -1256,7 +1393,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
         ConfigureGrid(_spellsListGrid, "class-config-spells-list");
         _spellsListGrid.AllowUserToAddRows = false;
-        _spellsListGrid.CellContentClick += HandleSpellsListDeleteClick;
+        _spellsListGrid.CellContentClick += HandleSpellsListCellContentClick;
         _spellsListGrid.CellValueChanged += (_, e) =>
         {
             MarkDirty();
@@ -1287,6 +1424,7 @@ public sealed class ClassConfigEditorControl : UserControl
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
+        _spellsListGrid.Columns.Add(CreateAddToCooldownColumn());
         _spellsListGrid.Columns.Add(CreateDeleteColumn());
         currentListCard.Controls.Add(_spellsListGrid, 0, 1);
         leftColumn.Controls.Add(currentListCard, 0, 1);
@@ -1297,7 +1435,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 2,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Margin = new Padding(5, 0, 0, 0),
             Padding = new Padding(0)
         };
@@ -1384,10 +1522,10 @@ public sealed class ClassConfigEditorControl : UserControl
         _spellDatabaseGrid.Columns.Add(new DataGridViewButtonColumn
         {
             Name = "Add",
-            HeaderText = "添加",
-            Text = "添加",
+            HeaderText = "添加至列表",
+            Text = "添加至列表",
             UseColumnTextForButtonValue = true,
-            Width = 72,
+            Width = 134,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
         _spellDatabaseGrid.HandleCreated += (_, _) => RefreshSpellDatabase();
@@ -1401,6 +1539,7 @@ public sealed class ClassConfigEditorControl : UserControl
         };
 
         split.Controls.Add(rightColumn, 1, 0);
+        UiTheme.ConfigureResponsiveSplit(split);
         return split;
     }
 
@@ -1424,7 +1563,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -1436,7 +1575,7 @@ public sealed class ClassConfigEditorControl : UserControl
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(4, 6, 4, 6),
             Margin = new Padding(0)
         };
@@ -1472,20 +1611,6 @@ public sealed class ClassConfigEditorControl : UserControl
             fields.Controls.Add(card);
         }
 
-        void FitGroupCards()
-        {
-            const int minimumCardWidth = 176;
-            var totalMargins = groupCards.Sum(card => card.Margin.Horizontal);
-            var availableWidth = Math.Max(0, fields.ClientSize.Width - fields.Padding.Horizontal - totalMargins);
-            var cardWidth = Math.Max(minimumCardWidth, availableWidth / groupCards.Length);
-            foreach (var card in groupCards)
-            {
-                card.Width = cardWidth;
-            }
-        }
-
-        fields.SizeChanged += (_, _) => FitGroupCards();
-        fields.HandleCreated += (_, _) => FitGroupCards();
         panel.Controls.Add(fields, 0, 0);
 
         ConfigureGrid(_groupAurasGrid, "class-config-group-auras");
@@ -1514,7 +1639,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _groupAurasGrid.UserAddedRow += (_, _) => { MarkDirty(); UpdateGroupPixelSummary(); };
         _groupAurasGrid.RowsRemoved += (_, _) => UpdateGroupPixelSummary();
         panel.Controls.Add(_groupAurasGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_groupAurasGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_groupAurasGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -1525,7 +1650,7 @@ public sealed class ClassConfigEditorControl : UserControl
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 3,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = UiTheme.Surface
         };
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -1537,7 +1662,7 @@ public sealed class ClassConfigEditorControl : UserControl
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             AutoScroll = true,
-            BackColor = UiTheme.SurfaceRaised,
+            BackColor = UiTheme.Surface,
             Padding = new Padding(4, 6, 4, 6),
             Margin = new Padding(0)
         };
@@ -1555,9 +1680,10 @@ public sealed class ClassConfigEditorControl : UserControl
         };
         _nameplatePixelSummary.ForeColor = UiTheme.Text;
         _nameplateFixedFieldSummary.ForeColor = UiTheme.Muted;
-        _nameplateFixedFieldSummary.Text = $"生命值 + 距离 + 战斗（固定 {NameplateStateLayout.FixedFieldCount} 格）";
+        _nameplateFixedFieldSummary.Text =
+            $"映射 {NameplateStateLayout.MappingFieldCount} + 生命值/距离/战斗（固定 {NameplateStateLayout.FixedFieldCount} 格/槽）";
 
-        // 姓名板卡片在原来加宽 50% 的基础上再宽 60%，避免「生命值 + 距离 + 战斗（固定 3 格）」被截断。
+        // 姓名板卡片加宽，避免映射与固定字段摘要被截断。
         const int cardWidth = GroupCardWidth * 3 / 2 * 8 / 5;
         fields.Controls.Add(CreateGroupCard("NAMEPLATES", _nameplateEnabledBox, cardWidth));
         fields.Controls.Add(CreateGroupCard("固定字段", _nameplateFixedFieldSummary, cardWidth));
@@ -1596,7 +1722,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _nameplateAurasGrid.UserAddedRow += (_, _) => { MarkDirty(); UpdateNameplatePixelSummary(); };
         _nameplateAurasGrid.RowsRemoved += (_, _) => UpdateNameplatePixelSummary();
         panel.Controls.Add(_nameplateAurasGrid, 0, 1);
-        panel.Controls.Add(BuildMoveButtons(_nameplateAurasGrid), 0, 2);
+        panel.Controls.Add(BuildMoveButtons(_nameplateAurasGrid, UiTheme.Surface), 0, 2);
         return panel;
     }
 
@@ -1646,13 +1772,15 @@ public sealed class ClassConfigEditorControl : UserControl
                 fields++;
             }
         }
+
+        var total = NameplateStateLayout.TotalPixelCount(fields);
         _nameplatePixelSummary.Text = _nameplateEnabledBox.Checked
-            ? $"{NameplateStateLayout.SlotCount} × {fields} = {NameplateStateLayout.SlotCount * fields} 格"
+            ? $"映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount} × {fields} = {total} 格"
             : "未启用";
     }
 
 
-    private const int GroupCardWidth = 160;
+    private const int GroupCardWidth = UiTheme.GroupCardFixedWidth;
 
     private Control CreateGroupCard(string title, Control content, int width = GroupCardWidth)
     {
@@ -1701,14 +1829,14 @@ public sealed class ClassConfigEditorControl : UserControl
         return card;
     }
 
-    private Control BuildMoveButtons(DataGridView grid)
+    private Control BuildMoveButtons(DataGridView grid, Color? background = null)
     {
         var bar = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            BackColor = UiTheme.SurfaceRaised
+            BackColor = background ?? UiTheme.SurfaceRaised
         };
         var up = UiTheme.CreateButton("▲", UiTheme.Field, UiTheme.Text);
         var down = UiTheme.CreateButton("▼", UiTheme.Field, UiTheme.Text);
@@ -1743,31 +1871,48 @@ public sealed class ClassConfigEditorControl : UserControl
             HeaderText = "",
             Text = "×",
             UseColumnTextForButtonValue = true,
-            Width = 44
+            Width = 44,
+            MinimumWidth = 44,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+        };
+
+    private static DataGridViewButtonColumn CreateAddToCooldownColumn()
+        => new()
+        {
+            Name = "AddToCooldown",
+            HeaderText = "",
+            Text = "添加至冷却",
+            UseColumnTextForButtonValue = true,
+            Width = 134,
+            MinimumWidth = 134,
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
+            SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
     private static DataGridViewTextBoxColumn CreateSpellTextColumn(
         string name,
         string headerText,
-        float fillWeight,
-        int minimumWidth)
+        int width,
+        bool fill = false)
         => new()
         {
             Name = name,
             HeaderText = headerText,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = fillWeight,
-            MinimumWidth = minimumWidth,
+            AutoSizeMode = fill
+                ? DataGridViewAutoSizeColumnMode.Fill
+                : DataGridViewAutoSizeColumnMode.None,
+            Width = width,
+            MinimumWidth = width,
             SortMode = DataGridViewColumnSortMode.NotSortable
         };
 
-    private static DataGridViewImageColumn CreateSpellIconColumn()
+    private static DataGridViewImageColumn CreateSpellIconColumn(int width = 54)
         => new()
         {
             Name = "Icon",
             HeaderText = "图标",
-            Width = 54,
-            MinimumWidth = 54,
+            Width = width,
+            MinimumWidth = width,
             AutoSizeMode = DataGridViewAutoSizeColumnMode.None,
             ImageLayout = DataGridViewImageCellLayout.Zoom,
             ReadOnly = true,
@@ -1783,15 +1928,17 @@ public sealed class ClassConfigEditorControl : UserControl
     private static DataGridViewCheckBoxColumn CreateSpellCheckColumn(
         string name,
         string headerText,
-        float fillWeight,
-        int minimumWidth)
+        int width,
+        bool fill = false)
         => new()
         {
             Name = name,
             HeaderText = headerText,
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-            FillWeight = fillWeight,
-            MinimumWidth = minimumWidth,
+            AutoSizeMode = fill
+                ? DataGridViewAutoSizeColumnMode.Fill
+                : DataGridViewAutoSizeColumnMode.None,
+            Width = width,
+            MinimumWidth = width,
             SortMode = DataGridViewColumnSortMode.NotSortable,
             TrueValue = true,
             FalseValue = false,
@@ -1855,12 +2002,13 @@ public sealed class ClassConfigEditorControl : UserControl
         _suppressUi = true;
         try
         {
-            _classList.Items.Clear();
+            _classItems.Clear();
             ClearSpecList();
             ClearGrids();
 
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
+                _classTree.SetClasses([]);
                 _pathLabel.Text = "未找到 Fuyutsui\\class";
                 _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
                 return;
@@ -1881,18 +2029,21 @@ public sealed class ClassConfigEditorControl : UserControl
                     var doc = ClassBlocksStore.Load(path);
                     _documents[classId] = doc;
                     RegisterDocumentSpellNames(doc);
-                    _classList.Items.Add(new ClassListItem(classId, className, fileName, doc.IsModernFormat));
+                    _classItems.Add(new ClassListItem(classId, className, fileName, doc.IsModernFormat));
                 }
                 catch (Exception ex)
                 {
-                    _classList.Items.Add(new ClassListItem(classId, className, fileName, false, ex.Message));
+                    _classItems.Add(new ClassListItem(classId, className, fileName, false, ex.Message));
                 }
             }
 
+            _classTree.SetClasses(_classItems
+                .Select(item => (item.ClassId, item.Name))
+                .ToList());
             _statusLabel.Text = $"已加载 {_documents.Count} 个职业文件";
-            if (_classList.Items.Count > 0)
+            if (_classItems.Count > 0)
             {
-                _classList.SelectedIndex = 0;
+                _classTree.SelectClass(_classItems[0].ClassId, expand: true);
             }
         }
         finally
@@ -1900,7 +2051,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectClassFromList();
+        SelectFromTree();
     }
 
     private static void RegisterDocumentSpellNames(ClassBlocksStore.ClassFileDocument document)
@@ -1975,9 +2126,16 @@ public sealed class ClassConfigEditorControl : UserControl
         }
     }
 
-    private void SelectClassFromList()
+    private void SelectFromTree()
     {
-        if (_classList.SelectedItem is not ClassListItem item)
+        var classId = _classTree.SelectedClassId;
+        if (classId is null)
+        {
+            return;
+        }
+
+        var item = _classItems.FirstOrDefault(x => x.ClassId == classId);
+        if (item is null)
         {
             return;
         }
@@ -1988,6 +2146,10 @@ public sealed class ClassConfigEditorControl : UserControl
             try
             {
                 SelectClassInList(_currentClassId);
+                if (_currentSpecId is { } previousSpecId && _currentClassId is { } previousClassId)
+                {
+                    _classTree.SelectSpec(previousClassId, previousSpecId);
+                }
             }
             finally
             {
@@ -1998,16 +2160,23 @@ public sealed class ClassConfigEditorControl : UserControl
         }
 
         var discarding = _dirty && _currentClassId != item.ClassId;
-        if (_dirty && _currentClassId == item.ClassId)
+        if (_currentClassId == item.ClassId)
         {
+            // 同职业：仅专精变化时切换；折叠树节点不重载右侧。
+            if (_classTree.SelectedSpecId is { } pendingSpecId
+                && _currentSpecId != pendingSpecId)
+            {
+                SelectSpec(_specItems.FirstOrDefault(x => x.Id == pendingSpecId));
+            }
+
             return;
         }
 
-        if (discarding && _currentClassId is { } previousClassId && _documents.ContainsKey(previousClassId))
+        if (discarding && _currentClassId is { } previousLoadedClassId && _documents.ContainsKey(previousLoadedClassId))
         {
             try
             {
-                _documents[previousClassId] = ClassBlocksStore.Load(_documents[previousClassId].FilePath);
+                _documents[previousLoadedClassId] = ClassBlocksStore.Load(_documents[previousLoadedClassId].FilePath);
             }
             catch
             {
@@ -2082,7 +2251,30 @@ public sealed class ClassConfigEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectSpec(_specList.SelectedItem as SpecOption);
+        var selectedSpecId = _classTree.SelectedSpecId;
+        if (selectedSpecId is { } treeSpecId)
+        {
+            SelectSpec(_specItems.FirstOrDefault(x => x.Id == treeSpecId));
+        }
+        else if (_specItems.Count > 0)
+        {
+            _suppressUi = true;
+            try
+            {
+                _classTree.SelectSpec(item.ClassId, _specItems[0].Id);
+            }
+            finally
+            {
+                _suppressUi = false;
+            }
+
+            SelectSpec(_specItems[0]);
+        }
+        else
+        {
+            SelectSpec(null);
+        }
+
         _suppressUi = true;
         try
         {
@@ -2097,21 +2289,20 @@ public sealed class ClassConfigEditorControl : UserControl
 
     private void RebuildSpecList(IReadOnlyList<SpecOption> options)
     {
-        _specList.Items.Clear();
-        foreach (var option in options)
+        _specItems.Clear();
+        _specItems.AddRange(options);
+        if (_currentClassId is { } classId)
         {
-            _specList.Items.Add(option);
-        }
-
-        if (_specList.Items.Count > 0)
-        {
-            _specList.SelectedIndex = 0;
+            _classTree.SetSpecs(
+                classId,
+                options.Select(option => (option.Id, option.Name)).ToList());
         }
     }
 
     private void ClearSpecList()
     {
-        _specList.Items.Clear();
+        _specItems.Clear();
+        _classTree.ClearSpecs();
     }
 
     private void SelectSpec(SpecOption? spec)
@@ -2120,7 +2311,6 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             _currentSpec = null;
             _currentSpecId = null;
-            _specList.Invalidate();
             ClearGrids();
             return;
         }
@@ -2138,7 +2328,6 @@ public sealed class ClassConfigEditorControl : UserControl
         }
 
         _currentSpec = blocks;
-        _specList.Invalidate();
         FillAllEditors();
     }
 
@@ -2564,7 +2753,7 @@ public sealed class ClassConfigEditorControl : UserControl
             "Icon" => SpellIconCatalog.GetItem(suggestion.ItemId),
             "ItemId" => suggestion.ItemId.ToString(CultureInfo.InvariantCulture),
             "Name" => displayName,
-            "Add" => "添加",
+            "Add" => "添加至列表",
             _ => null
         };
     }
@@ -3339,7 +3528,7 @@ public sealed class ClassConfigEditorControl : UserControl
             "Icon" => SpellIconCatalog.Get(suggestion.SpellId),
             "SpellId" => suggestion.SpellId.ToString(CultureInfo.InvariantCulture),
             "Name" => displayName,
-            "Add" => "添加",
+            "Add" => "添加至列表",
             _ => null
         };
     }
@@ -4292,13 +4481,18 @@ public sealed class ClassConfigEditorControl : UserControl
 
     private void SelectClassInList(int? classId)
     {
-        for (var i = 0; i < _classList.Items.Count; i++)
+        if (classId is null || _classItems.All(item => item.ClassId != classId))
         {
-            if (_classList.Items[i] is ClassListItem item && item.ClassId == classId)
-            {
-                _classList.SelectedIndex = i;
-                return;
-            }
+            return;
+        }
+
+        if (_currentSpecId is { } specId)
+        {
+            _classTree.SelectSpec(classId.Value, specId);
+        }
+        else
+        {
+            _classTree.SelectClass(classId.Value, expand: true);
         }
     }
 
@@ -4339,18 +4533,28 @@ public sealed class ClassConfigEditorControl : UserControl
         MarkDirty();
     }
 
-    private void HandleSpellsListDeleteClick(object? sender, DataGridViewCellEventArgs e)
+    private void HandleSpellsListCellContentClick(object? sender, DataGridViewCellEventArgs e)
     {
         if (sender is not DataGridView grid
             || e.RowIndex < 0
-            || e.ColumnIndex < 0
-            || grid.Columns[e.ColumnIndex].Name != "Delete")
+            || e.ColumnIndex < 0)
         {
             return;
         }
 
         var row = grid.Rows[e.RowIndex];
         if (row.IsNewRow || row.Tag is not ClassBlocksStore.SpellsListEntry entry)
+        {
+            return;
+        }
+
+        if (grid.Columns[e.ColumnIndex].Name == "AddToCooldown")
+        {
+            AddSpellListEntryToCooldown(row, entry);
+            return;
+        }
+
+        if (grid.Columns[e.ColumnIndex].Name != "Delete")
         {
             return;
         }
@@ -4369,18 +4573,28 @@ public sealed class ClassConfigEditorControl : UserControl
         MarkDirty();
     }
 
-    private void HandleItemsListDeleteClick(object? sender, DataGridViewCellEventArgs e)
+    private void HandleItemsListCellContentClick(object? sender, DataGridViewCellEventArgs e)
     {
         if (sender is not DataGridView grid
             || e.RowIndex < 0
-            || e.ColumnIndex < 0
-            || grid.Columns[e.ColumnIndex].Name != "Delete")
+            || e.ColumnIndex < 0)
         {
             return;
         }
 
         var row = grid.Rows[e.RowIndex];
         if (row.IsNewRow || row.Tag is not ClassBlocksStore.ItemsListEntry entry)
+        {
+            return;
+        }
+
+        if (grid.Columns[e.ColumnIndex].Name == "AddToCooldown")
+        {
+            AddItemsListEntryToCooldown(row, entry);
+            return;
+        }
+
+        if (grid.Columns[e.ColumnIndex].Name != "Delete")
         {
             return;
         }
@@ -4397,6 +4611,158 @@ public sealed class ClassConfigEditorControl : UserControl
 
         grid.Rows.RemoveAt(e.RowIndex);
         MarkDirty();
+    }
+
+    private void AddSpellListEntryToCooldown(
+        DataGridViewRow sourceRow,
+        ClassBlocksStore.SpellsListEntry sourceEntry)
+    {
+        if (_currentSpec is null)
+        {
+            MessageBox.Show("请先选择一个专精。", "技能冷却", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _spellsListGrid.EndEdit();
+        if (!TryValidateSpellsList(out var validationError))
+        {
+            MessageBox.Show(validationError, "技能列表", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        WriteBackSpellsList();
+        if (GridContainsId(_spellsGrid, "SpellId", sourceEntry.SpellId))
+        {
+            MessageBox.Show(
+                $"该技能已存在于冷却列表：{sourceEntry.Name}（{sourceEntry.SpellId}）",
+                "技能冷却",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var entry = new ClassBlocksStore.SpellEntry
+        {
+            SpellId = sourceEntry.SpellId,
+            Name = sourceEntry.Name
+        };
+        _currentSpec.Spells.Add(entry);
+
+        _suppressUi = true;
+        try
+        {
+            _spellsGrid.Rows.Add(
+                (SpellIconCatalog.Get(entry.SpellId) ?? SpellIconCatalog.Get(entry.Name))!,
+                entry.Name,
+                entry.SpellId.ToString(CultureInfo.InvariantCulture),
+                false,
+                "",
+                "",
+                false,
+                false,
+                "×");
+        }
+        finally
+        {
+            _suppressUi = false;
+        }
+
+        sourceRow.Selected = true;
+        MarkDirty();
+    }
+
+    private void AddItemsListEntryToCooldown(
+        DataGridViewRow sourceRow,
+        ClassBlocksStore.ItemsListEntry sourceEntry)
+    {
+        if (_currentSpec is null)
+        {
+            MessageBox.Show("请先选择一个专精。", "物品冷却", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _itemsListGrid.EndEdit();
+        if (!TryValidateItemsList(out var validationError))
+        {
+            MessageBox.Show(validationError, "物品列表", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        WriteBackItemsList();
+        if (GridContainsId(_itemsGrid, "ItemId", sourceEntry.ItemId))
+        {
+            MessageBox.Show(
+                $"该物品已存在于冷却列表：{sourceEntry.Name}（{sourceEntry.ItemId}）",
+                "物品冷却",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        _itemsGrid.EndEdit();
+        WriteBackItems();
+        var entry = new ClassBlocksStore.ItemEntry
+        {
+            ItemId = sourceEntry.ItemId,
+            Name = sourceEntry.Name,
+            IsEquipped = false
+        };
+        _currentSpec.Items.Add(entry);
+
+        int rowIndex;
+        _suppressUi = true;
+        try
+        {
+            rowIndex = _itemsGrid.Rows.Add(
+                SpellIconCatalog.GetItem(sourceEntry.ItemId)!,
+                sourceEntry.ItemId.ToString(CultureInfo.InvariantCulture),
+                sourceEntry.Name,
+                false,
+                "×");
+        }
+        finally
+        {
+            _suppressUi = false;
+        }
+
+        if (!TryValidateItems(out validationError))
+        {
+            _currentSpec.Items.Remove(entry);
+            _suppressUi = true;
+            try
+            {
+                _itemsGrid.Rows.RemoveAt(rowIndex);
+            }
+            finally
+            {
+                _suppressUi = false;
+            }
+
+            MessageBox.Show(validationError, "物品冷却", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        sourceRow.Selected = true;
+        MarkDirty();
+    }
+
+    private static bool GridContainsId(DataGridView grid, string columnName, long id)
+    {
+        foreach (DataGridViewRow row in grid.Rows)
+        {
+            if (!row.IsNewRow
+                && long.TryParse(
+                    row.Cells[columnName].Value?.ToString()?.Trim(),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var candidate)
+                && candidate == id)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void MoveSelectedRow(DataGridView grid, int delta)

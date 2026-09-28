@@ -12,7 +12,8 @@ public sealed class ClassMacrosEditorControl : UserControl
     private readonly Func<string?> _resolveClassMacrosPath;
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
-    private readonly ListBox _classList = new();
+    private readonly ClassIconStrip _classStrip = new();
+    private readonly List<ClassListItem> _classItems = new();
     private readonly Label _pathLabel = new();
     private readonly Label _statusLabel = new();
     private readonly ToolTip _toolTip = new();
@@ -69,20 +70,89 @@ public sealed class ClassMacrosEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var root = new TableLayoutPanel
+        _classStrip.SelectionChanged += (_, _) =>
+        {
+            if (!_suppressUi)
+            {
+                SelectClassFromStrip();
+            }
+        };
+
+        var iconStack = UiTheme.CreateIconStripStack(_classStrip);
+        iconStack.Dock = DockStyle.None;
+        iconStack.Margin = Padding.Empty;
+        var iconViewport = new Panel
+        {
+            AutoScroll = true,
+            Margin = Padding.Empty
+        };
+        iconViewport.Controls.Add(iconStack);
+        var iconCard = UiTheme.CreateIconStripCard(iconViewport);
+        var iconArea = new Panel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0)
+            Margin = Padding.Empty
         };
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 146));
-        root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        Controls.Add(root);
+        iconArea.Controls.Add(iconCard);
+        var editor = BuildEditor();
+        editor.Dock = DockStyle.Fill;
 
-        root.Controls.Add(BuildSidebar(), 0, 0);
-        root.Controls.Add(BuildEditor(), 1, 0);
+        var page = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute,
+            ClassIconStrip.StripHeight + UiTheme.IconStripCardPadding * 2 + UiTheme.PageGap));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(iconArea, 0, 0);
+        page.Controls.Add(editor, 0, 1);
+
+        Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth));
+
+        void SyncIconStackRow()
+        {
+            var stripHeight = _classStrip.ScaledHeight;
+            var iconCount = _classStrip.Controls.Count;
+            var iconWidth = UiTheme.Scale(this, ClassIconStrip.StripPadding * 2
+                + iconCount * ClassIconStrip.CellSize
+                + Math.Max(0, iconCount - 1) * ClassIconStrip.CellGap);
+            var cardWidth = Math.Min(iconArea.ClientSize.Width,
+                iconWidth + iconCard.Padding.Horizontal);
+            var needsScroll = iconWidth > Math.Max(0, cardWidth - iconCard.Padding.Horizontal);
+            var cardHeight = stripHeight + iconCard.Padding.Vertical
+                + (needsScroll ? SystemInformation.HorizontalScrollBarHeight : 0);
+            var rowHeight = cardHeight + UiTheme.PageGap;
+            if (Math.Abs(page.RowStyles[0].Height - rowHeight) > 0.5F)
+            {
+                page.RowStyles[0].Height = rowHeight;
+            }
+            if (iconCard.Bounds != new Rectangle(0, 0, cardWidth, cardHeight))
+            {
+                iconCard.SetBounds(0, 0, cardWidth, cardHeight);
+            }
+            if (iconStack.Bounds != new Rectangle(0, 0, iconWidth, stripHeight))
+            {
+                iconStack.SetBounds(0, 0, iconWidth, stripHeight);
+            }
+            if (iconStack.RowStyles.Count >= 1)
+            {
+                if (Math.Abs(iconStack.RowStyles[0].Height - stripHeight) > 0.5F)
+                {
+                    iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, stripHeight);
+                }
+            }
+        }
+
+        HandleCreated += (_, _) => BeginInvoke(SyncIconStackRow);
+        _classStrip.HandleCreated += (_, _) => SyncIconStackRow();
+        iconArea.Resize += (_, _) => SyncIconStackRow();
+        iconViewport.Resize += (_, _) => SyncIconStackRow();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -108,47 +178,6 @@ public sealed class ClassMacrosEditorControl : UserControl
         }
 
         return base.ProcessCmdKey(ref msg, keyData);
-    }
-
-    private Control BuildSidebar()
-    {
-        var panel = new UiCardPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Padding = new Padding(UiTheme.CardPadding),
-            Margin = new Padding(0, 0, UiTheme.PageGap, 0)
-        };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        panel.Controls.Add(new Label
-        {
-            Text = "职业",
-            Dock = DockStyle.Fill,
-            ForeColor = UiTheme.Text,
-            Font = new Font(Font.FontFamily, 10F, FontStyle.Bold),
-            TextAlign = ContentAlignment.MiddleLeft,
-            BackColor = Color.Transparent,
-            Margin = new Padding(0)
-        }, 0, 0);
-
-        _classList.Dock = DockStyle.Fill;
-        UiTheme.StyleClassIconListBox(
-            _classList,
-            item => (item as ClassListItem)?.ClassId,
-            iconSize: 40);
-        _classList.BackColor = UiTheme.SurfaceRaised;
-        _classList.SelectedIndexChanged += (_, _) =>
-        {
-            if (!_suppressUi)
-            {
-                SelectClassFromList();
-            }
-        };
-        panel.Controls.Add(_classList, 0, 1);
-        return panel;
     }
 
     private static void StyleActionButton(Button button)
@@ -647,12 +676,13 @@ public sealed class ClassMacrosEditorControl : UserControl
         _suppressUi = true;
         try
         {
-            _classList.Items.Clear();
+            _classItems.Clear();
             ClearGrids();
 
             var path = _resolveClassMacrosPath();
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
+                _classStrip.SetItems([]);
                 _pathLabel.Text = "未找到 core\\classmacros.lua";
                 _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\core\\classmacros.lua 后点击刷新。";
                 UpdateOffsetHint();
@@ -666,6 +696,7 @@ public sealed class ClassMacrosEditorControl : UserControl
             }
             catch (Exception ex)
             {
+                _classStrip.SetItems([]);
                 _pathLabel.Text = path;
                 _statusLabel.Text = $"加载失败: {ex.Message}";
                 return;
@@ -676,25 +707,30 @@ public sealed class ClassMacrosEditorControl : UserControl
             {
                 var classFile = ClassMacrosStore.ToClassFileKey(classId);
                 var has = _document.Classes.ContainsKey(classFile);
-                _classList.Items.Add(new ClassListItem(classId, className, classFile, has));
+                _classItems.Add(new ClassListItem(classId, className, classFile, has));
             }
 
             // 文件中有但 ClassNames 未覆盖的键
             foreach (var classFile in _document.ClassOrder)
             {
-                if (_classList.Items.Cast<ClassListItem>().Any(x =>
+                if (_classItems.Any(x =>
                         x.ClassFile.Equals(classFile, StringComparison.OrdinalIgnoreCase)))
                 {
                     continue;
                 }
 
-                _classList.Items.Add(new ClassListItem(0, classFile, classFile, true));
+                _classItems.Add(new ClassListItem(0, classFile, classFile, true));
             }
 
+            _classStrip.SetItems(_classItems
+                .Select(item => (
+                    (int?)item.ClassId,
+                    item.HasData ? item.Name : $"{item.Name}（无数据）"))
+                .ToList());
             _statusLabel.Text = $"已加载 {_document.Classes.Count} 个职业宏表";
-            if (_classList.Items.Count > 0)
+            if (_classItems.Count > 0)
             {
-                _classList.SelectedIndex = 0;
+                _classStrip.SelectIndex(0);
             }
         }
         finally
@@ -702,15 +738,18 @@ public sealed class ClassMacrosEditorControl : UserControl
             _suppressUi = false;
         }
 
-        SelectClassFromList();
+        SelectClassFromStrip();
     }
 
-    private void SelectClassFromList()
+    private void SelectClassFromStrip()
     {
-        if (_classList.SelectedItem is not ClassListItem item)
+        var index = _classStrip.SelectedIndex;
+        if (index < 0 || index >= _classItems.Count)
         {
             return;
         }
+
+        var item = _classItems[index];
 
         if (_dirty && _currentClassFile is not null
             && !_currentClassFile.Equals(item.ClassFile, StringComparison.OrdinalIgnoreCase)
@@ -1006,12 +1045,11 @@ public sealed class ClassMacrosEditorControl : UserControl
 
     private void SelectClassInList(string? classFile)
     {
-        for (var i = 0; i < _classList.Items.Count; i++)
+        for (var i = 0; i < _classItems.Count; i++)
         {
-            if (_classList.Items[i] is ClassListItem item
-                && item.ClassFile.Equals(classFile, StringComparison.OrdinalIgnoreCase))
+            if (_classItems[i].ClassFile.Equals(classFile, StringComparison.OrdinalIgnoreCase))
             {
-                _classList.SelectedIndex = i;
+                _classStrip.SelectIndex(i);
                 return;
             }
         }

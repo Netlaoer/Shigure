@@ -23,6 +23,34 @@ internal sealed class RuleTextEditorForm : Form
         UiTheme.ApplyDarkTitleBar(this);
     }
 
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        var cache = UiCacheStore.Load();
+        UiTheme.RestoreCachedDialogPlacement(
+            this,
+            cache.RuleTextEditorWindowSize,
+            cache.RuleTextEditorWindowLocation);
+    }
+
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.RuleTextEditorWindowSize = size,
+            (c, location) => c.RuleTextEditorWindowLocation = location);
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        UiTheme.SaveCachedDialogPlacement(
+            this,
+            (c, size) => c.RuleTextEditorWindowSize = size,
+            (c, location) => c.RuleTextEditorWindowLocation = location);
+        base.OnFormClosed(e);
+    }
+
     private void InitializeComponent()
     {
         Text = "编辑规则注释";
@@ -30,11 +58,8 @@ internal sealed class RuleTextEditorForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
-        ClientSize = new Size(760, 380);
-        MinimumSize = new Size(620, 320);
-        FormBorderStyle = FormBorderStyle.Sizable;
-        MaximizeBox = false;
-        MinimizeBox = false;
+        // 默认高度相对原 380 翻倍；宽度固定，高度可调并缓存。
+        UiTheme.ConfigureFixedWidthResizableHeight(this, 760, 760, 380);
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;
 

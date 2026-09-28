@@ -12,6 +12,11 @@ namespace Shigure;
 /// </summary>
 internal static partial class FuyutsuiKeymapConverter
 {
+    private static readonly HashSet<string> BlockedHotkeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "RALT-RCTRL-RSHIFT-NUMPADMULTIPLY"
+    };
+
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
@@ -47,7 +52,7 @@ internal static partial class FuyutsuiKeymapConverter
 
     private static readonly string[] MacroKind = BuildMacroKind();
 
-    internal static int MacroSlotCapacity => Modifiers.Length * Keys.Length;
+    internal static int MacroSlotCapacity => Modifiers.Length * Keys.Length - BlockedHotkeys.Count;
 
     private static readonly Dictionary<string, int> ClassFileToId = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -599,7 +604,11 @@ internal static partial class FuyutsuiKeymapConverter
         {
             foreach (var key in Keys)
             {
-                list[i++] = $"{modifier}-{key}";
+                var hotkey = $"{modifier}-{key}";
+                if (!BlockedHotkeys.Contains(hotkey))
+                {
+                    list[i++] = hotkey;
+                }
             }
         }
 
