@@ -964,9 +964,9 @@ public sealed class ModuleEditorControl : UserControl
         recommendedTalentLabel.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(recommendedTalentLabel, 0, 0);
         UiTheme.StyleTextBox(_recommendedTalentBox);
-        // 与标签同处固定行高内 Dock.Fill，垂直居中对齐，不再随卡片剩余高度被拉高。
+        // 与标签同处固定行高内 Dock.Fill；仅输入框下移 4px，标签位置不变。
         _recommendedTalentBox.Dock = DockStyle.Fill;
-        _recommendedTalentBox.Margin = Padding.Empty;
+        _recommendedTalentBox.Margin = new Padding(0, 4, 0, 0);
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
         row.Controls.Add(recommendedTalentRow, 0, 1);
         row.SetColumnSpan(recommendedTalentRow, columnCount);
