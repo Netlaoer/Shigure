@@ -55,6 +55,7 @@ public sealed class ModuleEditorControl : UserControl
         ShowAlways = true
     };
     private readonly ClassIconStrip _classFilterStrip = new();
+    private System.Windows.Forms.Timer? _topAreaResizeTimer;
     private List<ModuleDefinition> _allModules = new();
     private List<ModuleDefinition> _modules = new();
     private int? _filterClassId;
@@ -174,9 +175,17 @@ public sealed class ModuleEditorControl : UserControl
         iconStack.Margin = Padding.Empty;
         var identityCard = BuildNameRow();
         identityCard.Dock = DockStyle.None;
-        var topArea = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Surface, Margin = Padding.Empty };
+        // 顶栏始终单行：图标在左保持固有宽，名称/作者卡靠右叠盖；变窄时裁切图标而不折行。
+        var topArea = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty,
+            // 子控件超出时裁切，避免图标条被挤到第二行视觉上“换行”。
+        };
         topArea.Controls.Add(iconStack);
         topArea.Controls.Add(identityCard);
+        identityCard.BringToFront();
         var body = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -210,43 +219,96 @@ public sealed class ModuleEditorControl : UserControl
 
         Controls.Add(UiTheme.CreateFixedWidthPageHost(page, UiTheme.EditorPageWidth, throttleResize: true));
 
+        var iconWidthLogical = ClassIconStrip.StripPadding * 2
+            + filterItems.Count * ClassIconStrip.CellSize
+            + Math.Max(0, filterItems.Count - 1) * ClassIconStrip.CellGap;
+
         void SyncTopArea()
         {
-            var stripHeight = _classFilterStrip.ScaledHeight;
-            var identityHeight = UiTheme.Scale(this, 48);
-            var gap = UiTheme.Scale(this, UiTheme.PageGap);
-            var iconWidth = UiTheme.Scale(
-                this,
-                ClassIconStrip.StripPadding * 2
-                + filterItems.Count * ClassIconStrip.CellSize
-                + Math.Max(0, filterItems.Count - 1) * ClassIconStrip.CellGap);
-            var availableWidth = topArea.ClientSize.Width;
-            var sideBySide = availableWidth >= iconWidth + UiTheme.Scale(this, 420) + gap;
-            var topHeight = sideBySide
-                ? Math.Max(stripHeight, identityHeight) + gap
-                : stripHeight + identityHeight + gap;
+            if (topArea.IsDisposed || !topArea.IsHandleCreated)
+            {
+                return;
+            }
 
+            var stripHeight = _classFilterStrip.ScaledHeight;
+            var identityHeight = Math.Max(stripHeight, UiTheme.Scale(this, 48));
+            var gap = UiTheme.Scale(this, UiTheme.PageGap);
+            var iconWidth = UiTheme.Scale(this, iconWidthLogical);
+            var preferredIdentity = UiTheme.Scale(this, UiTheme.ModuleIdentityCardWidth);
+            var availableWidth = topArea.ClientSize.Width;
+            if (availableWidth <= 0)
+            {
+                return;
+            }
+
+            // 始终单行高度：名称/作者不掉到图标下方。
+            var topHeight = Math.Max(stripHeight, identityHeight) + gap;
             if (Math.Abs(page.RowStyles[0].Height - topHeight) > 0.5f)
             {
                 page.RowStyles[0].Height = topHeight;
             }
 
-            iconStack.SetBounds(0, 0, sideBySide ? iconWidth : availableWidth, stripHeight);
-            identityCard.SetBounds(
-                sideBySide ? iconWidth + gap : 0,
-                sideBySide ? 0 : stripHeight,
-                sideBySide ? availableWidth - iconWidth - gap : availableWidth,
-                identityHeight);
-            if (iconStack.RowStyles.Count >= 1
-                && Math.Abs(iconStack.RowStyles[0].Height - stripHeight) > 0.5f)
+            var identityWidth = Math.Min(availableWidth, preferredIdentity);
+            var identityLeft = availableWidth - identityWidth;
+            var iconBounds = new Rectangle(0, 0, iconWidth, stripHeight);
+            var identityBounds = new Rectangle(identityLeft, 0, identityWidth, identityHeight);
+
+            if (iconStack.Bounds == iconBounds && identityCard.Bounds == identityBounds)
             {
-                iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, stripHeight);
+                return;
+            }
+
+            topArea.SuspendLayout();
+            try
+            {
+                // 图标条保持固有宽度（可伸入身份卡下方被遮盖），不随窗口缩窄而改排。
+                if (iconStack.Bounds != iconBounds)
+                {
+                    iconStack.Bounds = iconBounds;
+                }
+
+                if (identityCard.Bounds != identityBounds)
+                {
+                    identityCard.Bounds = identityBounds;
+                }
+
+                if (iconStack.RowStyles.Count >= 1
+                    && Math.Abs(iconStack.RowStyles[0].Height - stripHeight) > 0.5f)
+                {
+                    iconStack.RowStyles[0] = new RowStyle(SizeType.Absolute, stripHeight);
+                }
+
+                identityCard.BringToFront();
+            }
+            finally
+            {
+                topArea.ResumeLayout(false);
             }
         }
 
-        topArea.Resize += (_, _) => SyncTopArea();
+        _topAreaResizeTimer = new System.Windows.Forms.Timer
+        {
+            Interval = UiTheme.LayoutResizeDebounceMs
+        };
+        _topAreaResizeTimer.Tick += (_, _) =>
+        {
+            _topAreaResizeTimer.Stop();
+            SyncTopArea();
+        };
+
+        topArea.Resize += (_, _) =>
+        {
+            _topAreaResizeTimer.Stop();
+            _topAreaResizeTimer.Start();
+        };
         HandleCreated += (_, _) => BeginInvoke(SyncTopArea);
         _classFilterStrip.HandleCreated += (_, _) => SyncTopArea();
+        Disposed += (_, _) =>
+        {
+            _topAreaResizeTimer?.Stop();
+            _topAreaResizeTimer?.Dispose();
+            _topAreaResizeTimer = null;
+        };
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -791,57 +853,66 @@ public sealed class ModuleEditorControl : UserControl
             Padding = new Padding(UiTheme.CardPadding, 4, UiTheme.CardPadding, 4),
             Margin = Padding.Empty
         };
-        // 名称/作者纵向排列；输入框相对卡片内容区减半宽度，右侧留白。
+        // 左侧弹性留白，名称/作者标签+输入靠右对齐。
         row.ColumnStyles.Clear();
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
         row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
-        row.Controls.Add(CreateLabel("名称"), 0, 0);
+        row.Controls.Add(CreateLabel("名称"), 1, 0);
         UiTheme.StyleTextBox(_nameBox);
         _nameBox.Dock = DockStyle.Fill;
         _nameBox.Margin = Padding.Empty;
-        row.Controls.Add(_nameBox, 1, 0);
+        row.Controls.Add(_nameBox, 2, 0);
 
-        row.Controls.Add(CreateLabel("作者"), 0, 1);
+        row.Controls.Add(CreateLabel("作者"), 1, 1);
         UiTheme.StyleTextBox(_authorBox);
         _authorBox.Dock = DockStyle.Fill;
         _authorBox.Margin = Padding.Empty;
-        row.Controls.Add(_authorBox, 1, 1);
+        row.Controls.Add(_authorBox, 2, 1);
 
         return row;
     }
 
     private Control BuildMatchRow()
     {
-        var matchLabels = new[] { "职业:", "专精:", "英雄天赋:", "队伍类型:" };
+        // 职业靠左；专精/英雄天赋/队伍类型等宽靠右；中间 Percent 吸收剩余宽度，避免末列被撑开。
+        var leftLabels = new[] { "职业:" };
+        var rightLabels = new[] { "专精:", "英雄天赋:", "队伍类型:" };
+        var rightBoxes = new[] { _specBox, _heroTalentBox, _partyTypeBox };
 
+        var columnCount = 2 + 1 + rightLabels.Length * 3 - 1; // 左标签+框 + 弹性 + 右(标签+框+隙)*n 末隙省略
         var row = new UiCardPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 11,
+            ColumnCount = columnCount,
             RowCount = 2,
             Padding = new Padding(UiTheme.CardPadding),
             Margin = new Padding(0)
         };
 
-        // 标签与下拉同一行：固定标签宽 + 缩窄下拉宽，避免挤出换行。
         row.ColumnStyles.Clear();
-        for (var i = 0; i < matchLabels.Length; i++)
+        row.ColumnStyles.Add(new ColumnStyle(
+            SizeType.Absolute,
+            MeasureLabelColumnWidth(leftLabels[0], Font)));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        for (var i = 0; i < rightLabels.Length; i++)
         {
             row.ColumnStyles.Add(new ColumnStyle(
                 SizeType.Absolute,
-                MeasureLabelColumnWidth(matchLabels[i], Font)));
+                MeasureLabelColumnWidth(rightLabels[i], Font)));
             row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchFieldWidth));
-            if (i < matchLabels.Length - 1)
+            if (i < rightLabels.Length - 1)
             {
                 row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ModuleMatchGapWidth));
             }
         }
+
         row.RowStyles.Clear();
         row.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -870,11 +941,12 @@ public sealed class ModuleEditorControl : UserControl
             _rulesGrid.Invalidate();
         };
 
-        // 列索引：标签0/字段1/隙2 → 标签3/字段4/隙5 → 标签6/字段7/隙8 → 标签9/字段10
-        AddMatchField(row, matchLabels[0], _classBox, 0);
-        AddMatchField(row, matchLabels[1], _specBox, 3);
-        AddMatchField(row, matchLabels[2], _heroTalentBox, 6);
-        AddMatchField(row, matchLabels[3], _partyTypeBox, 9);
+        AddMatchField(row, leftLabels[0], _classBox, 0);
+        // 右簇列从弹性列后开始：3,6,9…
+        for (var i = 0; i < rightLabels.Length; i++)
+        {
+            AddMatchField(row, rightLabels[i], rightBoxes[i], 3 + i * 3);
+        }
 
         var recommendedTalentRow = new TableLayoutPanel
         {
@@ -898,7 +970,7 @@ public sealed class ModuleEditorControl : UserControl
         _recommendedTalentBox.Margin = Padding.Empty;
         recommendedTalentRow.Controls.Add(_recommendedTalentBox, 1, 0);
         row.Controls.Add(recommendedTalentRow, 0, 1);
-        row.SetColumnSpan(recommendedTalentRow, 11);
+        row.SetColumnSpan(recommendedTalentRow, columnCount);
 
         return row;
     }

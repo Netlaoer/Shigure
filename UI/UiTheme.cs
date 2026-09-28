@@ -47,6 +47,8 @@ internal static class UiTheme
     public const int ModuleMatchFieldWidth = 160;
     /// <summary>模块 Match 筛选项之间固定间隔。</summary>
     public const int ModuleMatchGapWidth = 12;
+    /// <summary>模块顶栏名称/作者身份卡首选宽（靠右叠盖图标，不换行）。</summary>
+    public const int ModuleIdentityCardWidth = 280;
     /// <summary>窗口拖拽时列宽重算防抖间隔（毫秒）。</summary>
     public const int LayoutResizeDebounceMs = 80;
     /// <summary>职业/专精图标条相邻格间距。</summary>

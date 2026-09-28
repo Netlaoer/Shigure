@@ -116,9 +116,19 @@ internal sealed class ClassIconStrip : Panel
         LayoutButtons();
     }
 
+    private Size _lastLaidOutClientSize;
+
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
+        // 按钮 X 仅依赖索引与固有 cell 宽，宽度变化（顶栏裁切叠盖）无需重排。
+        if (ClientSize.Height == _lastLaidOutClientSize.Height
+            && ClientSize.Height > 0
+            && _buttons.Count > 0)
+        {
+            return;
+        }
+
         LayoutButtons();
     }
 
@@ -147,6 +157,8 @@ internal sealed class ClassIconStrip : Panel
             var x = pad + i * (cell + gap);
             _buttons[i].Bounds = new Rectangle(x, y, cell, cell);
         }
+
+        _lastLaidOutClientSize = ClientSize;
     }
 
     private int ScaledCellSize() => UiTheme.Scale(this, CellSize);
