@@ -49,6 +49,15 @@ function Shingen:RefreshGroupMemberHealth(unit)
     self:CreateTexture(index, obj.healthPercent)
 end
 
+function Shingen:RefreshGroupMemberClass(unit)
+    local groups = self.blocks and self.blocks.groups
+    local obj = self.group[unit]
+    if not groups or not groups.class or not obj then return end
+    local index = groups.start + (obj.index - 1) * groups.num + groups.class
+    local _, _, classId = UnitClass(unit)
+    self:CreateTexture(index, (classId or 0) / 255)
+end
+
 function Shingen:RefreshGroupMemberValidity(unit)
     local obj = self.group[unit]
     if not obj then return end
@@ -193,6 +202,7 @@ function Shingen:RebuildGroupRoster()
         }
         self:RefreshGroupMemberValidity(unit)
         self:RefreshGroupMemberHealth(unit)
+        self:RefreshGroupMemberClass(unit)
         i = i + 1
     end
     if self.RefreshGroupAuraContainers then

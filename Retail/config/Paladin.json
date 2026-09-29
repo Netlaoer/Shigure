@@ -776,8 +776,12 @@
         "step": 3,
         "type": "int"
       },
-      "auras.53563.value": {
+      "职业": {
         "step": 4,
+        "type": "int"
+      },
+      "auras.53563.value": {
+        "step": 5,
         "type": "int",
         "displayName": "圣光道标",
         "spellId": 53563,
@@ -790,7 +794,7 @@
         ]
       },
       "auras.156322.value": {
-        "step": 5,
+        "step": 6,
         "type": "int",
         "displayName": "永恒之火",
         "spellId": 156322,

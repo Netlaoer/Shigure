@@ -29,6 +29,9 @@ internal sealed class CountFilterEditorControl : UserControl
         new("治疗 (2)", 2),
         new("输出 (3)", 3)
     ];
+    private static readonly ValueOption[] ClassValues = ClassNames.GetClasses()
+        .Select(item => new ValueOption($"{item.Name} ({item.Id})", item.Id))
+        .ToArray();
     private static readonly ValueOption[] DispelValues =
     [
         new("魔法 (1)", 1),
@@ -293,7 +296,8 @@ internal sealed class CountFilterEditorControl : UserControl
                 new("生命值", CountConditionFieldKind.Health),
                 new("治疗吸收", CountConditionFieldKind.HealingAbsorb),
                 new("职责", CountConditionFieldKind.Role),
-                new("驱散", CountConditionFieldKind.Dispel)
+                new("驱散", CountConditionFieldKind.Dispel),
+                new("职业", CountConditionFieldKind.Class)
             };
         foreach (var aura in (_enemy ? _enemyAuras : _allyAuras))
         {
@@ -843,6 +847,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 var option = ParseFieldKey(row.Cells[FieldColumn].Value?.ToString());
                 var restricted = option.Kind is CountConditionFieldKind.Role
                     or CountConditionFieldKind.Dispel
+                    or CountConditionFieldKind.Class
                     or CountConditionFieldKind.Combat;
                 var previousComparison = seed?.Comparison
                     ?? ReadComparison(row.Cells[ComparisonColumn].Value)
@@ -871,6 +876,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 {
                     CountConditionFieldKind.Role => CreateValueComboCell(RoleValues),
                     CountConditionFieldKind.Dispel => CreateValueComboCell(DispelValues),
+                    CountConditionFieldKind.Class => CreateValueComboCell(ClassValues),
                     CountConditionFieldKind.Combat => CreateValueComboCell(CombatValues),
                     _ => new FormulaValueCell()
                 };
@@ -1159,6 +1165,7 @@ internal sealed class CountFilterEditorControl : UserControl
             {
                 CountConditionFieldKind.Role => 1,
                 CountConditionFieldKind.Dispel => 1,
+                CountConditionFieldKind.Class => 1,
                 CountConditionFieldKind.Combat => 1,
                 _ => "0"
             };

@@ -3047,7 +3047,7 @@ public sealed class StatusForm : Form
                 }
 
                 var summary = string.Join("  ", unitData.Select(kv =>
-                    $"{DisplayPartyFieldName(kv.Key)}: {UiTheme.FormatValue(kv.Value)}"));
+                    $"{DisplayPartyFieldName(kv.Key)}: {DisplayPartyFieldValue(kv.Key, kv.Value)}"));
                 items.Add(new ListViewItem(new[] { $"Unit {unitKey}", summary }));
             }
         }
@@ -3096,6 +3096,17 @@ public sealed class StatusForm : Form
 
         var name = SpellIconCatalog.ResolveSuggestionName(spellId, null) ?? key;
         return metric == SpellFieldKey.AuraApplications ? name + "层数" : name;
+    }
+
+    private static string DisplayPartyFieldValue(string key, object? value)
+    {
+        if (key == "职业" && value is int classId && classId > 0)
+        {
+            var name = ClassNames.GetClassAndSpecName(classId, null).ClassName;
+            return name is null ? classId.ToString() : $"{name} ({classId})";
+        }
+
+        return UiTheme.FormatValue(value);
     }
 
     private void UpdateUnitInfoList(RenderSnapshot snapshot)

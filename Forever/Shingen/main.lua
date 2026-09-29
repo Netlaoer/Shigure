@@ -236,12 +236,12 @@ function Shingen:LoadPlayerBlocks(specIndex)
         local stateFields = t.group.state
         if type(stateFields) ~= "table" then
             stateFields = {}
-            for _, field in ipairs({ "healthPercent", "role", "dispel" }) do
+            for _, field in ipairs({ "healthPercent", "role", "dispel", "class" }) do
                 local configured = tonumber(t.group[field])
                 if configured and configured >= 0 then stateFields[#stateFields + 1] = field end
             end
         end
-        local supported = { healthPercent = true, role = true, dispel = true }
+        local supported = { healthPercent = true, role = true, dispel = true, class = true }
         for _, field in ipairs(stateFields) do
             if type(field) == "string" and supported[field] and not groups[field] then
                 groups.num = groups.num + 1

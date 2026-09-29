@@ -18,7 +18,6 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
     private readonly ClassSpecTreeSidebar _classTree = new();
-    private readonly Panel _sidebarSplitter = new();
     private readonly List<ClassListItem> _classItems = new();
     private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
@@ -26,11 +25,6 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly ToolTip _toolTip = new();
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
-    private TableLayoutPanel? _bodyLayout;
-    private bool _autoCollapsedTree;
-    private bool _splitterDragging;
-    private int _splitterDragStartX;
-    private int _splitterDragStartWidth;
     private const int ConfigFooterBarHeight = 64;
 
     private readonly DataGridView _statesGrid = new();
@@ -70,6 +64,7 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly CheckBox _groupHasHealthBox = new();
     private readonly CheckBox _groupHasRoleBox = new();
     private readonly CheckBox _groupHasDispelBox = new();
+    private readonly CheckBox _groupHasClassBox = new();
     private readonly DataGridView _groupAurasGrid = new();
     private readonly Label _nameplatePixelSummary = new() { AutoSize = true };
     private readonly Label _nameplateFixedFieldSummary = new() { AutoSize = true };
@@ -145,19 +140,6 @@ public sealed class ClassConfigEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var cache = UiCacheStore.Load();
-        if (cache.ConfigSidebarWidth is { } cachedWidth
-            && cachedWidth >= UiTheme.ConfigSidebarMinWidth
-            && cachedWidth <= UiTheme.ConfigSidebarMaxWidth)
-        {
-            _classTree.SetExpandedWidth(cachedWidth);
-        }
-
-        if (cache.ConfigSidebarCollapsed == true)
-        {
-            _classTree.SetCollapsed(true);
-        }
-
         _classTree.Dock = DockStyle.Fill;
         _classTree.Margin = new Padding(0);
         _classTree.SelectionChanged += (_, _) =>
@@ -169,26 +151,6 @@ public sealed class ClassConfigEditorControl : UserControl
 
             SelectFromTree();
         };
-        _classTree.CollapseChanged += (_, _) =>
-        {
-            _autoCollapsedTree = false;
-            SyncSidebarColumnWidth();
-            UpdateSplitterEnabled();
-            var state = UiCacheStore.Load();
-            state.ConfigSidebarCollapsed = _classTree.Collapsed;
-            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
-            UiCacheStore.Save(state);
-        };
-        _classTree.ExpandedWidthChanged += (_, _) =>
-        {
-            SyncSidebarColumnWidth();
-            var state = UiCacheStore.Load();
-            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
-            UiCacheStore.Save(state);
-        };
-
-        ConfigureSidebarSplitter();
-
         var sidebarCard = WrapInEditorCard(_classTree);
         var editorCard = WrapInEditorCard(BuildEditor());
 
@@ -196,42 +158,18 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 5,
+            ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0)
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,
-            _classTree.PreferredWidth + sidebarCard.Padding.Horizontal));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitterThickness));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+            UiTheme.ConfigSidebarWidth + sidebarCard.Padding.Horizontal));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.PageGap));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         body.Controls.Add(sidebarCard, 0, 0);
         body.Controls.Add(CreateSplitGap(), 1, 0);
-        body.Controls.Add(_sidebarSplitter, 2, 0);
-        body.Controls.Add(CreateSplitGap(), 3, 0);
-        body.Controls.Add(editorCard, 4, 0);
-        _bodyLayout = body;
-        UpdateSplitterEnabled();
-        body.Resize += (_, _) =>
-        {
-            var width = body.ClientSize.Width;
-            if (width > 0 && width < UiTheme.Scale(this, 870) && !_classTree.Collapsed)
-            {
-                _autoCollapsedTree = true;
-                _classTree.SetCollapsed(true);
-                SyncSidebarColumnWidth();
-                UpdateSplitterEnabled();
-            }
-            else if (width >= UiTheme.Scale(this, 940) && _autoCollapsedTree)
-            {
-                _autoCollapsedTree = false;
-                _classTree.SetCollapsed(false);
-                SyncSidebarColumnWidth();
-                UpdateSplitterEnabled();
-            }
-        };
+        body.Controls.Add(editorCard, 2, 0);
 
         var page = new TableLayoutPanel
         {
@@ -272,93 +210,6 @@ public sealed class ClassConfigEditorControl : UserControl
         content.Margin = Padding.Empty;
         card.Controls.Add(content, 0, 0);
         return card;
-    }
-
-    private void ConfigureSidebarSplitter()
-    {
-        _sidebarSplitter.Dock = DockStyle.Fill;
-        _sidebarSplitter.Margin = new Padding(0);
-        _sidebarSplitter.BackColor = UiTheme.Border;
-        _sidebarSplitter.Cursor = Cursors.VSplit;
-        _sidebarSplitter.TabStop = false;
-        _toolTip.SetToolTip(_sidebarSplitter, "拖动调整侧栏宽度");
-        _sidebarSplitter.MouseEnter += (_, _) =>
-        {
-            if (_sidebarSplitter.Enabled)
-            {
-                _sidebarSplitter.BackColor = UiTheme.Accent;
-            }
-        };
-        _sidebarSplitter.MouseLeave += (_, _) =>
-        {
-            if (!_splitterDragging)
-            {
-                _sidebarSplitter.BackColor = UiTheme.Border;
-            }
-        };
-        _sidebarSplitter.MouseDown += (_, e) =>
-        {
-            if (e.Button != MouseButtons.Left || _classTree.Collapsed)
-            {
-                return;
-            }
-
-            _splitterDragging = true;
-            _splitterDragStartX = Cursor.Position.X;
-            _splitterDragStartWidth = _classTree.ExpandedContentWidth;
-            _sidebarSplitter.Capture = true;
-            _sidebarSplitter.BackColor = UiTheme.Accent;
-        };
-        _sidebarSplitter.MouseMove += (_, _) =>
-        {
-            if (!_splitterDragging)
-            {
-                return;
-            }
-
-            var delta = Cursor.Position.X - _splitterDragStartX;
-            _classTree.SetExpandedWidth(_splitterDragStartWidth + delta);
-            SyncSidebarColumnWidth();
-        };
-        _sidebarSplitter.MouseUp += (_, e) =>
-        {
-            if (!_splitterDragging || e.Button != MouseButtons.Left)
-            {
-                return;
-            }
-
-            _splitterDragging = false;
-            _sidebarSplitter.Capture = false;
-            _sidebarSplitter.BackColor = _sidebarSplitter.ClientRectangle.Contains(
-                _sidebarSplitter.PointToClient(Cursor.Position))
-                ? UiTheme.Accent
-                : UiTheme.Border;
-            var state = UiCacheStore.Load();
-            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
-            state.ConfigSidebarCollapsed = _classTree.Collapsed;
-            UiCacheStore.Save(state);
-        };
-    }
-
-    private void UpdateSplitterEnabled()
-    {
-        var enabled = !_classTree.Collapsed;
-        _sidebarSplitter.Enabled = enabled;
-        _sidebarSplitter.Cursor = enabled ? Cursors.VSplit : Cursors.Default;
-        _sidebarSplitter.BackColor = enabled ? UiTheme.Border : UiTheme.SurfaceRaised;
-        _toolTip.SetToolTip(_sidebarSplitter, enabled ? "拖动调整侧栏宽度" : "展开侧栏后可拖动调整宽度");
-    }
-
-    private void SyncSidebarColumnWidth()
-    {
-        if (_bodyLayout is null || _bodyLayout.ColumnStyles.Count == 0)
-        {
-            return;
-        }
-
-        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute,
-            _classTree.PreferredWidth + UiTheme.EditorShellPadding * 2);
-        _bodyLayout.PerformLayout();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -1597,7 +1448,7 @@ public sealed class ClassConfigEditorControl : UserControl
                 UpdateGroupEditorsEnabled();
             }
         };
-        foreach (var box in new[] { _groupHasHealthBox, _groupHasRoleBox, _groupHasDispelBox })
+        foreach (var box in new[] { _groupHasHealthBox, _groupHasRoleBox, _groupHasDispelBox, _groupHasClassBox })
         {
             box.Text = "启用";
             box.AutoSize = true;
@@ -1606,21 +1457,41 @@ public sealed class ClassConfigEditorControl : UserControl
         }
         _groupHasHealthBox.Text = "必选";
         _groupHasRoleBox.Text = "必选";
+        _groupPixelSummary.AutoSize = false;
+        _groupPixelSummary.Dock = DockStyle.Fill;
         _groupPixelSummary.ForeColor = UiTheme.Text;
+        _groupPixelSummary.BackColor = UiTheme.Surface;
+        _groupPixelSummary.TextAlign = ContentAlignment.MiddleRight;
+        _groupPixelSummary.Margin = Padding.Empty;
+        _groupPixelSummary.Padding = new Padding(0, 0, 8, 0);
         var groupCards = new Control[]
         {
             CreateGroupCard("GROUP", _groupEnabledBox),
             CreateGroupCard("生命值", _groupHasHealthBox),
             CreateGroupCard("职责", _groupHasRoleBox),
             CreateGroupCard("驱散", _groupHasDispelBox),
-            CreateGroupCard("自动分配", _groupPixelSummary)
+            CreateGroupCard("职业", _groupHasClassBox)
         };
         foreach (var card in groupCards)
         {
             fields.Controls.Add(card);
         }
 
-        panel.Controls.Add(fields, 0, 0);
+        var groupHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        groupHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        groupHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, GroupCardWidth + 8));
+        groupHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        groupHeader.Controls.Add(fields, 0, 0);
+        groupHeader.Controls.Add(_groupPixelSummary, 1, 0);
+        panel.Controls.Add(groupHeader, 0, 0);
 
         ConfigureGrid(_groupAurasGrid, "class-config-group-auras");
         _groupAurasGrid.Columns.Add(CreateSpellIconColumn());
@@ -3595,6 +3466,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _groupHasHealthBox.Checked = true;
             _groupHasRoleBox.Checked = true;
             _groupHasDispelBox.Checked = group.State.Contains("dispel");
+            _groupHasClassBox.Checked = group.State.Contains("class");
             foreach (var aura in group.Auras)
             {
                 var icon = GetAuraIcon(aura.SpellId, aura.SpellIds, aura.Name);
@@ -3613,6 +3485,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _groupHasHealthBox.Checked = false;
             _groupHasRoleBox.Checked = false;
             _groupHasDispelBox.Checked = false;
+            _groupHasClassBox.Checked = false;
         }
 
         UpdateGroupEditorsEnabled();
@@ -3626,6 +3499,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _groupHasHealthBox.Enabled = false;
         _groupHasRoleBox.Enabled = false;
         _groupHasDispelBox.Enabled = enabled;
+        _groupHasClassBox.Enabled = enabled;
         _groupAurasGrid.Enabled = enabled;
         _groupAurasGrid.ReadOnly = !enabled;
         UpdateGroupPixelSummary();
@@ -3634,7 +3508,7 @@ public sealed class ClassConfigEditorControl : UserControl
     private void UpdateGroupPixelSummary()
     {
         var fields = (_groupHasHealthBox.Checked ? 1 : 0) + (_groupHasRoleBox.Checked ? 1 : 0)
-            + (_groupHasDispelBox.Checked ? 1 : 0);
+            + (_groupHasDispelBox.Checked ? 1 : 0) + (_groupHasClassBox.Checked ? 1 : 0);
         foreach (DataGridViewRow row in _groupAurasGrid.Rows)
         {
             if (!row.IsNewRow
@@ -3648,9 +3522,9 @@ public sealed class ClassConfigEditorControl : UserControl
                 }
             }
         }
-        _groupPixelSummary.Text = _groupEnabledBox.Checked
-            ? $"每人 {fields} 格，{GroupStateLayout.SlotCount} 人共 {GroupStateLayout.SlotCount * fields} 格"
-            : "未启用";
+        _groupPixelSummary.Text = $"自动分配{Environment.NewLine}"
+            + $"每人 {fields} 格{Environment.NewLine}"
+            + $"{GroupStateLayout.SlotCount} 人共 {GroupStateLayout.SlotCount * fields} 格";
     }
 
     private List<ClassBlocksStore.AuraEntry> GetCurrentAuraList()
@@ -4298,7 +4172,8 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             ["healthPercent"] = true,
             ["role"] = true,
-            ["dispel"] = _groupHasDispelBox.Checked
+            ["dispel"] = _groupHasDispelBox.Checked,
+            ["class"] = _groupHasClassBox.Checked
         };
         // 保留配置中的 state 顺序；新启用的字段追加到末尾。
         foreach (var field in (_currentSpec.Group?.State ?? []).Concat(GroupStateLayout.SupportedFields).Distinct())

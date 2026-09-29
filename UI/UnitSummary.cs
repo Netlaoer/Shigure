@@ -41,6 +41,8 @@ internal static class UnitSummary
             (UnitTargetFieldKind.Role or UnitTargetFieldKind.Dispel, UnitSelectionMode.Descending) => "倒序",
             (UnitTargetFieldKind.Aura, UnitSelectionMode.Longest) => "最长",
             (UnitTargetFieldKind.Aura, UnitSelectionMode.Shortest) => "最短",
+            (UnitTargetFieldKind.Aura, UnitSelectionMode.Ascending) => "正序",
+            (UnitTargetFieldKind.Aura, UnitSelectionMode.Descending) => "倒序",
             _ => mode.ToString()
         };
 
@@ -106,6 +108,7 @@ internal static class UnitSummary
             CountConditionFieldKind.HealingAbsorb => "治疗吸收",
             CountConditionFieldKind.Role => "职责",
             CountConditionFieldKind.Dispel => "驱散",
+            CountConditionFieldKind.Class => "职业",
             CountConditionFieldKind.Range => "距离",
             CountConditionFieldKind.Combat => "战斗",
             CountConditionFieldKind.Aura => $"[{FormatAura(condition.AuraSpellId.GetValueOrDefault(), resolveAuraName)}]",
@@ -128,6 +131,8 @@ internal static class UnitSummary
                 3 => "输出",
                 _ => condition.Value.ToString()
             },
+            CountConditionFieldKind.Class => ClassNames.GetClassAndSpecName(condition.Value, null).ClassName
+                ?? condition.Value.ToString(),
             CountConditionFieldKind.Combat => condition.Value == 0 ? "不在战斗中" : "战斗中",
             _ => condition.Value.ToString()
         };

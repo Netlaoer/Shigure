@@ -120,7 +120,7 @@ Fuyutsui.ClassBlocks = {
             [271884] = { name = "浓缩银月城生命药水", isEquipped = false },
         },
         group = {
-            state = { "healthPercent", "role", "dispel", },
+            state = { "healthPercent", "role", "dispel","class" },
             aura = {
                 { name = "圣光道标", spellIds = { 53563, 156910, 1244893 }, },
                 { name = "永恒之火", spellId = 156322, },

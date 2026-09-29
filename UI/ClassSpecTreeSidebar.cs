@@ -4,26 +4,20 @@ using System.Drawing.Drawing2D;
 namespace Shigure;
 
 /// <summary>
-/// 配置页左侧职业/专精树：顶部可缩窄；职业行点击展开专精子行。
+/// 配置页左侧固定宽度的职业/专精树；职业行点击展开专精子行。
 /// </summary>
 internal sealed class ClassSpecTreeSidebar : Panel
 {
-    public const int DefaultExpandedWidth = UiTheme.ConfigSidebarWidth;
-    public const int CollapsedWidth = UiTheme.ConfigSidebarCollapsedWidth;
-    private const int HeaderHeight = 36;
     private const int RowHeight = 36;
     private const int IconSize = 22;
     private const int CaretSize = 12;
     private const int SpecIndent = 22;
 
     private readonly ToolTip _toolTip = new();
-    private readonly Button _collapseButton = new();
     private readonly ListBox _list = new();
     private readonly List<ClassNode> _classes = new();
     private readonly List<VisibleRow> _rows = new();
     private readonly HashSet<int> _expandedClassIds = new();
-    private int _expandedWidth = DefaultExpandedWidth;
-    private bool _collapsed;
     private bool _suppressSelection;
     private int? _selectedClassId;
     private int? _selectedSpecId;
@@ -34,20 +28,6 @@ internal sealed class ClassSpecTreeSidebar : Panel
         BackColor = UiTheme.SurfaceRaised;
         Margin = Padding.Empty;
         Padding = Padding.Empty;
-
-        _collapseButton.FlatStyle = FlatStyle.Flat;
-        _collapseButton.FlatAppearance.BorderSize = 0;
-        _collapseButton.FlatAppearance.MouseOverBackColor = UiTheme.Hover;
-        _collapseButton.FlatAppearance.MouseDownBackColor = UiTheme.Pressed;
-        _collapseButton.BackColor = Color.Transparent;
-        _collapseButton.ForeColor = UiTheme.Muted;
-        _collapseButton.Cursor = Cursors.Hand;
-        _collapseButton.TabStop = false;
-        _collapseButton.Text = string.Empty;
-        _collapseButton.AccessibleName = "缩窄侧栏";
-        _collapseButton.Click += (_, _) => SetCollapsed(!_collapsed, raiseEvent: true);
-        _collapseButton.Paint += PaintCollapseButton;
-        _toolTip.SetToolTip(_collapseButton, "缩窄/展开侧栏");
 
         _list.BorderStyle = BorderStyle.None;
         _list.BackColor = UiTheme.SurfaceRaised;
@@ -75,24 +55,11 @@ internal sealed class ClassSpecTreeSidebar : Panel
         _list.MouseClick += OnListMouseClick;
         _list.SelectedIndexChanged += OnListSelectedIndexChanged;
 
-        Controls.Add(_collapseButton);
         Controls.Add(_list);
-        ApplyCollapsedVisuals(layoutOnly: true);
+        LayoutChildren();
     }
 
     private int _hoveredIndex = -1;
-
-    [Browsable(false)]
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public bool Collapsed => _collapsed;
-
-    [Browsable(false)]
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int ExpandedContentWidth => _expandedWidth;
-
-    [Browsable(false)]
-    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public int PreferredWidth => _collapsed ? CollapsedWidth : _expandedWidth;
 
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -102,49 +69,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int? SelectedSpecId => _selectedSpecId;
 
-    public event EventHandler? CollapseChanged;
     public event EventHandler? SelectionChanged;
-    public event EventHandler? ExpandedWidthChanged;
-
-    public void SetCollapsed(bool collapsed, bool raiseEvent = false)
-    {
-        if (_collapsed == collapsed)
-        {
-            return;
-        }
-
-        _collapsed = collapsed;
-        ApplyCollapsedVisuals(layoutOnly: false);
-        if (raiseEvent)
-        {
-            CollapseChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    public void SetExpandedWidth(int width, bool raiseEvent = false)
-    {
-        var next = Math.Clamp(width, UiTheme.ConfigSidebarMinWidth, UiTheme.ConfigSidebarMaxWidth);
-        if (_expandedWidth == next)
-        {
-            if (!_collapsed)
-            {
-                ApplyCollapsedVisuals(layoutOnly: true);
-            }
-
-            return;
-        }
-
-        _expandedWidth = next;
-        if (!_collapsed)
-        {
-            ApplyCollapsedVisuals(layoutOnly: true);
-        }
-
-        if (raiseEvent)
-        {
-            ExpandedWidthChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
 
     public void SetClasses(IReadOnlyList<(int ClassId, string Name)> classes)
     {
@@ -302,29 +227,9 @@ internal sealed class ClassSpecTreeSidebar : Panel
         base.Dispose(disposing);
     }
 
-    private void ApplyCollapsedVisuals(bool layoutOnly)
-    {
-        Width = PreferredWidth;
-        MinimumSize = new Size(PreferredWidth, 0);
-        MaximumSize = new Size(PreferredWidth, int.MaxValue);
-        _collapseButton.AccessibleName = _collapsed ? "展开侧栏" : "缩窄侧栏";
-        _toolTip.SetToolTip(_collapseButton, _collapsed ? "展开侧栏" : "缩窄侧栏");
-        _collapseButton.Invalidate();
-        if (!layoutOnly)
-        {
-            RebuildVisibleRows();
-        }
-
-        LayoutChildren();
-    }
-
     private void LayoutChildren()
     {
-        var pad = UiTheme.Scale(this, 6);
-        var header = UiTheme.Scale(this, HeaderHeight);
-        var buttonSize = UiTheme.Scale(this, 28);
-        _collapseButton.SetBounds(pad, Math.Max(0, (header - buttonSize) / 2), buttonSize, buttonSize);
-        var listTop = header;
+        var listTop = UiTheme.Scale(this, 6);
         _list.SetBounds(0, listTop, Math.Max(1, ClientSize.Width), Math.Max(1, ClientSize.Height - listTop));
     }
 
@@ -500,39 +405,6 @@ internal sealed class ClassSpecTreeSidebar : Panel
         _list.Invalidate(bounds);
     }
 
-    private void PaintCollapseButton(object? sender, PaintEventArgs e)
-    {
-        var g = e.Graphics;
-        g.Clear(UiTheme.SurfaceRaised);
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        var bounds = _collapseButton.ClientRectangle;
-        var fill = _collapseButton.ClientRectangle.Contains(
-            _collapseButton.PointToClient(Cursor.Position))
-            ? UiTheme.Hover
-            : Color.Transparent;
-        if (fill.A > 0)
-        {
-            using var brush = new SolidBrush(fill);
-            g.FillRectangle(brush, bounds);
-        }
-
-        var iconSize = Math.Min(UiTheme.Scale(this, 16), Math.Min(bounds.Width, bounds.Height) - 8);
-        if (iconSize <= 0)
-        {
-            return;
-        }
-
-        UiIconCatalog.Draw(
-            g,
-            "window-sidebar",
-            new Rectangle(
-                (bounds.Width - iconSize) / 2,
-                (bounds.Height - iconSize) / 2,
-                iconSize,
-                iconSize),
-            UiTheme.Muted);
-    }
-
     private void DrawRow(object? sender, DrawItemEventArgs e)
     {
         if (e.Index < 0 || e.Index >= _rows.Count)
@@ -576,9 +448,9 @@ internal sealed class ClassSpecTreeSidebar : Panel
         var x = e.Bounds.Left + pad;
         if (row.IsSpec)
         {
-            x += _collapsed ? UiTheme.Scale(this, 6) : UiTheme.Scale(this, SpecIndent);
+            x += UiTheme.Scale(this, SpecIndent);
         }
-        else if (!_collapsed)
+        else
         {
             var caretBounds = new Rectangle(
                 x,
@@ -591,10 +463,6 @@ internal sealed class ClassSpecTreeSidebar : Panel
                 caretBounds,
                 selected ? UiTheme.Text : UiTheme.Muted);
             x += caret + UiTheme.Scale(this, 4);
-        }
-        else
-        {
-            x = e.Bounds.Left + Math.Max(pad, (e.Bounds.Width - icon) / 2);
         }
 
         var iconBounds = new Rectangle(
@@ -613,11 +481,6 @@ internal sealed class ClassSpecTreeSidebar : Panel
         {
             using var placeholder = new SolidBrush(UiTheme.Field);
             g.FillRectangle(placeholder, iconBounds);
-        }
-
-        if (_collapsed)
-        {
-            return;
         }
 
         var textLeft = iconBounds.Right + UiTheme.Scale(this, 8);

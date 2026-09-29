@@ -41,7 +41,9 @@ public sealed class UnitEditorForm : Form
     private static readonly SelectionModeItem[] AuraSelectionModes =
     [
         new("最长", UnitSelectionMode.Longest),
-        new("最短", UnitSelectionMode.Shortest)
+        new("最短", UnitSelectionMode.Shortest),
+        new("正序", UnitSelectionMode.Ascending),
+        new("倒序", UnitSelectionMode.Descending)
     ];
 
     private static readonly AverageTargetItem[] AverageTargetOptions =
@@ -877,7 +879,8 @@ public sealed class UnitEditorForm : Form
             UnitTargetFieldKind.Role or UnitTargetFieldKind.Dispel
                 => mode is UnitSelectionMode.Ascending or UnitSelectionMode.Descending,
             UnitTargetFieldKind.Aura
-                => mode is UnitSelectionMode.Longest or UnitSelectionMode.Shortest,
+                => mode is UnitSelectionMode.Longest or UnitSelectionMode.Shortest
+                    or UnitSelectionMode.Ascending or UnitSelectionMode.Descending,
             _ => false
         };
 
