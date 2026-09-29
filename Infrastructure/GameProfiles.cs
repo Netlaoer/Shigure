@@ -45,14 +45,7 @@ internal sealed class GameProfiles
         var path = Path.Combine(baseDirectory, "game_profiles.json");
         if (!File.Exists(path))
         {
-            var legacyNames = File.Exists(Path.Combine(baseDirectory, "wow_process.txt"))
-                ? File.ReadAllLines(Path.Combine(baseDirectory, "wow_process.txt"))
-                : ["Wow"];
-            var fallback = legacyNames.Select(name => name.Trim())
-                .Where(name => name.Length > 0 && !name.StartsWith('#') && !name.StartsWith(';'))
-                .Select(name => new ProfileEntry(name, "Fuyutsui", "Retail"))
-                .ToArray();
-            return Create(baseDirectory, fallback);
+            throw new FileNotFoundException("找不到游戏配置 game_profiles.json。", path);
         }
 
         var file = JsonSerializer.Deserialize<ProfileFile>(File.ReadAllText(path), new JsonSerializerOptions

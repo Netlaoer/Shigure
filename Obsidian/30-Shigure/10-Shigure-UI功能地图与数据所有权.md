@@ -116,7 +116,7 @@ verified_at: 2026-08-10
 | 模块手工 Hotkey 消失 | UI 保存明确清空 `Hotkey`/`Step` |
 | “禁用模块”仍匹配 | 根级 `Enabled` 未被运行时消费 |
 | 保存 Lua 后大量格式变化 | table 内 canonical round-trip 是当前设计 |
-| 保存成功但游戏插件未更新 | 检查 `wow_process.txt`、游戏目录权限、日志中的单文件部署结果和 WoW 重载 |
+| 保存成功但游戏插件未更新 | 检查 `game_profiles.json`、游戏目录权限、日志中的单文件部署结果和 WoW 重载 |
 | 模块下拉选择“自动跳回” | 当前状态不匹配，但手动 ID 仍缓存等待以后匹配 |
 | 日志历史不完整 | StatusForm 主动截断内存文本 |
 

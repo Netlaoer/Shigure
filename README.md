@@ -98,7 +98,7 @@ dotnet run --project .\Shigure.csproj
 dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic-ms 100 --render-ms 100
 ```
 
-- `game_profiles.json`：为每个游戏进程指定插件。当前 `Wow`、`WowT` 使用 `Fuyutsui`，`WowClassic` 使用 `Shingen`；进程名可带 `.exe`。程序选择 Windows Z 顺序中最靠前的候选可见窗口，切换版本后会切换插件、配置、键位和模块。缺少此文件时回退读取旧版 `wow_process.txt`，并全部使用 `Fuyutsui`。
+- `game_profiles.json`：为每个游戏进程指定插件。当前 `Wow`、`WowT` 使用 `Fuyutsui`，`WowClassic` 使用 `Shingen`；进程名可带 `.exe`。程序选择 Windows Z 顺序中最靠前的候选可见窗口，切换版本后会切换插件、配置、键位和模块。缺少此文件时启动会报错。
 - `--toggle`：触发键，默认 `XBUTTON2`。
 - `--mode`：发送模式，支持 `switch`、`click`、`hold`。
 - `--logic-ms`：初始逻辑计算间隔，默认 `100` ms，最小 `50` ms；通用页保存的性能设置会在后续启动时覆盖它。

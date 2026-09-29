@@ -33,7 +33,7 @@ verified_at: 2026-08-10
 # Shigure 像素扫描与协议解码
 
 > [!abstract] AI 快速摘要
-> `PixelScanner` 通过 `WowProcessLocator` 选择 `wow_process.txt` 候选进程中 Z 顺序最靠前的可见窗口，并截取其客户区可见像素。顶行用 `(R,G,B)` 精确编码 510 个步骤和值；左边缘锚点定位计数行及其后六行治疗吸收。没有颜色容差、没有 `PrintWindow`，因此遮挡、最小化、缩放或着色都可能破坏读取。
+> `PixelScanner` 通过 `WowProcessLocator` 选择 `game_profiles.json` 候选进程中 Z 顺序最靠前的可见窗口，并截取其客户区可见像素。顶行用 `(R,G,B)` 精确编码 510 个步骤和值；左边缘锚点定位计数行及其后六行治疗吸收。没有颜色容差、没有 `PrintWindow`，因此遮挡、最小化、缩放或着色都可能破坏读取。
 
 ## 图谱位置
 
@@ -54,7 +54,7 @@ verified_at: 2026-08-10
 
 | 输入 | 输出字段 | 语义 |
 |---|---|---|
-| `wow_process.txt` 候选进程的首个可见窗口 | `RowData: Dictionary<int,int>?` | 顶行步骤号到 0..255 值 |
+| `game_profiles.json` 候选进程的首个可见窗口 | `RowData: Dictionary<int,int>?` | 顶行步骤号到 0..255 值 |
 | 左边缘红锚点后的计数段 | `BarData: Dictionary<int,int>` | 动作条/计数条索引到 `G-1` |
 | 锚点后的八行吸收网格 | `HealAbsorbData: Dictionary<int,int>` | 组员 1..40 到 `G-1` |
 | 定位/截图/解析异常 | `FailureReason` | 面向运行时和 UI 的诊断文本 |
@@ -85,7 +85,7 @@ value = B
 
 ## 截图和窗口边界
 
-- `WowProcessLocator` 每次重新读取 `wow_process.txt`，按名称取得候选 PID，再沿 Windows Z 顺序选择首个候选可见顶层窗口。
+- `GameProfiles` 启动时读取 `game_profiles.json`；`WowProcessLocator` 每次按名称取得候选 PID，再沿 Windows Z 顺序选择首个候选可见顶层窗口。
 - 最小化窗口会被拒绝。
 - 客户坐标经 `ClientToScreen` 转换后，用 `Graphics.CopyFromScreen` 截取；这是可见桌面像素，不是离屏窗口内容。
 - `SetProcessDPIAware` 是 best effort；失败不会中止构造。
@@ -97,7 +97,7 @@ value = B
 
 | 症状 | 优先检查 |
 |---|---|
-| 一直“等待像素” | `wow_process.txt`、候选窗口是否可见/最小化、步骤 1 是否在顶行前 510 像素、Fuyutsui 是否加载 |
+| 一直“等待像素” | `game_profiles.json`、候选窗口是否可见/最小化、步骤 1 是否在顶行前 510 像素、Fuyutsui 是否加载 |
 | 部分状态总是 0 | 生产端是否绘制该步骤、配置步骤号是否与 ClassBlocks 顺序一致、是否超过 510 |
 | 动作条值为空但状态正常 | 左边缘红锚点、终止灰色、动作条布局 |
 | 吸收值错位 | 锚点之后是否恰好八行、单位 `B` 编号是否 1..40 |

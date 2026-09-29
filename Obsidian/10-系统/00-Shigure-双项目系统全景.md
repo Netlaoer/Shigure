@@ -112,7 +112,8 @@ verified_at: "2026-08-10"
 1. 配置页和宏页从当前版本的 `Retail/Fuyutsui` 或 `Forever/Shingen` 读取项目源，不直接读取游戏插件副本。
 2. `ClassBlocksStore` 读写 `class/*.lua`；`ClassMacrosStore` 读写 `core/classmacros.lua`，保存只替换对应表字面量。
 3. `FuyutsuiConfigConverter` 重新生成 `config`；`FuyutsuiKeymapConverter` 重新生成 `keymap`。
-4. `WowProcessLocator` 每次从 `wow_process.txt` 读取进程名，按 Windows Z 顺序选择最靠前的候选可见窗口；`WowAddonLocator` 从该进程路径推导 `Interface/AddOns`。
+
+4. `GameProfiles` 启动时读取 `game_profiles.json`；`WowProcessLocator` 按 Windows Z 顺序选择最靠前的候选可见窗口；`WowAddonLocator` 从该进程路径推导 `Interface/AddOns`。
 5. 保存时只部署当前 Lua；启动与“更新配置”递归检查整个内置插件。缺失或 SHA-256 不同的文件会复制，相同文件跳过，游戏目录额外文件保留。
 6. 主窗口串行等待生成/部署任务完成，刷新目录并按需重启运行会话；找不到游戏不会回滚项目源或阻止启动。
 
@@ -135,7 +136,7 @@ verified_at: "2026-08-10"
 | 职业专精正确但字段全错位 | `ClassBlocks` 顺序与生成 `config` 不一致，或使用了旧 config |
 | 普通状态正常而层数/治疗吸收缺失 | CountBars 标记或网格协议变化，主行扫描仍可成功 |
 | 模块命中但找不到热键 | ClassMacros/keymap 未同步、技能名或单位/宏条件不一致 |
-| 编辑器保存成功，运行结果未变化 | 转换/部署或运行时重启未完成，游戏未重载插件，或目标进程未被 `wow_process.txt` 选中 |
+| 编辑器保存成功，运行结果未变化 | 转换/部署或运行时重启未完成，游戏未重载插件，或目标进程未被 `game_profiles.json` 选中 |
 | 旧模块目标发生变化 | `UnitMappingVersion` 迁移缺失或把旧 `36/37` 继续当单位 |
 | 文档建议无法定位 | 使用了拆分前 `main.lua` 的历史行号或已删除文件 |
 

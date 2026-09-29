@@ -62,7 +62,7 @@ verified_at: 2026-08-10
 
 游戏部署目标按以下过程计算：
 
-1. `WowProcessLocator` 每次读取业务根目录下的 `wow_process.txt`，忽略空行、`#`/`;` 注释，并去掉可选 `.exe` 后缀。
+1. `GameProfiles` 启动时读取业务根目录下的 `game_profiles.json`，解析进程、版本与插件映射，并去掉进程名中可选的 `.exe` 后缀。
 2. 枚举这些名称对应的进程 ID，再按 Windows 顶层窗口 Z 顺序取第一个候选进程的可见窗口。
 3. 由该窗口 PID 查询进程 EXE 路径，从 EXE 目录逐级向上寻找 `Interface/AddOns` 或 `Interface`。
 4. 找到后把目标固定为其下的 `Fuyutsui`；即使 AddOns/Fuyutsui 尚不存在，也可在部署时创建。若祖先中没有 Interface，则回退到游戏 EXE 同级的预期 `Interface/AddOns`。
@@ -139,7 +139,7 @@ verified_at: 2026-08-10
 | 症状 | 优先检查 |
 |---|---|
 | 项目 Fuyutsui 不存在 | 发布目录是否完整包含 `Retail/Fuyutsui/`，csproj 的复制规则是否生效 |
-| 无法定位游戏部署目录 | `wow_process.txt`、候选进程可见窗口、进程查询权限和实际游戏路径 |
+| 无法定位游戏部署目录 | `game_profiles.json`、候选进程可见窗口、进程查询权限和实际游戏路径 |
 | 项目保存成功但游戏未变化 | 游戏未运行、目标不可写、单文件部署失败，或 WoW 尚未重载插件 |
 | Lua 看似合法却解析失败 | 是否用了函数/表达式/hex/long string 等不支持语法；赋值名是否被注释先命中 |
 | 保存后注释/排版变化 | 表内部会 canonical 重写；仅表外文本有较强保留保证 |
@@ -156,7 +156,7 @@ verified_at: 2026-08-10
 - 改 ClassBlocks 顺序要同步 Fuyutsui 生产者、config 转换器、StateBuilder 和 510 容量检查。
 - 改键池顺序、数量或目标映射要同步 Fuyutsui 动作条扫描、Keymap 转换器和 v3 单位契约。
 - 若需要可靠回滚，应为 Lua 和批量 JSON 引入备份/临时文件/事务清单，不能只依赖 UI 队列。
-- 改发布或路径规则时必须同时验证 `Shigure.csproj`、随机副本的 `AppPaths.BaseDirectory`、AddonSyncService 和 `wow_process.txt`。
+- 改发布或路径规则时必须同时验证 `Shigure.csproj`、随机副本的 `AppPaths.BaseDirectory`、AddonSyncService 和 `game_profiles.json`。
 
 ## 源码索引
 

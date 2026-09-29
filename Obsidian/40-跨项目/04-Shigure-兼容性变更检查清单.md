@@ -77,7 +77,7 @@ verified_at: "2026-08-10"
 | `GameState` 名称或类型 | ClassBlocks 契约 | config、条件字段目录、规则、动态字段、UI |
 | AuraContainer API 或秘密值策略 | 像素/ClassBlocks 契约 | Fuyutsui Aura 槽、版本固定参考、游戏内验证 |
 | 随机副本、基础目录、文件位置 | 系统全景 | AppPaths、生成文件、module/cache、打包流程 |
-| 内置插件布局、部署或目标进程定位 | 系统全景/ClassBlocks/宏契约 | csproj、AddonSyncService、wow_process.txt、游戏运行副本 |
+| 内置插件布局、部署或目标进程定位 | 系统全景/ClassBlocks/宏契约 | csproj、AddonSyncService、game_profiles.json、游戏运行副本 |
 | 运行间隔、触发模式、会话协调 | Shigure 运行时 | 延迟语义、命令队列、快照和 UI |
 
 ## 变更运行链路
@@ -156,13 +156,13 @@ verified_at: "2026-08-10"
 - [ ] 设置 `SHIGURE_RANDOMIZED_PROCESS=1` 时可进行可控调试；正常启动时随机副本仍能回溯原始数据目录。
 - [ ] 三种触发模式中受影响路径行为符合预期。
 - [ ] config/keymap 更新任务串行完成后，运行会话正确重启。
-- [ ] 发布目录保留完整 `Retail/Fuyutsui/` 和 `wow_process.txt`，随机副本仍通过原始业务根读取它们。
+- [ ] 发布目录保留完整 `Retail/Fuyutsui/` 和 `game_profiles.json`，随机副本仍通过原始业务根读取它们。
 - [ ] 状态、队伍、逻辑和日志页展示同一轮快照，没有旧会话覆盖新会话。
 
 ### WoW 联调
 
 - [ ] 普通窗口状态下能找到主行起始格并读到职业/专精。
-- [ ] 启动全量部署和保存单文件部署都指向 `wow_process.txt` 选中的游戏；相同文件跳过、不同文件覆盖、额外文件保留。
+- [ ] 启动全量部署和保存单文件部署都指向 `game_profiles.json` 选中的游戏；相同文件跳过、不同文件覆盖、额外文件保留。
 - [ ] 分别验证主行、至少一个 CountBars 段和一个治疗吸收单位。
 - [ ] 切换受影响专精/天赋后，索引、Aura 容器和条布局被重建，没有旧数据残留。
 - [ ] 小队与团队各验证一个 group 字段及动态单位目标。

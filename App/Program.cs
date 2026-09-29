@@ -72,7 +72,7 @@ internal static class Program
             var options = AppOptions.FromArgs(args);
             var baseDirectory = AppPaths.BaseDirectory;
             var profiles = GameProfiles.Load(baseDirectory);
-            var processLocator = new WowProcessLocator(baseDirectory, profiles);
+            var processLocator = new WowProcessLocator(profiles);
             var foregroundProfile = profiles.Find(processLocator.FindFrontmostProcessName());
             var savedProfile = profiles.FindByAddon(UiCacheStore.Load().SelectedAddonName);
             var initialProfile = savedProfile is null

@@ -41,7 +41,7 @@ verified_at: 2026-08-10
 # Shigure 本地数据、路径、构建与验证
 
 > [!abstract] AI 快速摘要
-> Shigure 的业务根目录通常是正式 EXE 所在目录；随机副本子进程通过环境变量仍指回该目录。程序从这里读取内置 `Retail/`、`Forever/` 和 `wow_process.txt`；UI 缓存从我的文档目录读取；模块从我的文档目录 `{MyDocuments}/Shigure/module` 读取。项目插件是权威源，目标游戏中的 Fuyutsui 只是由部署服务维护的运行副本。项目是无第三方 NuGet 引用的 `net10.0-windows` WinForms WinExe，仓库没有测试项目。
+> Shigure 的业务根目录通常是正式 EXE 所在目录；随机副本子进程通过环境变量仍指回该目录。程序从这里读取内置 `Retail/`、`Forever/` 和 `game_profiles.json`；UI 缓存从我的文档目录读取；模块从我的文档目录 `{MyDocuments}/Shigure/module` 读取。项目插件是权威源，目标游戏中的 Fuyutsui 只是由部署服务维护的运行副本。项目是无第三方 NuGet 引用的 `net10.0-windows` WinForms WinExe，仓库没有测试项目。
 
 ## 图谱位置
 
@@ -77,7 +77,7 @@ verified_at: 2026-08-10
 | `{MyDocuments}/Shigure/cache/` | 窗口和 UI 偏好 | UI 基础设施 | MainForm/各 UI |
 | `Retail/Fuyutsui/class/*.lua` | 内置 ClassBlocks 权威源 | ClassBlocks Store/转换器 | ClassBlocks 编辑器/人工 |
 | `Retail/Fuyutsui/core/classmacros.lua` | 内置宏权威源 | ClassMacros Store/转换器 | 宏编辑器/人工 |
-| `wow_process.txt` | 目标进程名列表 | `WowProcessLocator` | 人工；运行中每次定位重新读取 |
+| `game_profiles.json` | 进程、版本与插件映射 | `GameProfiles` | 人工；程序启动时读取 |
 | 游戏 `Interface/AddOns/Fuyutsui` | WoW 运行副本 | WoW AddOn 加载器 | `FuyutsuiAddonSyncService` 单向部署 |
 | 专属系统临时根 | 随机 EXE 和顶层运行依赖 | OS loader | `RandomizedExecutableLauncher` |
 
@@ -87,7 +87,7 @@ verified_at: 2026-08-10
 
 内置插件源位于 `AppPaths.BaseDirectory/Retail/Fuyutsui` 或 `AppPaths.BaseDirectory/Forever/Shingen`。`Shigure.csproj` 将两个版本目录复制到输出和发布目录。
 
-游戏部署目标则动态计算：`wow_process.txt` 进程名 → 候选 PID → Windows Z 顺序最靠前的候选可见窗口 → 进程 EXE 路径 → 向上寻找 `Interface/AddOns` → 目标 `Fuyutsui`。如果只找到 `Interface`，部署会创建 `AddOns/Fuyutsui`；如果祖先都没有 Interface，则使用游戏 EXE 同级的预期路径。找不到候选可见窗口时返回“跳过同步”，不会把项目源切换到别处。
+游戏部署目标则动态计算：`game_profiles.json` 进程名 → 候选 PID → Windows Z 顺序最靠前的候选可见窗口 → 进程 EXE 路径 → 向上寻找 `Interface/AddOns` → 目标 `Fuyutsui`。如果只找到 `Interface`，部署会创建 `AddOns/Fuyutsui`；如果祖先都没有 Interface，则使用游戏 EXE 同级的预期路径。找不到候选可见窗口时返回“跳过同步”，不会把项目源切换到别处。
 
 ## 项目和构建资产
 
@@ -98,7 +98,7 @@ verified_at: 2026-08-10
 - 开启 nullable 与 implicit usings。
 - 应用版本在项目文件中为 1.2.1，并被模块编辑器保存到模块元数据。
 - 项目没有 `PackageReference`；核心只依赖 .NET/WinForms/System.Drawing 和 Win32 P/Invoke。
-- 项目文件声明嵌入 UI assets，并把 `Retail/Fuyutsui/**`、配置、Keymap 和 `wow_process.txt` 按规则复制到输出；Fuyutsui 同时明确复制到 publish。模块不随构建/发布复制，由我的文档目录 `{MyDocuments}/Shigure/module` 提供。
+- 项目文件声明嵌入 UI assets，并把 `Retail/Fuyutsui/**`、配置、Keymap 和 `game_profiles.json` 按规则复制到输出；Fuyutsui 同时明确复制到 publish。模块不随构建/发布复制，由我的文档目录 `{MyDocuments}/Shigure/module` 提供。
 - 实际发布内容以 `Shigure.csproj` 中的规则为准；随机启动器只复制正式输出目录**顶层**运行依赖到临时目录。
 
 ## 当前验证能力
@@ -118,7 +118,7 @@ verified_at: 2026-08-10
 ## 安全与信任边界
 
 - 模块、config、Keymap 和 Lua 都是受信任的本地输入；解析器不执行 C# 或 Lua 代码，但错误数据可以改变决策和直接 Hotkey 输出。
-- 扫描器和发送器按 `wow_process.txt` 的进程名筛选并取 Z 顺序首个可见窗口；配置过宽或多个候选窗口时可能选择非预期实例。
+- 扫描器和发送器按 `game_profiles.json` 的进程名筛选并取 Z 顺序首个可见窗口；配置过宽或多个候选窗口时可能选择非预期实例。
 - 屏幕捕获读取可见桌面像素，可能受遮挡/覆盖影响。
 - Lua Store 和批量转换器缺少完整事务/自动备份；重要文件应外部版本控制或备份。
 - 插件部署是逐文件操作，不删除目标额外文件，也没有整目录事务；部分文件复制失败时游戏副本可能是混合版本。
@@ -135,7 +135,7 @@ verified_at: 2026-08-10
 | 指定 Keymap 未生效 | 相对/绝对解析、扩展名改写、默认回退和当前专精 |
 | 模块突然消失 | 单文件 JSON 解析失败被静默跳过 |
 | 找不到项目 Fuyutsui | 发布目录是否包含 `Retail/Fuyutsui/`，`AppPaths.BaseDirectory` 是否仍指向正式目录 |
-| 无法部署到游戏 | `wow_process.txt`、候选可见窗口、进程路径查询、目标目录权限 |
+| 无法部署到游戏 | `game_profiles.json`、候选可见窗口、进程路径查询、目标目录权限 |
 | 文档与输出 DLL 行为冲突 | 生成物可能陈旧；以当前源码重新构建验证 |
 
 ## 修改影响

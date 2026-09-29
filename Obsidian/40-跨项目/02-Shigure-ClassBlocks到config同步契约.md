@@ -144,7 +144,7 @@ states → auras → spells → items → group
 | charge 一端按一格、另一端按两格 | 从该技能开始的 spells/group 全部错位 |
 | group `step` 被当绝对索引 | 只有首位或所有成员字段读取错误 |
 | LuaLiteParser 遇到不支持的动态 Lua 表达式 | 编辑器无法可靠 round-trip，保存可能被拒绝 |
-| `wow_process.txt` 选错实例或目标不可写 | UI 编辑和本地生成成功，但实际运行 AddOn 未变化 |
+| `game_profiles.json` 选错实例或目标不可写 | UI 编辑和本地生成成功，但实际运行 AddOn 未变化 |
 | 手改游戏副本 ClassBlocks | config 不会重生成，且下次部署可能覆盖改动 |
 | 只写生成 JSON | 下一次“更新配置”恢复旧错误 |
 

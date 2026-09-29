@@ -41,7 +41,7 @@ public sealed class PixelScanner : IRuntimeScreenScanner
                 null,
                 emptyBars,
                 emptyAbsorb,
-                $"未找到目标进程的可见窗口（wow_process.txt: {_processLocator.DescribeConfiguredProcesses()}）");
+                $"未找到目标进程的可见窗口（game_profiles.json: {_processLocator.DescribeConfiguredProcesses()}）");
         }
 
         if (NativeMethods.IsIconic(hwnd))

@@ -36,7 +36,7 @@ verified_at: 2026-08-10
 # Shigure 功能地图
 
 > [!abstract] AI 快速摘要
-> Shigure 是一个仅面向 Windows 的 .NET 10 WinForms 消费端。它按 `wow_process.txt` 中的进程名选择 Windows Z 顺序最靠前的候选可见窗口，截取 Fuyutsui 像素并以 `PostMessage` 回送按键。仓库内 `Retail/Fuyutsui/` 是配置、宏和游戏插件部署的唯一权威源；项目使用手工构造器注入，没有第三方 NuGet 依赖，也没有测试项目。
+> Shigure 是一个仅面向 Windows 的 .NET 10 WinForms 消费端。它按 `game_profiles.json` 中的进程名选择 Windows Z 顺序最靠前的候选可见窗口，截取 Fuyutsui 像素并以 `PostMessage` 回送按键。仓库内 `Retail/Fuyutsui/` 是配置、宏和游戏插件部署的唯一权威源；项目使用手工构造器注入，没有第三方 NuGet 依赖，也没有测试项目。
 
 ## 图谱位置
 
