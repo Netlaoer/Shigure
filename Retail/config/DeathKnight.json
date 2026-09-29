@@ -951,7 +951,8 @@
       "auras": [
         {
           "name": "血之疫病",
-          "spellId": 55078
+          "spellId": 55078,
+          "valueOffset": 4
         }
       ],
       "num": 4
@@ -2395,7 +2396,8 @@
       "auras": [
         {
           "name": "恶性病变",
-          "spellId": 191587
+          "spellId": 191587,
+          "valueOffset": 4
         }
       ],
       "num": 4

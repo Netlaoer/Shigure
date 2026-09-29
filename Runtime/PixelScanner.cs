@@ -78,20 +78,20 @@ public sealed class PixelScanner : IRuntimeScreenScanner
         try
         {
             var rowData = ScanTopRow(point.X, point.Y, width);
-            var markerY = FindCountBarsMarkerY(point.X, point.Y, height);
-            var barData = markerY is null
+            var (gridY, legacyBarY) = FindGridMarkersY(point.X, point.Y, height);
+            var barData = legacyBarY is null
                 ? emptyBars
-                : ScanLeftMarkerRow(point.X, point.Y + markerY.Value, width);
-            var healAbsorbData = markerY is null
+                : ScanLeftMarkerRow(point.X, point.Y + legacyBarY.Value, width);
+            var healAbsorbData = gridY is null
                 ? emptyAbsorb
-                : ScanHealAbsorbGrid(point.X, point.Y, width, height, markerY.Value);
+                : ScanHealAbsorbGrid(point.X, point.Y, width, height, gridY.Value);
             var result = rowData.Count == 0
                 ? new ScreenScanResult(null, barData, healAbsorbData, "未找到有效的状态像素起始标记")
                 : new ScreenScanResult(
                     rowData,
                     barData,
                     healAbsorbData,
-                    markerY is null ? "未找到定位标记，治疗吸收数据未采集" : null);
+                    null);
             return result with { TargetWindowHandle = hwnd };
         }
         catch (Exception ex)
@@ -108,11 +108,16 @@ public sealed class PixelScanner : IRuntimeScreenScanner
         return PixelScanDecoder.DecodeTopRow(pixels);
     }
 
-    private static int? FindCountBarsMarkerY(int baseX, int baseY, int height)
+    private static (int? GridY, int? LegacyBarY) FindGridMarkersY(int baseX, int baseY, int height)
     {
         using var left = Capture(baseX, baseY, 1, height);
         var leftPixels = ReadPixels(left);
-        return PixelScanDecoder.FindCountBarsMarkerY(leftPixels, 1, height);
+        var legacyBarY = PixelScanDecoder.FindCountBarsMarkerY(leftPixels, 1, height);
+        if (legacyBarY is not null)
+        {
+            return (legacyBarY + 1, legacyBarY);
+        }
+        return (PixelScanDecoder.FindHealAbsorbGridY(leftPixels, 1, height), null);
     }
 
     private static Dictionary<int, int> ScanLeftMarkerRow(int baseX, int rowScreenY, int width)
@@ -123,26 +128,25 @@ public sealed class PixelScanner : IRuntimeScreenScanner
     }
 
     /// <summary>
-    /// 扫描 CountBars 下方的治疗吸收网格。
-    /// 与层数条相同：读纯白块右侧第一个非白像素；G-1 为吸收值，B 为单位编号（1..40）。
+    /// 扫描治疗吸收网格：读纯白块右侧第一个非白像素；(G-1)*4 为吸收百分比，B 为单位编号（1..40）。
     /// </summary>
-    private static Dictionary<int, int> ScanHealAbsorbGrid(int baseX, int baseY, int width, int height, int countBarsY)
+    private static Dictionary<int, int> ScanHealAbsorbGrid(int baseX, int baseY, int width, int height, int gridY)
     {
-        var rows = Math.Min(8, Math.Max(0, height - countBarsY - 1));
+        var rows = Math.Min(8, Math.Max(0, height - gridY));
         if (rows == 0)
         {
             return new Dictionary<int, int>();
         }
 
-        var pixels = new int[width * (1 + rows)];
+        var pixels = new int[width * rows];
         for (var row = 0; row < rows; row++)
         {
-            var rowY = countBarsY + 1 + row;
+            var rowY = gridY + row;
             using var rowBmp = Capture(baseX, baseY + rowY, width, 1);
-            ReadPixels(rowBmp).CopyTo(pixels, (row + 1) * width);
+            ReadPixels(rowBmp).CopyTo(pixels, row * width);
         }
 
-        return PixelScanDecoder.DecodeHealAbsorbGrid(pixels, width, 1 + rows, 0);
+        return PixelScanDecoder.DecodeHealAbsorbGrid(pixels, width, rows, 0);
     }
 
     private static Bitmap Capture(int x, int y, int width, int height)

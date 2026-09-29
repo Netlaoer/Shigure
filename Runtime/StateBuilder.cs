@@ -117,10 +117,14 @@ public sealed class StateBuilder : IRuntimeStateBuilder
             {
                 for (var auraIndex = 0; auraIndex < auraConfigs.Count; auraIndex++)
                 {
-                    var value = ReadField(auraStart + auraIndex);
+                    var aura = auraConfigs[auraIndex] as JsonObject;
+                    var valueOffset = aura is null
+                        ? auraStart + auraIndex
+                        : JsonHelpers.GetInt(JsonHelpers.Get(aura, "valueOffset")) ?? auraStart + auraIndex;
+                    var value = ReadField(valueOffset);
                     var ordinalKey = $"光环{auraIndex + 1}";
                     values[ordinalKey] = value;
-                    if (auraConfigs[auraIndex] is JsonObject aura)
+                    if (aura is not null)
                     {
                         var name = JsonHelpers.GetString(JsonHelpers.Get(aura, "name"));
                         if (!string.IsNullOrWhiteSpace(name) && !values.ContainsKey(name))
@@ -129,7 +133,17 @@ public sealed class StateBuilder : IRuntimeStateBuilder
                         }
 
                         // 按 spellId 再暴露一份, 供敌人数量字段与队伍光环用同一套键查找。
-                        AddNameplateAuraIds(values, aura, value);
+                        AddNameplateAuraIds(values, aura, value, SpellFieldKey.AuraValue);
+                        if (JsonHelpers.GetInt(JsonHelpers.Get(aura, "appsOffset")) is > 0 and var appsOffset)
+                        {
+                            var applications = ReadField(appsOffset);
+                            values[ordinalKey + "层数"] = applications;
+                            if (!string.IsNullOrWhiteSpace(name) && !values.ContainsKey(name + "层数"))
+                            {
+                                values[name + "层数"] = applications;
+                            }
+                            AddNameplateAuraIds(values, aura, applications, SpellFieldKey.AuraApplications);
+                        }
                     }
                 }
             }
@@ -239,16 +253,17 @@ public sealed class StateBuilder : IRuntimeStateBuilder
         return group;
     }
 
-    // 姓名板光环配置形如 { name, spellId, spellIds? }; 规范 ID 与别名都写成 auras.{spellId}.value。
+    // 姓名板光环的规范 ID 与别名均写成 auras.{spellId}.{metric}。
     private static void AddNameplateAuraIds(
         IDictionary<string, object?> target,
         JsonObject aura,
-        object? value)
+        object? value,
+        string metric)
     {
         var canonicalId = JsonHelpers.GetLong(JsonHelpers.Get(aura, "spellId"));
         if (canonicalId is > 0)
         {
-            target[SpellFieldKey.AuraMember(canonicalId.Value)] = value;
+            target[SpellFieldKey.AuraMember(canonicalId.Value, metric)] = value;
         }
 
         if (JsonHelpers.Get(aura, "spellIds") is not JsonArray aliases)
@@ -261,7 +276,7 @@ public sealed class StateBuilder : IRuntimeStateBuilder
             var alias = JsonHelpers.GetLong(node);
             if (alias is > 0 && alias != canonicalId)
             {
-                target[SpellFieldKey.AuraMember(alias.Value)] = value;
+                target[SpellFieldKey.AuraMember(alias.Value, metric)] = value;
             }
         }
     }

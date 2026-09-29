@@ -272,14 +272,21 @@ public sealed class ConditionFieldCatalog
                 for (var auraIndex = 1; auraIndex <= auraCount; auraIndex++)
                 {
                     var name = $"光环{auraIndex}";
+                    var hasApplications = false;
                     if (JsonHelpers.Get(nameplates, "auras") is JsonArray auraList
                         && auraIndex - 1 < auraList.Count
                         && auraList[auraIndex - 1] is JsonObject aura)
                     {
-                        name = JsonHelpers.GetString(JsonHelpers.Get(aura, "name")) ?? name;
+                        var configuredName = JsonHelpers.GetString(JsonHelpers.Get(aura, "name"));
+                        if (!string.IsNullOrWhiteSpace(configuredName)) name = configuredName;
+                        hasApplications = JsonHelpers.GetInt(JsonHelpers.Get(aura, "appsOffset")) is > 0;
                     }
 
                     AddField(fields, seen, prefix + $"光环{auraIndex}", $"姓名板{slot} / {name}", ConditionFieldType.Int, ConditionFieldCategory.Aura, "姓名板");
+                    if (hasApplications)
+                    {
+                        AddField(fields, seen, prefix + $"光环{auraIndex}层数", $"姓名板{slot} / {name}层数", ConditionFieldType.Int, ConditionFieldCategory.Aura, "姓名板");
+                    }
                 }
             }
 

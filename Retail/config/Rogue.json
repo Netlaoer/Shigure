@@ -1046,11 +1046,13 @@
       "auras": [
         {
           "name": "割裂",
-          "spellId": 1943
+          "spellId": 1943,
+          "valueOffset": 4
         },
         {
           "name": "锁喉",
-          "spellId": 703
+          "spellId": 703,
+          "valueOffset": 5
         }
       ],
       "num": 5

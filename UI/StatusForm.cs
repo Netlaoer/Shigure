@@ -3074,7 +3074,7 @@ public sealed class StatusForm : Form
                 continue;
             }
 
-            // 同一光环会以 光环N / 名称 / auras.{id}.value 三种键暴露给条件求值, 页面只展示名称那份。
+            // 同一光环的时间和层数都有序号、名称与结构化键，页面只展示名称那份。
             var summary = string.Join("  ", data
                 .Where(pair => pair.Key is not "存在"
                     && !pair.Key.StartsWith("光环", StringComparison.Ordinal)
@@ -3089,12 +3089,13 @@ public sealed class StatusForm : Form
 
     private static string DisplayPartyFieldName(string key)
     {
-        if (!SpellFieldKey.TryParseAuraMember(key, out var spellId, out _))
+        if (!SpellFieldKey.TryParseAuraMember(key, out var spellId, out var metric))
         {
             return key;
         }
 
-        return SpellIconCatalog.ResolveSuggestionName(spellId, null) ?? key;
+        var name = SpellIconCatalog.ResolveSuggestionName(spellId, null) ?? key;
+        return metric == SpellFieldKey.AuraApplications ? name + "层数" : name;
     }
 
     private void UpdateUnitInfoList(RenderSnapshot snapshot)

@@ -69,9 +69,9 @@ local function CreateNameplateAuraContainer(slot, unit, config)
                 includeSpellIDs[spellId] = true
             end
         end
-        local index = PixelIndex(config, slot, config.auraStart + auraIndex - 1)
+        local index = PixelIndex(config, slot, aura.valueOffset)
         Shingen:AddNameplateAuraPixelSlots(
-            container, "nameplate_" .. slot .. "_aura_" .. auraIndex, includeSpellIDs, index, aura.isPlayer
+            container, "nameplate_" .. slot .. "_aura_" .. auraIndex, includeSpellIDs, index, aura.isPlayer, aura.maxApps
         )
     end
     container:Show()

@@ -1626,6 +1626,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _groupAurasGrid.Columns.Add(CreateSpellIconColumn());
         _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name", HeaderText = "名称", Width = 160 });
         _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "SpellId", HeaderText = "spellId", Width = 110 });
+        _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "MaxApps", HeaderText = "maxApps", Width = 85 });
         _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "SpellIds",
@@ -1703,6 +1704,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _nameplateAurasGrid.Columns.Add(CreateSpellIconColumn());
         _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name", HeaderText = "名称", Width = 220 });
         _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "SpellId", HeaderText = "spellId", Width = 120 });
+        _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "MaxApps", HeaderText = "maxApps", Width = 85 });
         _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "SpellIds",
@@ -1748,6 +1750,7 @@ public sealed class ClassConfigEditorControl : UserControl
                     icon!,
                     aura.Name,
                     aura.SpellId?.ToString(CultureInfo.InvariantCulture) ?? "",
+                    aura.MaxApps?.ToString(CultureInfo.InvariantCulture) ?? "",
                     string.Join(", ", aura.SpellIds),
                     aura.IsPlayer,
                     "×");
@@ -1779,6 +1782,10 @@ public sealed class ClassConfigEditorControl : UserControl
                     || ParseIdList(row.Cells["SpellIds"].Value?.ToString() ?? string.Empty).Any()))
             {
                 fields++;
+                if (int.TryParse(row.Cells["MaxApps"].Value?.ToString(), out var maxApps) && maxApps > 0)
+                {
+                    fields++;
+                }
             }
         }
 
@@ -3595,6 +3602,7 @@ public sealed class ClassConfigEditorControl : UserControl
                     icon!,
                     aura.Name,
                     aura.SpellId?.ToString(CultureInfo.InvariantCulture) ?? "",
+                    aura.MaxApps?.ToString(CultureInfo.InvariantCulture) ?? "",
                     string.Join(", ", aura.SpellIds),
                     "×");
             }
@@ -3634,6 +3642,10 @@ public sealed class ClassConfigEditorControl : UserControl
                     || ParseIdList(row.Cells["SpellIds"].Value?.ToString() ?? string.Empty).Any()))
             {
                 fields++;
+                if (int.TryParse(row.Cells["MaxApps"].Value?.ToString(), out var maxApps) && maxApps > 0)
+                {
+                    fields++;
+                }
             }
         }
         _groupPixelSummary.Text = _groupEnabledBox.Checked
@@ -4303,7 +4315,9 @@ public sealed class ClassConfigEditorControl : UserControl
 
             var entry = new ClassBlocksStore.GroupAuraEntry
             {
-                Name = row.Cells["Name"].Value?.ToString()?.Trim() ?? ""
+                Name = row.Cells["Name"].Value?.ToString()?.Trim() ?? "",
+                MaxApps = int.TryParse(row.Cells["MaxApps"].Value?.ToString(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var maxApps) ? maxApps : null
             };
             var spellIdsText = row.Cells["SpellIds"].Value?.ToString()?.Trim() ?? "";
             foreach (var id in ParseIdList(spellIdsText))
@@ -4352,7 +4366,9 @@ public sealed class ClassConfigEditorControl : UserControl
             var entry = new ClassBlocksStore.AuraEntry
             {
                 Name = name,
-                IsPlayer = row.Cells["IsPlayer"].Value is true
+                IsPlayer = row.Cells["IsPlayer"].Value is true,
+                MaxApps = int.TryParse(row.Cells["MaxApps"].Value?.ToString(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var maxApps) ? maxApps : null
             };
             foreach (var id in ParseIdList(spellIdsText))
             {

@@ -106,25 +106,28 @@ internal sealed class WindowsGraphicsCaptureScanner : IRuntimeScreenScanner
         {
             var pixels = frame.Pixels.AsSpan();
             var rowData = PixelScanDecoder.DecodeTopRow(pixels[..frame.Width]);
-            var markerY = PixelScanDecoder.FindCountBarsMarkerY(pixels, frame.Width, frame.Height);
-            var barData = markerY is null
+            var legacyBarY = PixelScanDecoder.FindCountBarsMarkerY(pixels, frame.Width, frame.Height);
+            var firstRowY = legacyBarY is null
+                ? PixelScanDecoder.FindHealAbsorbGridY(pixels, frame.Width, frame.Height)
+                : legacyBarY + 1;
+            var barData = legacyBarY is null
                 ? emptyBars
                 : PixelScanDecoder.DecodeMarkerRow(
-                    pixels.Slice(markerY.Value * frame.Width, frame.Width));
-            var absorbData = markerY is null
+                    pixels.Slice(legacyBarY.Value * frame.Width, frame.Width));
+            var absorbData = firstRowY is null
                 ? emptyAbsorb
                 : PixelScanDecoder.DecodeHealAbsorbGrid(
                     pixels,
                     frame.Width,
                     frame.Height,
-                    markerY.Value);
+                    firstRowY.Value);
             var result = rowData.Count == 0
                 ? new ScreenScanResult(null, barData, absorbData, "未找到有效的状态像素起始标记")
                 : new ScreenScanResult(
                     rowData,
                     barData,
                     absorbData,
-                    markerY is null ? "未找到定位标记，治疗吸收数据未采集" : null);
+                    null);
             return result with { TargetWindowHandle = hwnd };
         }
         catch (Exception ex)

@@ -559,14 +559,32 @@ internal static class FuyutsuiConfigConverter
                         "group",
                         SpellFieldKey.AuraValue,
                         ids);
+                    if (auraInfo.GetNumber("maxApps") is > 0)
+                    {
+                        groupJson[$"auras.{canonicalId}.{SpellFieldKey.AuraApplications}"] = AuraField(
+                            ++groupFieldCount,
+                            EnsureSuffix(auraName, "层数"),
+                            canonicalId.Value,
+                            "group",
+                            SpellFieldKey.AuraApplications,
+                            ids);
+                    }
                 }
             }
 
             if (groupFieldCount > 0)
             {
-                result["group"] = groupJson;
                 // 自动计算的步长与插件一致，预留插件实际处理的 40 个成员。
-                index += GroupStateLayout.SlotCount * groupFieldCount + 1;
+                var groupEnd = index + GroupStateLayout.SlotCount * groupFieldCount + 1;
+                if (groupEnd - 1 > MainPixelLayout.MaxCapacity)
+                {
+                    warnings.Add($"{label}: 队伍像素超出主像素行 {MainPixelLayout.MaxCapacity} 格上限，已停用队伍");
+                }
+                else
+                {
+                    result["group"] = groupJson;
+                    index = groupEnd;
+                }
             }
         }
 
@@ -604,8 +622,13 @@ internal static class FuyutsuiConfigConverter
                     var auraJson = new JsonObject
                     {
                         ["name"] = aura.GetString("name")?.Trim() ?? string.Empty,
-                        ["spellId"] = ids[0]
+                        ["spellId"] = ids[0],
+                        ["valueOffset"] = ++fieldCount
                     };
+                    if (aura.GetNumber("maxApps") is > 0)
+                    {
+                        auraJson["appsOffset"] = ++fieldCount;
+                    }
                     if (ids.Count > 1)
                     {
                         var aliases = new JsonArray();
@@ -621,7 +644,6 @@ internal static class FuyutsuiConfigConverter
                 }
 
                 nameplateJson["auras"] = auraArray;
-                fieldCount += auraArray.Count;
             }
 
             nameplateJson["num"] = fieldCount;

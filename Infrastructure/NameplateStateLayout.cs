@@ -1,7 +1,7 @@
 namespace Shigure;
 
 /// <summary>
-/// 姓名板像素布局固定：先 7 个单位映射格，再按槽位排列生命值/距离/战斗/光环。
+/// 姓名板像素布局：先 7 个单位映射格，再按槽位排列生命值/距离/战斗/光环；配置层数的光环紧跟一格。
 /// 插件 (Fuyutsui/main.lua、nameplates.lua)、config 转换与运行时状态构建共用这套常量。
 /// </summary>
 internal static class NameplateStateLayout

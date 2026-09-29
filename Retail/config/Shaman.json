@@ -1092,7 +1092,8 @@
       "auras": [
         {
           "name": "烈焰震击",
-          "spellId": 188389
+          "spellId": 188389,
+          "valueOffset": 4
         }
       ],
       "num": 4

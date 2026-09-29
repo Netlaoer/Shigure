@@ -130,6 +130,7 @@ internal static class ClassBlocksStore
         public string Name { get; set; } = string.Empty;
         public long? SpellId { get; set; }
         public List<long> SpellIds { get; } = new();
+        public int? MaxApps { get; set; }
     }
 
     // 生命值/距离是固定像素，配置里只剩光环列表。
@@ -677,7 +678,8 @@ internal static class ClassBlocksStore
 
                     var entry = new GroupAuraEntry
                     {
-                        Name = auraInfo.GetString("name")?.Trim() ?? string.Empty
+                        Name = auraInfo.GetString("name")?.Trim() ?? string.Empty,
+                        MaxApps = auraInfo.GetNumber("maxApps") is { } maxApps ? (int)maxApps : null
                     };
                     if (auraInfo.GetNumber("spellId") is { } sid)
                     {
@@ -949,6 +951,10 @@ internal static class ClassBlocksStore
                     }
 
                     WriteSpellIdFields(sb, aura.SpellId, aura.SpellIds);
+                    if (aura.MaxApps is { } maxApps)
+                    {
+                        sb.Append(" maxApps = ").Append(maxApps).Append(',');
+                    }
                     sb.AppendLine(" },");
                 }
 

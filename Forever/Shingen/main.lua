@@ -274,11 +274,20 @@ function Shingen:LoadPlayerBlocks(specIndex)
             if hasSpell then
                 groups.num = groups.num + 1
                 groups.aura[groups.num] = aura
+                if type(aura.maxApps) == "number" and aura.maxApps > 0 then
+                    groups.num = groups.num + 1
+                end
             end
         end
         -- 队伍偏移从 1 开始；预留插件实际处理的 40 人后再追加姓名板。
         if groups.num > 0 then
-            index = index + 40 * groups.num + 1
+            local groupEnd = index + 40 * groups.num + 1
+            if groupEnd - 1 > (self.MainPixelMaxCount or self.MainPixelCount) then
+                print("LoadPlayerBlocks: 队伍像素超出主像素行上限，已停用队伍")
+                blocks.groups = nil
+            else
+                index = groupEnd
+            end
         else
             blocks.groups = nil
         end
@@ -295,20 +304,31 @@ function Shingen:LoadPlayerBlocks(specIndex)
             num = 3,
             auras = {},
         }
+        blocks.nameplates.auraStart = blocks.nameplates.num + 1
         if type(t.nameplates.auras) == "table" then
             for _, aura in ipairs(t.nameplates.auras) do
-                if type(aura) == "table" and (aura.spellId or aura.spellIds) then
+                local hasSpell = type(aura) == "table" and type(aura.spellId) == "number" and aura.spellId > 0
+                if type(aura) == "table" and type(aura.spellIds) == "table" then
+                    for _, spellId in ipairs(aura.spellIds) do
+                        if type(spellId) == "number" and spellId > 0 then hasSpell = true end
+                    end
+                end
+                if hasSpell then
+                    local valueOffset = blocks.nameplates.num + 1
+                    blocks.nameplates.num = valueOffset
+                    local maxApps = type(aura.maxApps) == "number" and aura.maxApps > 0 and aura.maxApps or nil
                     tinsert(blocks.nameplates.auras, {
                         name = aura.name,
                         spellId = aura.spellId,
                         spellIds = aura.spellIds,
                         isPlayer = aura.isPlayer == true,
+                        maxApps = maxApps,
+                        valueOffset = valueOffset,
                     })
+                    if maxApps then blocks.nameplates.num = blocks.nameplates.num + 1 end
                 end
             end
         end
-        blocks.nameplates.auraStart = blocks.nameplates.num + 1
-        blocks.nameplates.num = blocks.nameplates.num + #blocks.nameplates.auras
         local maxPixels = self.MainPixelMaxCount or self.MainPixelCount
         local nameplateEnd = index + mappingCount + self.NameplateSlotCount * blocks.nameplates.num
         if nameplateEnd - 1 > maxPixels then

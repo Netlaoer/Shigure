@@ -16,14 +16,12 @@ local BLOCK_SPACING = 0                -- 色块间距
 local COLOR_BARS_STRATA = "TOOLTIP"
 local COLOR_BARS_LEVEL = 9001
 
--- 横向条行仅保留左端定位格，治疗吸收网格沿用其下方行距。
+-- 治疗吸收网格紧贴主色条，旧法术计数行不再绘制。
 local BAR_UNIT_COUNT = 500  -- 横向单元数
 local BAR_HEIGHT = 2        -- 条高度
-local BAR_FRAME_HEIGHT = 20 -- 容器高度
 local BAR_STRATA = "TOOLTIP"
 local BAR_LEVEL = 1
 local BAR_STATUS_LEVEL = 8999                                -- StatusBar 层级
-local BAR_END_COLOR = { 200 / 255, 200 / 255, 200 / 255, 1 } -- 全部条之后的终点色块
 
 -- AuraContainer 计时色块（█）
 local AURA_BLOCK_HEIGHT = BLOCK_HEIGHT -- 高单独设置；宽与主色块一致
@@ -34,8 +32,8 @@ local AURA_DURATION_LEVEL = 9003
 
 -- 队伍治疗吸收条（FuyutsuiHealAbsorbBars）
 local HEAL_ABSORB_MAX_SLOTS = 40  -- 最大槽位数
-local HEAL_ABSORB_COLS = 5        -- 每行列数
-local HEAL_ABSORB_BAR_UNITS = 100 -- 单条条身单元数
+local HEAL_ABSORB_COLS = 20       -- 每行列数
+local HEAL_ABSORB_BAR_UNITS = 25  -- 单条条身单元数，每格表示约 4% 治疗吸收
 local HEAL_ABSORB_WIDTH_SCALE = 0.7 -- 单元宽度相对横向条的缩放比例
 
 --[[============================================================================
@@ -54,7 +52,6 @@ local BLOCK_FIX_CONFIG = {
 }
 
 local BAR_CONFIG = {
-    heightOffset = -BLOCK_HEIGHT,
     width = screenWidth / BAR_UNIT_COUNT,
     height = BAR_HEIGHT,
 }
@@ -190,19 +187,8 @@ end
 DrawBlockEndMarker()
 
 --[[============================================================================
-    法术计数像素；旧横向行仅保留定位标记，供治疗吸收网格扫描。
+    法术计数像素；治疗吸收网格首槽的锚点用于定位，无需旧横向行。
 ============================================================================]]
-
-local countMarker = CreateFrame("Frame", "FuyutsuiCountBars", UIParent)
-countMarker:SetSize(screenWidth, BAR_FRAME_HEIGHT)
-countMarker:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, BAR_CONFIG.heightOffset)
-countMarker:SetFrameStrata(BAR_STRATA)
-countMarker:SetFrameLevel(BAR_LEVEL)
-
-local marker = countMarker:CreateTexture(nil, "BACKGROUND")
-marker:SetSize(BAR_CONFIG.width, BAR_CONFIG.height)
-marker:SetPoint("TOPLEFT", countMarker, "TOPLEFT", 0, 0)
-marker:SetColorTexture(1 / 255, 0, 0, 1)
 
 local function StyleHorizontalStatusBar(bar)
     bar:SetStatusBarTexture("Interface\\ChatFrame\\ChatFrameBackground")
@@ -304,20 +290,20 @@ end
 
 --[[============================================================================
     队伍治疗吸收条（FuyutsuiHealAbsorbBars）
-    布局：主色块 + 计数条下方；每行 5 条、最多 40 条
-    单槽：前锚点 1 + 条身 100 + 终点色块 1（列宽 102）
+    布局：主色块下方；每行 20 条、最多 40 条
+    单槽：前锚点 1 + 条身 25 + 终点色块 1（列宽 27）
     编码：
-      行 r：第 1 行=0 … 第 8 行=7（同行条身背景 r 统一）
+      行 r：第 1 行=0，第 2 行=1（同行条身背景 r 统一）
       前锚点：(r=行号/255, g=单位编号/255, b=0)
         player=1, party1..4=2..5, raidN=N
-      条身背景：(r=行号/255, g=相对索引1..100/255, b=单位编号/255)
-      终点色块：BAR_END_COLOR（与 CountBars 相同）
+      条身背景：(r=行号/255, g=相对索引1..25/255, b=单位编号/255)
+      终点色块：(r=行号/255, g=26/255, b=单位编号/255)，满格时代表 100%
     秘密值直通：UnitGetDetailedHealPrediction → GetHealAbsorbs → SetValue
 ============================================================================]]
 
 local healAbsorbBars = CreateFrame("Frame", "FuyutsuiHealAbsorbBars", UIParent)
 healAbsorbBars:SetSize(screenWidth, HEAL_ABSORB_ROWS * BAR_CONFIG.height)
-healAbsorbBars:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -(BLOCK_HEIGHT + BAR_HEIGHT))
+healAbsorbBars:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, -BLOCK_HEIGHT)
 healAbsorbBars:SetFrameStrata(BAR_STRATA)
 healAbsorbBars:SetFrameLevel(BAR_LEVEL)
 
@@ -349,6 +335,7 @@ local function PaintHealAbsorbSlotColors(entry, unitValue)
     for i, tex in ipairs(entry.bodyTex) do
         tex:SetColorTexture(rowR, i / 255, unitB, 1)
     end
+    entry.endTex:SetColorTexture(rowR, (HEAL_ABSORB_BAR_UNITS + 1) / 255, unitB, 1)
 end
 
 local function CreateHealAbsorbSlot(slot)
@@ -369,7 +356,7 @@ local function CreateHealAbsorbSlot(slot)
     anchor:SetPoint("TOPLEFT", slotFrame, "TOPLEFT", 0, 0)
     anchor:SetColorTexture(rowR, 0, 0, 1)
 
-    -- 条身背景：r=行号，g=相对索引 1..100，b=单位编号（绑定时写入）
+    -- 条身背景：r=行号，g=相对索引 1..25，b=单位编号（绑定时写入）
     local bodyTex = {}
     for i = 1, HEAL_ABSORB_BAR_UNITS do
         local tex = slotFrame:CreateTexture(nil, "BACKGROUND")
@@ -379,14 +366,14 @@ local function CreateHealAbsorbSlot(slot)
         bodyTex[i] = tex
     end
 
-    -- 条右侧终点色块（与 CountBars BAR_END_COLOR 相同）
+    -- 条右侧终点色块：g=26，绑定时写入单位编号，满格时仍可解码。
     local endTex = slotFrame:CreateTexture(nil, "BACKGROUND")
     endTex:SetSize(HEAL_ABSORB_UNIT_WIDTH, BAR_CONFIG.height)
     endTex:SetPoint("TOPLEFT", slotFrame, "TOPLEFT", (1 + HEAL_ABSORB_BAR_UNITS) * HEAL_ABSORB_UNIT_WIDTH, 0)
-    endTex:SetColorTexture(BAR_END_COLOR[1], BAR_END_COLOR[2], BAR_END_COLOR[3], BAR_END_COLOR[4])
+    endTex:SetColorTexture(rowR, (HEAL_ABSORB_BAR_UNITS + 1) / 255, 0, 1)
 
     local bar = CreateFrame("StatusBar", nil, slotFrame)
-    bar:SetSize(HEAL_ABSORB_BAR_UNITS * HEAL_ABSORB_UNIT_WIDTH + 1, BAR_CONFIG.height)
+    bar:SetSize(HEAL_ABSORB_BAR_UNITS * HEAL_ABSORB_UNIT_WIDTH, BAR_CONFIG.height)
     bar:SetPoint("TOPLEFT", slotFrame, "TOPLEFT", HEAL_ABSORB_UNIT_WIDTH, 0)
     StyleHorizontalStatusBar(bar)
     bar:SetFrameLevel(BAR_STATUS_LEVEL)
@@ -744,9 +731,9 @@ local function AddDurationAuraSlotPair(container, slotKeyPrefix, filter, include
     })
 end
 
-function Fuyutsui:AddNameplateAuraPixelSlots(container, slotKeyPrefix, includeSpellIDs, index, isPlayer)
+function Fuyutsui:AddNameplateAuraPixelSlots(container, slotKeyPrefix, includeSpellIDs, index, isPlayer, maxApps)
     local filter = isPlayer == true and "HARMFUL|PLAYER" or "HARMFUL"
-    AddDurationAuraSlotPair(container, slotKeyPrefix, filter, includeSpellIDs, index)
+    AddDurationAuraSlotPair(container, slotKeyPrefix, filter, includeSpellIDs, index, maxApps)
 end
 
 local function ApplyUnitAuraReactionFilters(container, unit)
@@ -1021,7 +1008,7 @@ end
 --[[============================================================================
     队伍成员 AuraContainer
     配置：
-      groups.aura[offset] = { name, spellId/spellIds }  -- 默认 HELPFUL|PLAYER，剩余时间色块
+      groups.aura[offset] = { name, spellId/spellIds, maxApps? }  -- 默认 HELPFUL|PLAYER，层数格紧随剩余时间格
       groups.dispel = offset                            -- HARMFUL，按可驱散类型过滤；固定纹理按类型着色
     像素：start + (memberIndex-1)*num + offset
     驱散蓝通道：Magic=1 Curse=2 Disease=3 Poison=4 Bleed=11（/255）
@@ -1044,6 +1031,7 @@ local function CollectGroupAuraDefs(auraTable)
                     offset = offset,
                     includeSpellIDs = includeSpellIDs,
                     name = info.name,
+                    maxApps = info.maxApps,
                 })
             end
         end
@@ -1137,7 +1125,8 @@ local function CreateGroupMemberAuraContainer(memberIndex, groups, auraDefs, inc
                 "group_" .. memberIndex .. "_aura_" .. def.offset,
                 filter,
                 def.includeSpellIDs,
-                pixelIndex
+                pixelIndex,
+                def.maxApps
             )
         end
     end
