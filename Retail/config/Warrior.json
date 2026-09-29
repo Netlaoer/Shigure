@@ -335,7 +335,7 @@
       "category": "鼠标"
     },
     "鲁莽药水": {
-      "step": 108,
+      "step": 109,
       "type": "int",
       "category": "物品",
       "itemId": 241288,
@@ -877,8 +877,7 @@
         "displayType": "充能"
       },
       "7384.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 97,
         "type": "int",
         "displayName": "压制层数",
         "spellId": 7384,
@@ -886,7 +885,7 @@
         "displayType": "充能层数"
       },
       "163201.cooldown": {
-        "step": 97,
+        "step": 98,
         "type": "int",
         "displayName": "斩杀",
         "spellId": 163201,
@@ -894,7 +893,7 @@
         "displayType": "冷却"
       },
       "845.cooldown": {
-        "step": 98,
+        "step": 99,
         "type": "int",
         "displayName": "顺劈斩",
         "spellId": 845,
@@ -902,7 +901,7 @@
         "displayType": "冷却"
       },
       "12294.cooldown": {
-        "step": 99,
+        "step": 100,
         "type": "int",
         "displayName": "致死打击",
         "spellId": 12294,
@@ -910,7 +909,7 @@
         "displayType": "冷却"
       },
       "167105.cooldown": {
-        "step": 100,
+        "step": 101,
         "type": "int",
         "displayName": "巨人打击",
         "spellId": 167105,
@@ -918,7 +917,7 @@
         "displayType": "冷却"
       },
       "436358.cooldown": {
-        "step": 101,
+        "step": 102,
         "type": "int",
         "displayName": "崩摧",
         "spellId": 436358,
@@ -926,7 +925,7 @@
         "displayType": "冷却"
       },
       "6552.cooldown": {
-        "step": 102,
+        "step": 103,
         "type": "int",
         "displayName": "拳击",
         "spellId": 6552,
@@ -934,7 +933,7 @@
         "displayType": "冷却"
       },
       "118038.cooldown": {
-        "step": 103,
+        "step": 104,
         "type": "int",
         "displayName": "剑在人在",
         "spellId": 118038,
@@ -942,7 +941,7 @@
         "displayType": "冷却"
       },
       "107574.cooldown": {
-        "step": 104,
+        "step": 105,
         "type": "int",
         "displayName": "天神下凡",
         "spellId": 107574,
@@ -950,7 +949,7 @@
         "displayType": "冷却"
       },
       "227847.cooldown": {
-        "step": 105,
+        "step": 106,
         "type": "int",
         "displayName": "剑刃风暴",
         "spellId": 227847,
@@ -958,7 +957,7 @@
         "displayType": "冷却"
       },
       "260708.cooldown": {
-        "step": 106,
+        "step": 107,
         "type": "int",
         "displayName": "横扫攻击",
         "spellId": 260708,
@@ -966,7 +965,7 @@
         "displayType": "冷却"
       },
       "228920.cooldown": {
-        "step": 107,
+        "step": 108,
         "type": "int",
         "displayName": "破坏者",
         "spellId": 228920,
@@ -1431,8 +1430,7 @@
         "displayType": "充能"
       },
       "85288.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 69,
         "type": "int",
         "displayName": "怒击层数",
         "spellId": 85288,
@@ -1440,7 +1438,7 @@
         "displayType": "充能层数"
       },
       "184367.cooldown": {
-        "step": 69,
+        "step": 70,
         "type": "int",
         "displayName": "暴怒",
         "spellId": 184367,
@@ -1448,7 +1446,7 @@
         "displayType": "冷却"
       },
       "385059.cooldown": {
-        "step": 70,
+        "step": 71,
         "type": "int",
         "displayName": "奥丁之怒",
         "spellId": 385059,
@@ -1456,7 +1454,7 @@
         "displayType": "冷却"
       },
       "227847.cooldown": {
-        "step": 71,
+        "step": 72,
         "type": "int",
         "displayName": "剑刃风暴",
         "spellId": 227847,
@@ -1464,7 +1462,7 @@
         "displayType": "冷却"
       },
       "107574.cooldown": {
-        "step": 72,
+        "step": 73,
         "type": "int",
         "displayName": "天神下凡",
         "spellId": 107574,
@@ -1472,7 +1470,7 @@
         "displayType": "冷却"
       },
       "435222.cooldown": {
-        "step": 73,
+        "step": 74,
         "type": "int",
         "displayName": "雷霆轰击",
         "spellId": 435222,
@@ -1480,7 +1478,7 @@
         "displayType": "冷却"
       },
       "435222.chargeCooldown": {
-        "step": 74,
+        "step": 75,
         "type": "int",
         "displayName": "雷霆轰击充能",
         "spellId": 435222,
@@ -1488,8 +1486,7 @@
         "displayType": "充能"
       },
       "435222.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 76,
         "type": "int",
         "displayName": "雷霆轰击层数",
         "spellId": 435222,
@@ -1497,7 +1494,7 @@
         "displayType": "充能层数"
       },
       "6343.cooldown": {
-        "step": 75,
+        "step": 77,
         "type": "int",
         "displayName": "雷霆一击",
         "spellId": 6343,
@@ -1505,7 +1502,7 @@
         "displayType": "冷却"
       },
       "190411.cooldown": {
-        "step": 76,
+        "step": 78,
         "type": "int",
         "displayName": "旋风斩",
         "spellId": 190411,
@@ -1513,7 +1510,7 @@
         "displayType": "冷却"
       },
       "335096.cooldown": {
-        "step": 77,
+        "step": 79,
         "type": "int",
         "displayName": "浴血奋战",
         "spellId": 335096,
@@ -1521,7 +1518,7 @@
         "displayType": "冷却"
       },
       "335097.cooldown": {
-        "step": 78,
+        "step": 80,
         "type": "int",
         "displayName": "碎甲猛击",
         "spellId": 335097,
@@ -1529,7 +1526,7 @@
         "displayType": "冷却"
       },
       "335097.chargeCooldown": {
-        "step": 79,
+        "step": 81,
         "type": "int",
         "displayName": "碎甲猛击充能",
         "spellId": 335097,
@@ -1537,8 +1534,7 @@
         "displayType": "充能"
       },
       "335097.count": {
-        "step": "bar",
-        "bar": 3,
+        "step": 82,
         "type": "int",
         "displayName": "碎甲猛击层数",
         "spellId": 335097,
@@ -1546,7 +1542,7 @@
         "displayType": "充能层数"
       },
       "5308.cooldown": {
-        "step": 80,
+        "step": 83,
         "type": "int",
         "displayName": "斩杀",
         "spellId": 5308,

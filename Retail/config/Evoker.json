@@ -1112,8 +1112,7 @@
         "displayType": "充能"
       },
       "363534.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 88,
         "type": "int",
         "displayName": "回溯层数",
         "spellId": 363534,
@@ -1121,7 +1120,7 @@
         "displayType": "充能层数"
       },
       "357208.cooldown": {
-        "step": 88,
+        "step": 89,
         "type": "int",
         "displayName": "火焰吐息",
         "spellId": 357208,
@@ -1129,7 +1128,7 @@
         "displayType": "冷却"
       },
       "357208.chargeCooldown": {
-        "step": 89,
+        "step": 90,
         "type": "int",
         "displayName": "火焰吐息充能",
         "spellId": 357208,
@@ -1137,8 +1136,7 @@
         "displayType": "充能"
       },
       "357208.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 91,
         "type": "int",
         "displayName": "火焰吐息层数",
         "spellId": 357208,
@@ -1146,7 +1144,7 @@
         "displayType": "充能层数"
       },
       "366155.cooldown": {
-        "step": 90,
+        "step": 92,
         "type": "int",
         "displayName": "逆转",
         "spellId": 366155,
@@ -1154,7 +1152,7 @@
         "displayType": "冷却"
       },
       "366155.chargeCooldown": {
-        "step": 91,
+        "step": 93,
         "type": "int",
         "displayName": "逆转充能",
         "spellId": 366155,
@@ -1162,8 +1160,7 @@
         "displayType": "充能"
       },
       "366155.count": {
-        "step": "bar",
-        "bar": 3,
+        "step": 94,
         "type": "int",
         "displayName": "逆转层数",
         "spellId": 366155,
@@ -1171,7 +1168,7 @@
         "displayType": "充能层数"
       },
       "358267.cooldown": {
-        "step": 92,
+        "step": 95,
         "type": "int",
         "displayName": "悬空",
         "spellId": 358267,
@@ -1179,7 +1176,7 @@
         "displayType": "冷却"
       },
       "358267.chargeCooldown": {
-        "step": 93,
+        "step": 96,
         "type": "int",
         "displayName": "悬空充能",
         "spellId": 358267,
@@ -1187,8 +1184,7 @@
         "displayType": "充能"
       },
       "358267.count": {
-        "step": "bar",
-        "bar": 4,
+        "step": 97,
         "type": "int",
         "displayName": "悬空层数",
         "spellId": 358267,
@@ -1196,7 +1192,7 @@
         "displayType": "充能层数"
       },
       "363916.cooldown": {
-        "step": 94,
+        "step": 98,
         "type": "int",
         "displayName": "黑曜鳞片",
         "spellId": 363916,
@@ -1204,7 +1200,7 @@
         "displayType": "冷却"
       },
       "363916.chargeCooldown": {
-        "step": 95,
+        "step": 99,
         "type": "int",
         "displayName": "黑曜鳞片充能",
         "spellId": 363916,
@@ -1212,8 +1208,7 @@
         "displayType": "充能"
       },
       "363916.count": {
-        "step": "bar",
-        "bar": 5,
+        "step": 100,
         "type": "int",
         "displayName": "黑曜鳞片层数",
         "spellId": 363916,
@@ -1222,7 +1217,7 @@
       }
     },
     "group": {
-      "start": 96,
+      "start": 101,
       "生命值": {
         "step": 1,
         "type": "int"
@@ -1497,8 +1492,7 @@
         "displayType": "充能"
       },
       "363916.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 47,
         "type": "int",
         "displayName": "黑曜鳞片层数",
         "spellId": 363916,
@@ -1506,7 +1500,7 @@
         "displayType": "充能层数"
       },
       "358385.cooldown": {
-        "step": 47,
+        "step": 48,
         "type": "int",
         "displayName": "山崩",
         "spellId": 358385,
@@ -1514,7 +1508,7 @@
         "displayType": "冷却"
       },
       "360995.cooldown": {
-        "step": 48,
+        "step": 49,
         "type": "int",
         "displayName": "青翠之拥",
         "spellId": 360995,
@@ -1522,7 +1516,7 @@
         "displayType": "冷却"
       },
       "357210.cooldown": {
-        "step": 49,
+        "step": 50,
         "type": "int",
         "displayName": "深呼吸",
         "spellId": 357210,
@@ -1530,7 +1524,7 @@
         "displayType": "冷却"
       },
       "374227.cooldown": {
-        "step": 50,
+        "step": 51,
         "type": "int",
         "displayName": "微风",
         "spellId": 374227,
@@ -1538,7 +1532,7 @@
         "displayType": "冷却"
       },
       "358267.cooldown": {
-        "step": 51,
+        "step": 52,
         "type": "int",
         "displayName": "悬空",
         "spellId": 358267,
@@ -1546,7 +1540,7 @@
         "displayType": "冷却"
       },
       "358267.chargeCooldown": {
-        "step": 52,
+        "step": 53,
         "type": "int",
         "displayName": "悬空充能",
         "spellId": 358267,
@@ -1554,8 +1548,7 @@
         "displayType": "充能"
       },
       "358267.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 54,
         "type": "int",
         "displayName": "悬空层数",
         "spellId": 358267,
@@ -1563,7 +1556,7 @@
         "displayType": "充能层数"
       },
       "368970.cooldown": {
-        "step": 53,
+        "step": 55,
         "type": "int",
         "displayName": "扫尾",
         "spellId": 368970,
@@ -1571,7 +1564,7 @@
         "displayType": "冷却"
       },
       "370553.cooldown": {
-        "step": 54,
+        "step": 56,
         "type": "int",
         "displayName": "扭转天平",
         "spellId": 370553,
@@ -1579,7 +1572,7 @@
         "displayType": "冷却"
       },
       "370665.cooldown": {
-        "step": 55,
+        "step": 57,
         "type": "int",
         "displayName": "营救",
         "spellId": 370665,
@@ -1587,7 +1580,7 @@
         "displayType": "冷却"
       },
       "374968.cooldown": {
-        "step": 56,
+        "step": 58,
         "type": "int",
         "displayName": "时间螺旋",
         "spellId": 374968,
@@ -1595,7 +1588,7 @@
         "displayType": "冷却"
       },
       "406732.cooldown": {
-        "step": 57,
+        "step": 59,
         "type": "int",
         "displayName": "空间悖论",
         "spellId": 406732,
@@ -1603,7 +1596,7 @@
         "displayType": "冷却"
       },
       "357208.cooldown": {
-        "step": 58,
+        "step": 60,
         "type": "int",
         "displayName": "火焰吐息",
         "spellId": 357208,
@@ -1611,7 +1604,7 @@
         "displayType": "冷却"
       },
       "396286.cooldown": {
-        "step": 59,
+        "step": 61,
         "type": "int",
         "displayName": "地壳激变",
         "spellId": 396286,
@@ -1619,7 +1612,7 @@
         "displayType": "冷却"
       },
       "395152.cooldown": {
-        "step": 60,
+        "step": 62,
         "type": "int",
         "displayName": "黑檀之力",
         "spellId": 395152,
@@ -1627,7 +1620,7 @@
         "displayType": "冷却"
       },
       "442204.cooldown": {
-        "step": 61,
+        "step": 63,
         "type": "int",
         "displayName": "亘古吐息",
         "spellId": 442204,
@@ -1635,7 +1628,7 @@
         "displayType": "冷却"
       },
       "409311.cooldown": {
-        "step": 62,
+        "step": 64,
         "type": "int",
         "displayName": "先知先觉",
         "spellId": 409311,
@@ -1643,7 +1636,7 @@
         "displayType": "冷却"
       },
       "409311.chargeCooldown": {
-        "step": 63,
+        "step": 65,
         "type": "int",
         "displayName": "先知先觉充能",
         "spellId": 409311,
@@ -1651,8 +1644,7 @@
         "displayType": "充能"
       },
       "409311.count": {
-        "step": "bar",
-        "bar": 3,
+        "step": 66,
         "type": "int",
         "displayName": "先知先觉层数",
         "spellId": 409311,
@@ -1660,7 +1652,7 @@
         "displayType": "充能层数"
       },
       "395160.cooldown": {
-        "step": 64,
+        "step": 67,
         "type": "int",
         "displayName": "喷发",
         "spellId": 395160,
@@ -1668,7 +1660,7 @@
         "displayType": "冷却"
       },
       "360827.cooldown": {
-        "step": 65,
+        "step": 68,
         "type": "int",
         "displayName": "炽火龙鳞",
         "spellId": 360827,
@@ -1676,7 +1668,7 @@
         "displayType": "冷却"
       },
       "361469.cooldown": {
-        "step": 66,
+        "step": 69,
         "type": "int",
         "displayName": "活化烈焰",
         "spellId": 361469,
@@ -1684,7 +1676,7 @@
         "displayType": "冷却"
       },
       "361021.cooldown": {
-        "step": 67,
+        "step": 70,
         "type": "int",
         "displayName": "威力感知",
         "spellId": 361021,
@@ -1692,7 +1684,7 @@
         "displayType": "冷却"
       },
       "351338.cooldown": {
-        "step": 68,
+        "step": 71,
         "type": "int",
         "displayName": "镇压",
         "spellId": 351338,
@@ -1700,7 +1692,7 @@
         "displayType": "冷却"
       },
       "374251.cooldown": {
-        "step": 69,
+        "step": 72,
         "type": "int",
         "displayName": "灼烧之焰",
         "spellId": 374251,
@@ -1708,7 +1700,7 @@
         "displayType": "冷却"
       },
       "355913.cooldown": {
-        "step": 70,
+        "step": 73,
         "type": "int",
         "displayName": "翡翠之花",
         "spellId": 355913,
@@ -1716,7 +1708,7 @@
         "displayType": "冷却"
       },
       "403265.cooldown": {
-        "step": 71,
+        "step": 74,
         "type": "int",
         "displayName": "青铜协调",
         "spellId": 403265,
@@ -1724,7 +1716,7 @@
         "displayType": "冷却"
       },
       "403264.cooldown": {
-        "step": 72,
+        "step": 75,
         "type": "int",
         "displayName": "黑龙协调",
         "spellId": 403264,
@@ -1733,7 +1725,7 @@
       }
     },
     "group": {
-      "start": 73,
+      "start": 76,
       "生命值": {
         "step": 1,
         "type": "int"

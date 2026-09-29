@@ -370,35 +370,35 @@
       "category": "鼠标"
     },
     "治疗石": {
-      "step": 100,
+      "step": 102,
       "type": "int",
       "category": "物品",
       "itemId": 5512,
       "isEquipped": false
     },
     "物品名称": {
-      "step": 101,
+      "step": 103,
       "type": "int",
       "category": "物品",
       "itemId": 123456,
       "isEquipped": true
     },
     "鲁莽药水": {
-      "step": 102,
+      "step": 104,
       "type": "int",
       "category": "物品",
       "itemId": 241288,
       "isEquipped": false
     },
     "圣光潜力": {
-      "step": 103,
+      "step": 105,
       "type": "int",
       "category": "物品",
       "itemId": 241308,
       "isEquipped": false
     },
     "剧毒狂怒之泉": {
-      "step": 104,
+      "step": 106,
       "type": "int",
       "category": "物品",
       "itemId": 270168,
@@ -866,8 +866,7 @@
         "displayType": "充能"
       },
       "50842.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 97,
         "type": "int",
         "displayName": "血液沸腾层数",
         "spellId": 50842,
@@ -875,7 +874,7 @@
         "displayType": "充能层数"
       },
       "43265.cooldown": {
-        "step": 97,
+        "step": 98,
         "type": "int",
         "displayName": "枯萎凋零",
         "spellId": 43265,
@@ -883,7 +882,7 @@
         "displayType": "冷却"
       },
       "43265.chargeCooldown": {
-        "step": 98,
+        "step": 99,
         "type": "int",
         "displayName": "枯萎凋零充能",
         "spellId": 43265,
@@ -891,8 +890,7 @@
         "displayType": "充能"
       },
       "43265.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 100,
         "type": "int",
         "displayName": "枯萎凋零层数",
         "spellId": 43265,
@@ -900,7 +898,7 @@
         "displayType": "充能层数"
       },
       "49028.cooldown": {
-        "step": 99,
+        "step": 101,
         "type": "int",
         "displayName": "符文刃舞",
         "spellId": 49028,
@@ -909,42 +907,42 @@
       }
     },
     "姓名板目标": {
-      "step": 105,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板焦点": {
-      "step": 106,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领1": {
       "step": 107,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领2": {
+    "姓名板焦点": {
       "step": 108,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领3": {
+    "姓名板首领1": {
       "step": 109,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领4": {
+    "姓名板首领2": {
       "step": 110,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领5": {
+    "姓名板首领3": {
       "step": 111,
       "type": "int",
       "category": "姓名板"
     },
+    "姓名板首领4": {
+      "step": 112,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 113,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
-      "start": 105,
+      "start": 107,
       "mappingCount": 7,
       "healthPercent": 1,
       "range": 2,
@@ -1201,14 +1199,14 @@
       "category": "鼠标"
     },
     "鲁莽药水": {
-      "step": 81,
+      "step": 82,
       "type": "int",
       "category": "物品",
       "itemId": 241288,
       "isEquipped": false
     },
     "剧毒狂怒之泉": {
-      "step": 82,
+      "step": 83,
       "type": "int",
       "category": "物品",
       "itemId": 270168,
@@ -1516,8 +1514,7 @@
         "displayType": "充能"
       },
       "47568.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 78,
         "type": "int",
         "displayName": "符文武器增效层数",
         "spellId": 47568,
@@ -1525,7 +1522,7 @@
         "displayType": "充能层数"
       },
       "1249658.cooldown": {
-        "step": 78,
+        "step": 79,
         "type": "int",
         "displayName": "冰龙吐息",
         "spellId": 1249658,
@@ -1533,7 +1530,7 @@
         "displayType": "冷却"
       },
       "47528.cooldown": {
-        "step": 79,
+        "step": 80,
         "type": "int",
         "displayName": "心灵冰冻",
         "spellId": 47528,
@@ -1541,7 +1538,7 @@
         "displayType": "冷却"
       },
       "46585.cooldown": {
-        "step": 80,
+        "step": 81,
         "type": "int",
         "displayName": "亡者复生",
         "spellId": 46585,
@@ -1550,42 +1547,42 @@
       }
     },
     "姓名板目标": {
-      "step": 83,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板焦点": {
       "step": 84,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领1": {
+    "姓名板焦点": {
       "step": 85,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领2": {
+    "姓名板首领1": {
       "step": 86,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领3": {
+    "姓名板首领2": {
       "step": 87,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领4": {
+    "姓名板首领3": {
       "step": 88,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领5": {
+    "姓名板首领4": {
       "step": 89,
       "type": "int",
       "category": "姓名板"
     },
+    "姓名板首领5": {
+      "step": 90,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
-      "start": 83,
+      "start": 84,
       "mappingCount": 7,
       "healthPercent": 1,
       "range": 2,
@@ -1901,42 +1898,42 @@
       "category": "首领1"
     },
     "治疗石": {
-      "step": 101,
+      "step": 104,
       "type": "int",
       "category": "物品",
       "itemId": 5512,
       "isEquipped": false
     },
     "鲁莽药水": {
-      "step": 102,
+      "step": 105,
       "type": "int",
       "category": "物品",
       "itemId": 241288,
       "isEquipped": false
     },
     "治疗药水": {
-      "step": 103,
+      "step": 106,
       "type": "int",
       "category": "物品",
       "itemId": 241304,
       "isEquipped": false
     },
     "圣光潜力": {
-      "step": 104,
+      "step": 107,
       "type": "int",
       "category": "物品",
       "itemId": 241308,
       "isEquipped": false
     },
     "剧毒狂怒之泉": {
-      "step": 105,
+      "step": 108,
       "type": "int",
       "category": "物品",
       "itemId": 270168,
       "isEquipped": false
     },
     "浓缩银月城生命药水": {
-      "step": 106,
+      "step": 109,
       "type": "int",
       "category": "物品",
       "itemId": 271884,
@@ -2273,8 +2270,7 @@
         "displayType": "充能"
       },
       "1247378.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 94,
         "type": "int",
         "displayName": "腐化层数",
         "spellId": 1247378,
@@ -2282,7 +2278,7 @@
         "displayType": "充能层数"
       },
       "1233448.cooldown": {
-        "step": 94,
+        "step": 95,
         "type": "int",
         "displayName": "黑暗突变",
         "spellId": 1233448,
@@ -2290,7 +2286,7 @@
         "displayType": "冷却"
       },
       "343294.cooldown": {
-        "step": 95,
+        "step": 96,
         "type": "int",
         "displayName": "灵魂收割",
         "spellId": 343294,
@@ -2298,7 +2294,7 @@
         "displayType": "冷却"
       },
       "43265.cooldown": {
-        "step": 96,
+        "step": 97,
         "type": "int",
         "displayName": "枯萎凋零",
         "spellId": 43265,
@@ -2306,7 +2302,7 @@
         "displayType": "冷却"
       },
       "43265.chargeCooldown": {
-        "step": 97,
+        "step": 98,
         "type": "int",
         "displayName": "枯萎凋零充能",
         "spellId": 43265,
@@ -2314,8 +2310,7 @@
         "displayType": "充能"
       },
       "43265.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 99,
         "type": "int",
         "displayName": "枯萎凋零层数",
         "spellId": 43265,
@@ -2323,7 +2318,7 @@
         "displayType": "充能层数"
       },
       "55090.cooldown": {
-        "step": 98,
+        "step": 100,
         "type": "int",
         "displayName": "天灾打击",
         "spellId": 55090,
@@ -2331,8 +2326,7 @@
         "displayType": "冷却"
       },
       "55090.count": {
-        "step": "bar",
-        "bar": 3,
+        "step": 101,
         "type": "int",
         "displayName": "天灾打击层数",
         "spellId": 55090,
@@ -2340,7 +2334,7 @@
         "displayType": "施法次数"
       },
       "47528.cooldown": {
-        "step": 99,
+        "step": 102,
         "type": "int",
         "displayName": "心灵冰冻",
         "spellId": 47528,
@@ -2348,7 +2342,7 @@
         "displayType": "冷却"
       },
       "48792.cooldown": {
-        "step": 100,
+        "step": 103,
         "type": "int",
         "displayName": "冰封之韧",
         "spellId": 48792,
@@ -2357,42 +2351,42 @@
       }
     },
     "姓名板目标": {
-      "step": 107,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板焦点": {
-      "step": 108,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领1": {
-      "step": 109,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领2": {
       "step": 110,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领3": {
+    "姓名板焦点": {
       "step": 111,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领4": {
+    "姓名板首领1": {
       "step": 112,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领5": {
+    "姓名板首领2": {
       "step": 113,
       "type": "int",
       "category": "姓名板"
     },
+    "姓名板首领3": {
+      "step": 114,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领4": {
+      "step": 115,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 116,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
-      "start": 107,
+      "start": 110,
       "mappingCount": 7,
       "healthPercent": 1,
       "range": 2,

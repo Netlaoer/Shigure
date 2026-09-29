@@ -49,6 +49,7 @@ function Shingen:InitializeSpecializationState()
 end
 
 function Shingen:RebuildSpecializationState()
+    self:ClearAllShingenBars()
     self:ClearAllTextures()
     self.state.specIndex = 1
     self.state.specID = 1
@@ -248,9 +249,9 @@ function Shingen:RefreshPlayerBars()
     if self.RefreshPlayerAuraContainers then
         self:RefreshPlayerAuraContainers()
     end
-    if blocks and blocks.bars then
-        for _, v in ipairs(blocks.bars) do
-            self:CreateAutoLayoutBar(v.valueType, v.minValue, v.maxValue, v.spellId)
+    if blocks and blocks.counts then
+        for _, v in ipairs(blocks.counts) do
+            self:CreateCountPixel(v.valueType, v.spellId, v.index)
         end
     end
 end

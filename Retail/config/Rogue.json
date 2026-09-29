@@ -418,7 +418,7 @@
       "category": "首领2"
     },
     "破损的阿曼尼旗帜": {
-      "step": 120,
+      "step": 122,
       "type": "int",
       "category": "物品",
       "itemId": 273797,
@@ -873,8 +873,7 @@
         "displayType": "充能"
       },
       "185313.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 106,
         "type": "int",
         "displayName": "暗影之舞层数",
         "spellId": 185313,
@@ -882,7 +881,7 @@
         "displayType": "充能层数"
       },
       "196819.cooldown": {
-        "step": 106,
+        "step": 107,
         "type": "int",
         "displayName": "刺骨",
         "spellId": 196819,
@@ -890,7 +889,7 @@
         "displayType": "冷却"
       },
       "315496.cooldown": {
-        "step": 107,
+        "step": 108,
         "type": "int",
         "displayName": "切割",
         "spellId": 315496,
@@ -898,7 +897,7 @@
         "displayType": "冷却"
       },
       "53.cooldown": {
-        "step": 108,
+        "step": 109,
         "type": "int",
         "displayName": "背刺",
         "spellId": 53,
@@ -906,7 +905,7 @@
         "displayType": "冷却"
       },
       "1784.cooldown": {
-        "step": 109,
+        "step": 110,
         "type": "int",
         "displayName": "潜行",
         "spellId": 1784,
@@ -914,7 +913,7 @@
         "displayType": "冷却"
       },
       "51723.cooldown": {
-        "step": 110,
+        "step": 111,
         "type": "int",
         "displayName": "刀扇",
         "spellId": 51723,
@@ -922,7 +921,7 @@
         "displayType": "冷却"
       },
       "1247227.cooldown": {
-        "step": 111,
+        "step": 112,
         "type": "int",
         "displayName": "猩红风暴",
         "spellId": 1247227,
@@ -930,7 +929,7 @@
         "displayType": "冷却"
       },
       "185565.cooldown": {
-        "step": 112,
+        "step": 113,
         "type": "int",
         "displayName": "剧毒之刃",
         "spellId": 185565,
@@ -938,7 +937,7 @@
         "displayType": "冷却"
       },
       "1943.cooldown": {
-        "step": 113,
+        "step": 114,
         "type": "int",
         "displayName": "割裂",
         "spellId": 1943,
@@ -946,7 +945,7 @@
         "displayType": "冷却"
       },
       "32645.cooldown": {
-        "step": 114,
+        "step": 115,
         "type": "int",
         "displayName": "毒伤",
         "spellId": 32645,
@@ -954,7 +953,7 @@
         "displayType": "冷却"
       },
       "1298826.cooldown": {
-        "step": 115,
+        "step": 116,
         "type": "int",
         "displayName": "蓟叶茶",
         "spellId": 1298826,
@@ -962,7 +961,7 @@
         "displayType": "冷却"
       },
       "1298826.chargeCooldown": {
-        "step": 116,
+        "step": 117,
         "type": "int",
         "displayName": "蓟叶茶充能",
         "spellId": 1298826,
@@ -970,8 +969,7 @@
         "displayType": "充能"
       },
       "1298826.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 118,
         "type": "int",
         "displayName": "蓟叶茶层数",
         "spellId": 1298826,
@@ -979,7 +977,7 @@
         "displayType": "充能层数"
       },
       "1329.cooldown": {
-        "step": 117,
+        "step": 119,
         "type": "int",
         "displayName": "毁伤",
         "spellId": 1329,
@@ -987,7 +985,7 @@
         "displayType": "冷却"
       },
       "8676.cooldown": {
-        "step": 118,
+        "step": 120,
         "type": "int",
         "displayName": "伏击",
         "spellId": 8676,
@@ -995,7 +993,7 @@
         "displayType": "冷却"
       },
       "25046.cooldown": {
-        "step": 119,
+        "step": 121,
         "type": "int",
         "displayName": "奥术洪流",
         "spellId": 25046,
@@ -1004,42 +1002,42 @@
       }
     },
     "姓名板目标": {
-      "step": 121,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板焦点": {
-      "step": 122,
-      "type": "int",
-      "category": "姓名板"
-    },
-    "姓名板首领1": {
       "step": 123,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领2": {
+    "姓名板焦点": {
       "step": 124,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领3": {
+    "姓名板首领1": {
       "step": 125,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领4": {
+    "姓名板首领2": {
       "step": 126,
       "type": "int",
       "category": "姓名板"
     },
-    "姓名板首领5": {
+    "姓名板首领3": {
       "step": 127,
       "type": "int",
       "category": "姓名板"
     },
+    "姓名板首领4": {
+      "step": 128,
+      "type": "int",
+      "category": "姓名板"
+    },
+    "姓名板首领5": {
+      "step": 129,
+      "type": "int",
+      "category": "姓名板"
+    },
     "nameplates": {
-      "start": 121,
+      "start": 123,
       "mappingCount": 7,
       "healthPercent": 1,
       "range": 2,
@@ -2157,8 +2155,7 @@
         "displayType": "充能"
       },
       "185313.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 82,
         "type": "int",
         "displayName": "暗影之舞层数",
         "spellId": 185313,
@@ -2166,7 +2163,7 @@
         "displayType": "充能层数"
       },
       "196819.cooldown": {
-        "step": 82,
+        "step": 83,
         "type": "int",
         "displayName": "刺骨",
         "spellId": 196819,
@@ -2174,7 +2171,7 @@
         "displayType": "冷却"
       },
       "315496.cooldown": {
-        "step": 83,
+        "step": 84,
         "type": "int",
         "displayName": "切割",
         "spellId": 315496,
@@ -2182,7 +2179,7 @@
         "displayType": "冷却"
       },
       "53.cooldown": {
-        "step": 84,
+        "step": 85,
         "type": "int",
         "displayName": "背刺",
         "spellId": 53,
@@ -2190,7 +2187,7 @@
         "displayType": "冷却"
       },
       "1784.cooldown": {
-        "step": 85,
+        "step": 86,
         "type": "int",
         "displayName": "潜行",
         "spellId": 1784,
@@ -2198,7 +2195,7 @@
         "displayType": "冷却"
       },
       "185438.cooldown": {
-        "step": 86,
+        "step": 87,
         "type": "int",
         "displayName": "暗影打击",
         "spellId": 185438,
@@ -2206,7 +2203,7 @@
         "displayType": "冷却"
       },
       "426591.cooldown": {
-        "step": 87,
+        "step": 88,
         "type": "int",
         "displayName": "赤喉之咬",
         "spellId": 426591,
@@ -2214,7 +2211,7 @@
         "displayType": "冷却"
       },
       "197835.cooldown": {
-        "step": 88,
+        "step": 89,
         "type": "int",
         "displayName": "袖剑风暴",
         "spellId": 197835,
@@ -2222,7 +2219,7 @@
         "displayType": "冷却"
       },
       "319175.cooldown": {
-        "step": 89,
+        "step": 90,
         "type": "int",
         "displayName": "黑火药",
         "spellId": 319175,
@@ -2230,7 +2227,7 @@
         "displayType": "冷却"
       },
       "132320.cooldown": {
-        "step": 90,
+        "step": 91,
         "type": "int",
         "displayName": "潜行",
         "spellId": 132320,
@@ -2238,7 +2235,7 @@
         "displayType": "冷却"
       },
       "1329.cooldown": {
-        "step": 91,
+        "step": 92,
         "type": "int",
         "displayName": "毁伤",
         "spellId": 1329,

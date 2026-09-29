@@ -50,7 +50,7 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
         items = {},
         auras = {},
         spells = {},
-        bars = {},
+        counts = {},
         nameplates = nil,
     }
 
@@ -156,6 +156,7 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
         end
     end
 
+    local countSpellIds = {}
     if type(t.spells) == "table" then
         for _, spell in ipairs(t.spells) do
             if type(spell) ~= "table" or not spell.spellId then
@@ -179,21 +180,17 @@ function Fuyutsui:LoadPlayerBlocks(specIndex)
                 if spell.inSpellBook then
                     blocks.spells[spellId].inSpellBook = spell.inSpellBook
                 end
+                local countType
                 if spell.charge and type(spell.maxCharge) == "number" then
-                    tinsert(blocks.bars, {
-                        valueType = "charge",
-                        minValue = 0,
-                        maxValue = spell.maxCharge,
-                        spellId = spellId,
-                    })
+                    countType = "charge"
+                elseif type(spell.castCount) == "number" and spell.castCount > 0 then
+                    countType = "castCount"
                 end
-                if type(spell.castCount) == "number" and spell.castCount > 0 then
-                    tinsert(blocks.bars, {
-                        valueType = "castCount",
-                        minValue = 0,
-                        maxValue = spell.castCount,
-                        spellId = spellId,
-                    })
+                if countType and not countSpellIds[spellId] then
+                    countSpellIds[spellId] = true
+                    blocks.spells[spellId].count = index
+                    tinsert(blocks.counts, { valueType = countType, spellId = spellId, index = index })
+                    index = index + 1
                 end
             end
         end

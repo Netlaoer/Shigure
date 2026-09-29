@@ -91,7 +91,7 @@ public sealed class PixelScanner : IRuntimeScreenScanner
                     rowData,
                     barData,
                     healAbsorbData,
-                    markerY is null ? "未找到 CountBars 标记，层数条和治疗吸收数据未采集" : null);
+                    markerY is null ? "未找到定位标记，治疗吸收数据未采集" : null);
             return result with { TargetWindowHandle = hwnd };
         }
         catch (Exception ex)

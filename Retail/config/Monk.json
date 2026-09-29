@@ -410,8 +410,7 @@
         "displayType": "冷却"
       },
       "322101.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 57,
         "type": "int",
         "displayName": "移花接木层数",
         "spellId": 322101,
@@ -419,7 +418,7 @@
         "displayType": "施法次数"
       },
       "101643.cooldown": {
-        "step": 57,
+        "step": 58,
         "type": "int",
         "displayName": "魂体双分",
         "spellId": 101643,
@@ -427,7 +426,7 @@
         "displayType": "冷却"
       },
       "119996.cooldown": {
-        "step": 58,
+        "step": 59,
         "type": "int",
         "displayName": "魂体双分：转移",
         "spellId": 119996,
@@ -435,7 +434,7 @@
         "displayType": "冷却"
       },
       "116705.cooldown": {
-        "step": 59,
+        "step": 60,
         "type": "int",
         "displayName": "切喉手",
         "spellId": 116705,
@@ -443,7 +442,7 @@
         "displayType": "冷却"
       },
       "115181.cooldown": {
-        "step": 60,
+        "step": 61,
         "type": "int",
         "displayName": "火焰之息",
         "spellId": 115181,
@@ -451,7 +450,7 @@
         "displayType": "冷却"
       },
       "123986.cooldown": {
-        "step": 61,
+        "step": 62,
         "type": "int",
         "displayName": "真气爆裂",
         "spellId": 123986,
@@ -459,7 +458,7 @@
         "displayType": "冷却"
       },
       "325153.cooldown": {
-        "step": 62,
+        "step": 63,
         "type": "int",
         "displayName": "爆炸酒桶",
         "spellId": 325153,
@@ -467,7 +466,7 @@
         "displayType": "冷却"
       },
       "198898.cooldown": {
-        "step": 63,
+        "step": 64,
         "type": "int",
         "displayName": "赤精之歌",
         "spellId": 198898,
@@ -475,7 +474,7 @@
         "displayType": "冷却"
       },
       "115399.cooldown": {
-        "step": 64,
+        "step": 65,
         "type": "int",
         "displayName": "玄牛酒",
         "spellId": 115399,
@@ -483,7 +482,7 @@
         "displayType": "冷却"
       },
       "116844.cooldown": {
-        "step": 65,
+        "step": 66,
         "type": "int",
         "displayName": "平心之环",
         "spellId": 116844,
@@ -491,7 +490,7 @@
         "displayType": "冷却"
       },
       "115078.cooldown": {
-        "step": 66,
+        "step": 67,
         "type": "int",
         "displayName": "分筋错骨",
         "spellId": 115078,
@@ -499,7 +498,7 @@
         "displayType": "冷却"
       },
       "132578.cooldown": {
-        "step": 67,
+        "step": 68,
         "type": "int",
         "displayName": "玄牛下凡",
         "spellId": 132578,
@@ -507,7 +506,7 @@
         "displayType": "冷却"
       },
       "205523.cooldown": {
-        "step": 68,
+        "step": 69,
         "type": "int",
         "displayName": "幻灭踢",
         "spellId": 205523,
@@ -843,8 +842,7 @@
         "displayType": "冷却"
       },
       "115294.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 58,
         "type": "int",
         "displayName": "法力茶层数",
         "spellId": 115294,
@@ -852,7 +850,7 @@
         "displayType": "施法次数"
       },
       "399491.cooldown": {
-        "step": 58,
+        "step": 59,
         "type": "int",
         "displayName": "神龙之赐",
         "spellId": 399491,
@@ -860,8 +858,7 @@
         "displayType": "冷却"
       },
       "399491.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 60,
         "type": "int",
         "displayName": "神龙之赐层数",
         "spellId": 399491,
@@ -870,7 +867,7 @@
       }
     },
     "group": {
-      "start": 59,
+      "start": 61,
       "生命值": {
         "step": 1,
         "type": "int"
@@ -1531,8 +1528,7 @@
         "displayType": "充能"
       },
       "1249625.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 85,
         "type": "int",
         "displayName": "乾元之巅层数",
         "spellId": 1249625,
@@ -1540,7 +1536,7 @@
         "displayType": "充能层数"
       },
       "218164.cooldown": {
-        "step": 85,
+        "step": 86,
         "type": "int",
         "displayName": "清创生血",
         "spellId": 218164,
@@ -1548,7 +1544,7 @@
         "displayType": "冷却"
       },
       "152175.cooldown": {
-        "step": 86,
+        "step": 87,
         "type": "int",
         "displayName": "升龙霸",
         "spellId": 152175,
@@ -1556,7 +1552,7 @@
         "displayType": "冷却"
       },
       "101545.cooldown": {
-        "step": 87,
+        "step": 88,
         "type": "int",
         "displayName": "翔龙在天",
         "spellId": 101545,
@@ -1564,7 +1560,7 @@
         "displayType": "冷却"
       },
       "113656.cooldown": {
-        "step": 88,
+        "step": 89,
         "type": "int",
         "displayName": "怒雷破",
         "spellId": 113656,
@@ -1572,7 +1568,7 @@
         "displayType": "冷却"
       },
       "322109.cooldown": {
-        "step": 89,
+        "step": 90,
         "type": "int",
         "displayName": "轮回之触",
         "spellId": 322109,
@@ -1580,7 +1576,7 @@
         "displayType": "冷却"
       },
       "119381.cooldown": {
-        "step": 90,
+        "step": 91,
         "type": "int",
         "displayName": "扫堂腿",
         "spellId": 119381,
@@ -1588,7 +1584,7 @@
         "displayType": "冷却"
       },
       "322101.cooldown": {
-        "step": 91,
+        "step": 92,
         "type": "int",
         "displayName": "移花接木",
         "spellId": 322101,
@@ -1596,7 +1592,7 @@
         "displayType": "冷却"
       },
       "101643.cooldown": {
-        "step": 92,
+        "step": 93,
         "type": "int",
         "displayName": "魂体双分",
         "spellId": 101643,
@@ -1604,7 +1600,7 @@
         "displayType": "冷却"
       },
       "119996.cooldown": {
-        "step": 93,
+        "step": 94,
         "type": "int",
         "displayName": "魂体双分：转移",
         "spellId": 119996,
@@ -1612,7 +1608,7 @@
         "displayType": "冷却"
       },
       "116705.cooldown": {
-        "step": 94,
+        "step": 95,
         "type": "int",
         "displayName": "切喉手",
         "spellId": 116705,
@@ -1620,7 +1616,7 @@
         "displayType": "冷却"
       },
       "198898.cooldown": {
-        "step": 95,
+        "step": 96,
         "type": "int",
         "displayName": "赤精之歌",
         "spellId": 198898,
@@ -1628,7 +1624,7 @@
         "displayType": "冷却"
       },
       "116844.cooldown": {
-        "step": 96,
+        "step": 97,
         "type": "int",
         "displayName": "平心之环",
         "spellId": 116844,
@@ -1636,7 +1632,7 @@
         "displayType": "冷却"
       },
       "115078.cooldown": {
-        "step": 97,
+        "step": 98,
         "type": "int",
         "displayName": "分筋错骨",
         "spellId": 115078,
@@ -1644,7 +1640,7 @@
         "displayType": "冷却"
       },
       "123904.cooldown": {
-        "step": 98,
+        "step": 99,
         "type": "int",
         "displayName": "白虎下凡",
         "spellId": 123904,
@@ -1652,7 +1648,7 @@
         "displayType": "冷却"
       },
       "443028.cooldown": {
-        "step": 99,
+        "step": 100,
         "type": "int",
         "displayName": "天神御身",
         "spellId": 443028,
@@ -1660,7 +1656,7 @@
         "displayType": "冷却"
       },
       "392983.cooldown": {
-        "step": 100,
+        "step": 101,
         "type": "int",
         "displayName": "风领主之击",
         "spellId": 392983,
@@ -1668,7 +1664,7 @@
         "displayType": "冷却"
       },
       "443591.cooldown": {
-        "step": 101,
+        "step": 102,
         "type": "int",
         "displayName": "众神聚心",
         "spellId": 443591,
@@ -1676,7 +1672,7 @@
         "displayType": "冷却"
       },
       "1272696.cooldown": {
-        "step": 102,
+        "step": 103,
         "type": "int",
         "displayName": "乾元镇踏",
         "spellId": 1272696,
@@ -1684,7 +1680,7 @@
         "displayType": "冷却"
       },
       "1272696.chargeCooldown": {
-        "step": 103,
+        "step": 104,
         "type": "int",
         "displayName": "乾元镇踏充能",
         "spellId": 1272696,
@@ -1692,8 +1688,7 @@
         "displayType": "充能"
       },
       "1272696.count": {
-        "step": "bar",
-        "bar": 2,
+        "step": 105,
         "type": "int",
         "displayName": "乾元镇踏层数",
         "spellId": 1272696,

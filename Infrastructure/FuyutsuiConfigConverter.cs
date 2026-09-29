@@ -401,8 +401,7 @@ internal static class FuyutsuiConfigConverter
         }
 
         var spellsObject = new JsonObject();
-        var barIndex = 1;
-        var barSpellIds = new HashSet<long>();
+        var countSpellIds = new HashSet<long>();
 
         if (spec.GetTable("spells") is { } spells)
         {
@@ -450,26 +449,25 @@ internal static class FuyutsuiConfigConverter
                 }
 
                 var maxCharge = spell.GetNumber("maxCharge");
+                var castCount = spell.GetNumber("castCount");
                 if (charge && maxCharge is not null)
                 {
-                    if (barSpellIds.Add(id))
+                    if (countSpellIds.Add(id))
                     {
-                        spellsObject[$"{id}.{SpellFieldKey.SpellCount}"] = SpellBarField(
-                            barIndex++,
+                        spellsObject[$"{id}.{SpellFieldKey.SpellCount}"] = SpellField(
+                            index++,
                             EnsureSuffix(name, "层数"),
                             id,
                             SpellFieldKey.SpellCount,
                             "充能层数");
                     }
                 }
-
-                var castCount = spell.GetNumber("castCount");
-                if (castCount is not null && castCount.Value > 0)
+                else if (castCount is not null && castCount.Value > 0)
                 {
-                    if (barSpellIds.Add(id))
+                    if (countSpellIds.Add(id))
                     {
-                        spellsObject[$"{id}.{SpellFieldKey.SpellCount}"] = SpellBarField(
-                            barIndex++,
+                        spellsObject[$"{id}.{SpellFieldKey.SpellCount}"] = SpellField(
+                            index++,
                             EnsureSuffix(name, "层数"),
                             id,
                             SpellFieldKey.SpellCount,
@@ -838,13 +836,6 @@ internal static class FuyutsuiConfigConverter
         return field;
     }
 
-    private static JsonObject BarField(int bar) => new()
-    {
-        ["step"] = "bar",
-        ["bar"] = bar,
-        ["type"] = "int"
-    };
-
     private static JsonObject SpellField(
         int step,
         string displayName,
@@ -853,18 +844,6 @@ internal static class FuyutsuiConfigConverter
         string displayType)
     {
         var field = Field(step, "int");
-        AddSpellMetadata(field, displayName, spellId, metric, displayType);
-        return field;
-    }
-
-    private static JsonObject SpellBarField(
-        int bar,
-        string displayName,
-        long spellId,
-        string metric,
-        string displayType)
-    {
-        var field = BarField(bar);
         AddSpellMetadata(field, displayName, spellId, metric, displayType);
         return field;
     }

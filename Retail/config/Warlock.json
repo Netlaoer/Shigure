@@ -656,14 +656,14 @@
       "category": "鼠标"
     },
     "治疗石": {
-      "step": 65,
+      "step": 66,
       "type": "int",
       "category": "物品",
       "itemId": 5512,
       "isEquipped": false
     },
     "治疗药水": {
-      "step": 66,
+      "step": 67,
       "type": "int",
       "category": "物品",
       "itemId": 241304,
@@ -767,8 +767,7 @@
         "displayType": "冷却"
       },
       "196277.count": {
-        "step": "bar",
-        "bar": 1,
+        "step": 56,
         "type": "int",
         "displayName": "内爆层数",
         "spellId": 196277,
@@ -776,7 +775,7 @@
         "displayType": "施法次数"
       },
       "265187.cooldown": {
-        "step": 56,
+        "step": 57,
         "type": "int",
         "displayName": "召唤恶魔暴君",
         "spellId": 265187,
@@ -784,7 +783,7 @@
         "displayType": "冷却"
       },
       "1276467.cooldown": {
-        "step": 57,
+        "step": 58,
         "type": "int",
         "displayName": "魔典：邪能破坏者",
         "spellId": 1276467,
@@ -792,7 +791,7 @@
         "displayType": "冷却"
       },
       "105174.cooldown": {
-        "step": 58,
+        "step": 59,
         "type": "int",
         "displayName": "古尔丹之手",
         "spellId": 105174,
@@ -800,7 +799,7 @@
         "displayType": "冷却"
       },
       "1276672.cooldown": {
-        "step": 59,
+        "step": 60,
         "type": "int",
         "displayName": "召唤末日守卫",
         "spellId": 1276672,
@@ -808,7 +807,7 @@
         "displayType": "冷却"
       },
       "104316.cooldown": {
-        "step": 60,
+        "step": 61,
         "type": "int",
         "displayName": "召唤恐惧猎犬",
         "spellId": 104316,
@@ -816,7 +815,7 @@
         "displayType": "冷却"
       },
       "264187.cooldown": {
-        "step": 61,
+        "step": 62,
         "type": "int",
         "displayName": "恶魔之箭",
         "spellId": 264187,
@@ -824,7 +823,7 @@
         "displayType": "冷却"
       },
       "1276452.cooldown": {
-        "step": 62,
+        "step": 63,
         "type": "int",
         "displayName": "魔典：小鬼领主",
         "spellId": 1276452,
@@ -832,7 +831,7 @@
         "displayType": "冷却"
       },
       "388215.cooldown": {
-        "step": 63,
+        "step": 64,
         "type": "int",
         "displayName": "吞噬魔法",
         "spellId": 388215,
@@ -840,7 +839,7 @@
         "displayType": "冷却"
       },
       "30146.cooldown": {
-        "step": 64,
+        "step": 65,
         "type": "int",
         "displayName": "召唤恶魔卫士",
         "spellId": 30146,

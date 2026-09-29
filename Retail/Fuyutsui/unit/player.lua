@@ -45,6 +45,7 @@ function Fuyutsui:InitializeSpecializationState()
 end
 
 function Fuyutsui:RebuildSpecializationState()
+    self:ClearAllFuyutsuiBars()
     self:ClearAllTextures()
     self.state.specIndex = C_SpecializationInfo.GetSpecialization()
     local specID, specName, _, _, role = C_SpecializationInfo.GetSpecializationInfo(self.state.specIndex)
@@ -260,9 +261,9 @@ function Fuyutsui:RefreshPlayerBars()
     if self.RefreshPlayerAuraContainers then
         self:RefreshPlayerAuraContainers()
     end
-    if blocks and blocks.bars then
-        for _, v in ipairs(blocks.bars) do
-            self:CreateAutoLayoutBar(v.valueType, v.minValue, v.maxValue, v.spellId)
+    if blocks and blocks.counts then
+        for _, v in ipairs(blocks.counts) do
+            self:CreateCountPixel(v.valueType, v.spellId, v.index)
         end
     end
 end

@@ -16,11 +16,10 @@ local BLOCK_SPACING = 0                -- 色块间距
 local COLOR_BARS_STRATA = "TOOLTIP"
 local COLOR_BARS_LEVEL = 9001
 
--- 横向条（ShingenCountBars：法术计数条，BAR_END_COLOR 收尾）
+-- 横向条行仅保留左端定位格，治疗吸收网格沿用其下方行距。
 local BAR_UNIT_COUNT = 500  -- 横向单元数
 local BAR_HEIGHT = 2        -- 条高度
 local BAR_FRAME_HEIGHT = 20 -- 容器高度
-local BAR_START_INDEX = 2   -- 首条占用起始单元
 local BAR_STRATA = "TOOLTIP"
 local BAR_LEVEL = 1
 local BAR_STATUS_LEVEL = 8999                                -- StatusBar 层级
@@ -55,11 +54,9 @@ local BLOCK_FIX_CONFIG = {
 }
 
 local BAR_CONFIG = {
-    count = BAR_UNIT_COUNT,
     heightOffset = -BLOCK_HEIGHT,
     width = screenWidth / BAR_UNIT_COUNT,
     height = BAR_HEIGHT,
-    point = "TOPLEFT",
 }
 
 local HEAL_ABSORB_SLOT_UNITS = 1 + HEAL_ABSORB_BAR_UNITS + 1 -- 前锚点 + 条身 + 终点
@@ -193,53 +190,19 @@ end
 DrawBlockEndMarker()
 
 --[[============================================================================
-    横向计数条布局
-    排布：法术计数条 → BAR_END_COLOR（终点色块始终在最后）
-    单条占用：背景单元 [-1..max] + 预留终点位 + 间隔 → 步进 max+3
+    法术计数像素；旧横向行仅保留定位标记，供治疗吸收网格扫描。
 ============================================================================]]
 
-local countBars = CreateFrame("Frame", "ShingenCountBars", UIParent)
-countBars:SetSize(screenWidth, BAR_FRAME_HEIGHT)
-countBars:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, BAR_CONFIG.heightOffset)
-countBars:SetFrameStrata(BAR_STRATA)
-countBars:SetFrameLevel(BAR_LEVEL)
+local countMarker = CreateFrame("Frame", "ShingenCountBars", UIParent)
+countMarker:SetSize(screenWidth, BAR_FRAME_HEIGHT)
+countMarker:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 0, BAR_CONFIG.heightOffset)
+countMarker:SetFrameStrata(BAR_STRATA)
+countMarker:SetFrameLevel(BAR_LEVEL)
 
-local createdBars = {}
-local spellIdToBar = {}
-local nextAvailableIndex = BAR_START_INDEX
-local countBarEndTexture = nil
-local anyHorizontalBarLaidOut = false
-
-local BAR_EVENTS = { "SPELL_UPDATE_USES", "PLAYER_ENTERING_WORLD", "SPELL_UPDATE_CHARGES" }
-local UNIT_AURA_REBIND_ORDER = { "player", "target", "focus", "boss1", "boss2", "boss3", "boss4", "boss5" }
-
---- 预留一条横向条的单元；成功返回 startIndex，空间不足返回 nil
-local function ReserveHorizontalBarUnits(maxValue, warnMsg)
-    local startIndex = nextAvailableIndex
-    -- +1 终点色块预留，+2 与下一条间隔（终点色块最终只画在全部条之后）
-    local newIndex = startIndex + maxValue + 3
-    if newIndex > BAR_CONFIG.count then
-        if warnMsg then
-            print(warnMsg)
-        end
-        return nil
-    end
-    nextAvailableIndex = newIndex
-    anyHorizontalBarLaidOut = true
-    return startIndex
-end
-
---- 背景索引色块：(r=1/255, g=相对索引/255, b=0)，供外部定位条段
-local function CreateHorizontalBarBackgrounds(startIndex, maxValue)
-    for i = -1, maxValue do
-        local currentRelativeIndex = i + 1
-        local absolutePos = startIndex + i
-        local tex = countBars:CreateTexture(nil, "BACKGROUND")
-        tex:SetSize(BAR_CONFIG.width, BAR_CONFIG.height)
-        tex:SetPoint("TOPLEFT", countBars, "TOPLEFT", (absolutePos - 1) * BAR_CONFIG.width, 0)
-        tex:SetColorTexture(1 / 255, currentRelativeIndex / 255, 0, 1)
-    end
-end
+local marker = countMarker:CreateTexture(nil, "BACKGROUND")
+marker:SetSize(BAR_CONFIG.width, BAR_CONFIG.height)
+marker:SetPoint("TOPLEFT", countMarker, "TOPLEFT", 0, 0)
+marker:SetColorTexture(1 / 255, 0, 0, 1)
 
 local function StyleHorizontalStatusBar(bar)
     bar:SetStatusBarTexture("Interface\\ChatFrame\\ChatFrameBackground")
@@ -247,104 +210,87 @@ local function StyleHorizontalStatusBar(bar)
     bar:SetStatusBarColor(1, 1, 1, 1)
 end
 
---- 将终点色块放到当前已分配内容之后（nextAvailableIndex - 2）
-local function UpdateHorizontalBarEndMarker()
-    if not anyHorizontalBarLaidOut then
-        if countBarEndTexture then
-            countBarEndTexture:Hide()
-        end
-        return
-    end
-    local endPos = nextAvailableIndex - 2
-    if not countBarEndTexture then
-        countBarEndTexture = countBars:CreateTexture(nil, "BACKGROUND")
-        countBarEndTexture:SetSize(BAR_CONFIG.width, BAR_CONFIG.height)
-    end
-    countBarEndTexture:ClearAllPoints()
-    countBarEndTexture:SetPoint("TOPLEFT", countBars, "TOPLEFT", (endPos - 1) * BAR_CONFIG.width, 0)
-    countBarEndTexture:SetColorTexture(BAR_END_COLOR[1], BAR_END_COLOR[2], BAR_END_COLOR[3], BAR_END_COLOR[4])
-    countBarEndTexture:Show()
-end
+-- StatusBar 的数值读回会在秘密状态下保留秘密属性，同时按上限 255 裁剪。
+local countClampBar = CreateFrame("StatusBar")
+countClampBar:SetMinMaxValues(0, 255)
 
----@param minValue number
----@param maxValue number
----@param spellId number
-function Shingen:CreateAutoLayoutBar(valueType, minValue, maxValue, spellId)
-    maxValue = maxValue or 0
-    minValue = minValue or 0
-    if spellIdToBar[spellId] then
-        return spellIdToBar[spellId]
+local createdCountPixels = {}
+local spellIdToCountPixel = {}
+local BAR_EVENTS = { "SPELL_UPDATE_USES", "PLAYER_ENTERING_WORLD", "SPELL_UPDATE_CHARGES" }
+local UNIT_AURA_REBIND_ORDER = { "player", "target", "focus", "boss1", "boss2", "boss3", "boss4", "boss5" }
+
+function Shingen:CreateCountPixel(valueType, spellId, index)
+    if spellIdToCountPixel[spellId] then
+        return spellIdToCountPixel[spellId]
     end
 
-    local startIndex = ReserveHorizontalBarUnits(maxValue, "警告: Shingen_CountBars 空间不足!")
-    if not startIndex then
-        return nil
-    end
+    local frame = CreateFrame("Frame", nil, colorBars)
+    frame:SetSize(BLOCK_FIX_CONFIG.blockWidth, BLOCK_FIX_CONFIG.blockHeight)
+    frame:SetPoint("TOPLEFT", colorBars, "TOPLEFT", (index - 1) * BLOCK_FIX_CONFIG.blockWidth, 0)
+    frame:SetClipsChildren(true)
+    frame:EnableMouse(false)
+    frame:SetFrameStrata(COLOR_BARS_STRATA)
+    frame:SetFrameLevel(AURA_DURATION_LEVEL)
 
-    CreateHorizontalBarBackgrounds(startIndex, maxValue)
+    local text = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    text:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    text:SetJustifyH("CENTER")
+    text:SetJustifyV("MIDDLE")
+    text:SetFontHeight(88)
+    text:SetFixedColor(false)
 
-    local bar = CreateFrame("StatusBar", nil, countBars)
-    bar:SetSize(maxValue * BAR_CONFIG.width + 1, BAR_CONFIG.height)
-    bar:SetPoint("TOPLEFT", countBars, "TOPLEFT", (startIndex - 1) * BAR_CONFIG.width, 0)
-    StyleHorizontalStatusBar(bar)
-    bar:SetFrameLevel(BAR_STATUS_LEVEL)
+    local scheme = math.floor((index - 1) / BLOCK_SCHEME_SPAN)
+    local position = index - scheme * BLOCK_SCHEME_SPAN
 
     local function Refresh()
-        local val = 0
-        if valueType == "castCount" then
-            val = C_Spell.GetSpellCastCount(spellId) or 0
-        elseif valueType == "charge" then
-            local charges = C_Spell.GetSpellCharges(spellId)
-            if charges and Shingen:IsSpellKnown(spellId) then
-                val = charges.currentCharges or 0
+        local value = 0
+        if Shingen:IsSpellKnown(spellId) then
+            if valueType == "castCount" then
+                value = C_Spell.GetSpellCastCount(spellId) or 0
+            elseif valueType == "charge" then
+                local charges = C_Spell.GetSpellCharges(spellId)
+                if charges then
+                    value = charges.currentCharges or 0
+                end
             end
         end
-        bar:SetMinMaxValues(minValue, maxValue)
-        bar:SetValue(val)
+
+        countClampBar:SetValue(value)
+        local capped = countClampBar:GetValue()
+        text:SetText(string.format("|cFF%02X%02X%02X%s|r",
+            scheme, position, capped, AURA_DURATION_CHAR))
     end
 
     for _, event in ipairs(BAR_EVENTS) do
-        bar:RegisterEvent(event)
+        frame:RegisterEvent(event)
     end
-    bar:SetScript("OnEvent", Refresh)
+    frame:SetScript("OnEvent", Refresh)
     Refresh()
 
-    tinsert(createdBars, bar)
-    spellIdToBar[spellId] = bar
-    UpdateHorizontalBarEndMarker()
-    return bar
+    tinsert(createdCountPixels, frame)
+    spellIdToCountPixel[spellId] = frame
+    return frame
 end
 
-local function RefreshAllCreatedBars()
-    for _, bar in ipairs(createdBars) do
-        local onEvent = bar:GetScript("OnEvent")
+local function RefreshAllCreatedCountPixels()
+    for _, frame in ipairs(createdCountPixels) do
+        local onEvent = frame:GetScript("OnEvent")
         if onEvent then
-            onEvent(bar, "PLAYER_ENTERING_WORLD")
+            onEvent()
         end
     end
 end
 
 function Shingen:ClearAllShingenBars()
-    for _, bar in ipairs(createdBars) do
-        bar:UnregisterAllEvents()
-        bar:SetScript("OnEvent", nil)
-        bar:Hide()
-        bar:SetParent(nil)
+    for _, frame in ipairs(createdCountPixels) do
+        frame:UnregisterAllEvents()
+        frame:SetScript("OnEvent", nil)
+        frame:Hide()
+        frame:SetParent(nil)
     end
+    wipe(createdCountPixels)
+    wipe(spellIdToCountPixel)
 
-    local regions = { countBars:GetRegions() }
-    for _, region in ipairs(regions) do
-        if region:IsObjectType("Texture") then
-            ---@diagnostic disable-next-line: undefined-field
-            region:SetColorTexture(0, 0, 0, 0)
-            region:Hide()
-        end
-    end
-
-    wipe(createdBars)
-    wipe(spellIdToBar)
-    nextAvailableIndex = BAR_START_INDEX
-    anyHorizontalBarLaidOut = false
     if Shingen.ReleasePlayerAuraContainers then
         Shingen:ReleasePlayerAuraContainers()
     end
@@ -1298,7 +1244,7 @@ function Shingen:RebindAuraSpellFilters()
         RebindContainerSpellFilters(Shingen[key], unit)
     end
 
-    RefreshAllCreatedBars()
+    RefreshAllCreatedCountPixels()
 
     local groupIndices = {}
     for memberIndex in pairs(groupAuraContainers) do
