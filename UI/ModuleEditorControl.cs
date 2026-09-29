@@ -11,7 +11,7 @@ public sealed class ModuleEditorControl : UserControl
     // 使用独立列名避开旧版“注释”文字列缓存的较大宽度；新图标列从紧凑宽度重新开始缓存。
     private const string RuleCommentColumnName = "RuleComment";
 
-    private readonly ModuleStore _moduleStore;
+    private ModuleStore _moduleStore;
     private readonly Func<Task> _runtimeRestartRequested;
     private readonly Func<ModuleDefinition, string?> _captureDependencies;
     private readonly Func<Task> _modulesReloadRequested;
@@ -63,6 +63,7 @@ public sealed class ModuleEditorControl : UserControl
     private List<ModuleDefinition> _modules = new();
     private int? _filterClassId;
     private ModuleDefinition? _selectedModule;
+    private string? _editorBaseline;
     // 当前编辑中模块的动态单位/数量字段(含未保存的新增), 供目标下拉与条件字段使用。
     private readonly List<ModuleUnit> _units = new();
     private readonly List<ModuleCountField> _counts = new();
@@ -125,7 +126,7 @@ public sealed class ModuleEditorControl : UserControl
         _keymapCatalog = KeymapCatalog.Load(resolveProfile().RuntimeDirectory, resolveProfile().AddonRoot);
         InitializeComponent();
         SpellIconCatalog.CatalogChanged += OnSpellIconCatalogChanged;
-        LoadModules();
+        LoadModules(reloadStore: false);
     }
 
     protected override void Dispose(bool disposing)
@@ -142,6 +143,7 @@ public sealed class ModuleEditorControl : UserControl
 
     public void ReloadCatalogs()
     {
+        var wasDirty = HasUnsavedChanges;
         _fieldCatalog = ConditionFieldCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
         _keymapCatalog = KeymapCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
         UpdateMatchRowProfile();
@@ -163,6 +165,61 @@ public sealed class ModuleEditorControl : UserControl
         RefreshAdjustmentFieldColumn();
         RefreshRuleSpellIcons();
         _rulesGrid.Invalidate();
+        if (!wasDirty && _selectedModule is not null)
+            _editorBaseline = CaptureEditorFingerprint();
+    }
+
+    internal bool HasUnsavedChanges => _selectedModule is not null
+        && !string.Equals(_editorBaseline, CaptureEditorFingerprint(), StringComparison.Ordinal);
+
+    internal void UseModuleStore(ModuleStore store)
+    {
+        if (ReferenceEquals(_moduleStore, store)) return;
+        _moduleStore = store;
+        ClearEditor();
+        ReloadCatalogs();
+        LoadModules(reloadStore: false);
+    }
+
+    private string CaptureEditorFingerprint()
+    {
+        static object[] GridRows(DataGridView grid) => grid.Rows.Cast<DataGridViewRow>()
+            .Where(row => !row.IsNewRow)
+            .Select(row => (object)new
+            {
+                Cells = row.Cells.Cast<DataGridViewCell>()
+                    .Select(cell => ReferenceEquals(grid.CurrentCell, cell) && grid.IsCurrentCellInEditMode
+                        ? cell.EditedFormattedValue?.ToString()
+                        : cell.Value?.ToString()).ToArray(),
+                Metadata = row.Tag is RuleRowMetadata metadata
+                    ? (object)new
+                    {
+                        metadata.SubConditions,
+                        metadata.DelayMs,
+                        metadata.LogicDelayMs,
+                        metadata.ContinueLogic
+                    }
+                    : row.Tag
+            }).ToArray();
+
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Name = _nameBox.Text,
+            Author = _authorBox.Text,
+            RecommendedTalent = _recommendedTalentBox.Text,
+            Class = _classBox.SelectedIndex,
+            Spec = _specBox.SelectedIndex,
+            Party = _partyTypeBox.SelectedIndex,
+            Hero = _heroTalentBox.SelectedIndex,
+            Units = _units,
+            Counts = _counts,
+            EnemyCounts = _enemyCounts,
+            AverageHealthFields = _averageHealthFields,
+            ValueAdjustments = _valueAdjustments,
+            Rules = GridRows(_rulesGrid),
+            Adjustments = GridRows(_adjustmentsGrid),
+            FormulaAdjustments = GridRows(_formulaAdjustmentsGrid)
+        });
     }
 
     private const int ModuleFooterBarHeight = 64;
@@ -4509,6 +4566,7 @@ public sealed class ModuleEditorControl : UserControl
             RebuildUnitCell(_rulesGrid.Rows[index], unitText);
             RebuildMacroConditionCell(_rulesGrid.Rows[index], rule.MacroCondition);
         }
+        _editorBaseline = CaptureEditorFingerprint();
     }
 
     private void ClearEditor()
@@ -4535,6 +4593,7 @@ public sealed class ModuleEditorControl : UserControl
         RefreshAdjustmentFieldColumn();
         _rulesGrid.Rows.Clear();
         SetEditorEnabled(hasModule: false);
+        _editorBaseline = null;
     }
 
     // 无选中模块时禁用保存/删除(否则点了静默无反应), 并在编辑区显示引导提示。

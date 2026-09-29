@@ -68,6 +68,8 @@ public sealed class MainForm : Form, IMessageFilter
     private Label _configSourceLabel = null!;
     private Button _updateConfigButton = null!;
     private Label _profileStatusLabel = null!;
+    private Label _retailGamePathLabel = null!;
+    private Label _foreverGamePathLabel = null!;
     private Button _automaticProfileButton = null!;
     private readonly List<(string AddonName, Button Button)> _profileButtons = [];
     private Label _spellIconPackageStatusLabel = null!;
@@ -111,13 +113,13 @@ public sealed class MainForm : Form, IMessageFilter
 
     private readonly StatusForm _statusForm;
     private readonly string _baseDirectory;
-    private readonly ModuleStore _moduleStore;
+    private ModuleStore _moduleStore => Workspace(_activeProfile.Current).Modules;
     private readonly ITriggerKeyState _triggerKeyState;
     private readonly WowProcessLocator _processLocator;
     private readonly GameProfiles _profiles;
+    private readonly IReadOnlyDictionary<string, GameWorkspace> _workspaces;
     private readonly ActiveGameProfile _activeProfile;
-    private FuyutsuiAddonSyncService _addonSyncService;
-    private ModuleDependencyService _moduleDependencyService;
+    private GameProfile _editorProfile;
     private readonly RuntimeSessionCoordinator _runtimeSession;
     private readonly ModuleEditorControl _moduleEditor;
     private readonly ClassConfigEditorControl _classConfigEditor;
@@ -146,10 +148,12 @@ public sealed class MainForm : Form, IMessageFilter
     private bool _shutdownCompleted;
     private string? _lastFrontmostProcessName;
     private bool _switchingProfile;
+    private int _editorSaveInProgress;
     private string? _manualAddonName;
     private bool _borderlessCaptureAccessRequested;
 
     private sealed record ProjectConfigUpdateResult(
+        GameProfile Profile,
         FuyutsuiConfigConverter.UpdateResult Config,
         FuyutsuiKeymapConverter.UpdateResult? Keymap,
         FuyutsuiAddonSyncResult AddonSync);
@@ -162,7 +166,7 @@ public sealed class MainForm : Form, IMessageFilter
     internal MainForm(
         AppOptions initialOptions,
         string baseDirectory,
-        ModuleStore moduleStore,
+        IReadOnlyDictionary<string, GameWorkspace> workspaces,
         ITriggerKeyState triggerKeyState,
         WowProcessLocator processLocator,
         GameProfiles profiles,
@@ -171,16 +175,15 @@ public sealed class MainForm : Form, IMessageFilter
     {
         _initialOptions = initialOptions;
         _baseDirectory = baseDirectory;
-        _moduleStore = moduleStore;
+        _workspaces = workspaces;
         _triggerKeyState = triggerKeyState;
         _processLocator = processLocator;
         _profiles = profiles;
         _activeProfile = activeProfile;
-        _addonSyncService = CreateAddonSyncService(_activeProfile.Current);
-        _moduleDependencyService = new ModuleDependencyService(_activeProfile.Current.AddonRoot);
         _runtimeSession = runtimeSession;
         _uiCache = UiCacheStore.Load();
         _manualAddonName = _profiles.FindByAddon(_uiCache.SelectedAddonName)?.AddonName;
+        _editorProfile = _profiles.FindByAddon(_manualAddonName) ?? _activeProfile.Current;
         _statusForm = new StatusForm(() => _activeProfile.Current);
         _statusForm.VisibleChanged += (_, _) =>
         {
@@ -218,22 +221,30 @@ public sealed class MainForm : Form, IMessageFilter
         InitializeTrayIcon();
         _statusForm.AttachSettingsPanel(BuildSettingsPanel());
         _moduleEditor = new ModuleEditorControl(
-            _moduleStore,
+            Workspace(_editorProfile).Modules,
             RestartRuntimeFromEditorAsync,
-            module => _moduleDependencyService.Capture(module),
+            module => Workspace(_editorProfile).Dependencies.Capture(module),
             ReloadModulesWithDependenciesAsync,
-            () => _activeProfile.Current);
+            () => _editorProfile);
         _statusForm.AttachModuleEditor(_moduleEditor);
         _classConfigEditor = new ClassConfigEditorControl(
-            () => Path.Combine(_addonSyncService.SourceRoot, "class"),
+            () => Path.Combine(_editorProfile.AddonRoot, "class"),
             UpdateClassConfigAfterSaveAsync);
         _statusForm.AttachConfigEditor(_classConfigEditor);
-        _classConfigEditor.DirtyStateChanged += dirty => _statusForm.SetPageDirty(SettingsPage.Config, dirty);
+        _classConfigEditor.DirtyStateChanged += dirty =>
+        {
+            _statusForm.SetPageDirty(SettingsPage.Config, dirty);
+            if (!dirty) ScheduleDeferredImport(_editorProfile);
+        };
         _classMacrosEditor = new ClassMacrosEditorControl(
-            () => Path.Combine(_addonSyncService.SourceRoot, "core", "classmacros.lua"),
+            () => Path.Combine(_editorProfile.AddonRoot, "core", "classmacros.lua"),
             UpdateClassConfigAfterSaveAsync);
         _statusForm.AttachMacrosEditor(_classMacrosEditor);
-        _classMacrosEditor.DirtyStateChanged += dirty => _statusForm.SetPageDirty(SettingsPage.Macros, dirty);
+        _classMacrosEditor.DirtyStateChanged += dirty =>
+        {
+            _statusForm.SetPageDirty(SettingsPage.Macros, dirty);
+            if (!dirty) ScheduleDeferredImport(_editorProfile);
+        };
         _statusForm.FormClosing += (_, _) =>
         {
             CancelToggleKeyCapture();
@@ -267,8 +278,9 @@ public sealed class MainForm : Form, IMessageFilter
             await EnsureBorderlessCaptureAccessAsync();
         }
 
-        var runtimeDataGenerated = await GenerateRuntimeDataAtStartupIfMissingAsync();
-        var dependenciesUpdated = await ImportModuleDependenciesAsync(reloadStore: true, showFeedback: true);
+        var runtimeDataGenerated = await GenerateRuntimeDataAtStartupIfMissingAsync(_activeProfile.Current);
+        var dependenciesUpdated = await ImportModuleDependenciesAsync(
+            _activeProfile.Current, reloadStore: true, showFeedback: true);
         if (!dependenciesUpdated && !runtimeDataGenerated)
         {
             await SynchronizeAddonAtStartupAsync();
@@ -281,14 +293,14 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private async Task<bool> GenerateRuntimeDataAtStartupIfMissingAsync()
+    private async Task<bool> GenerateRuntimeDataAtStartupIfMissingAsync(GameProfile profile)
     {
-        var configDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, ConfigService.ConfigDirectoryName);
-        var keymapDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, "keymap");
-        var classDirectory = Path.Combine(_activeProfile.Current.AddonRoot, "class");
+        var configDirectory = Path.Combine(profile.RuntimeDirectory, ConfigService.ConfigDirectoryName);
+        var keymapDirectory = Path.Combine(profile.RuntimeDirectory, "keymap");
+        var classDirectory = Path.Combine(profile.AddonRoot, "class");
         var availableClasses = ClassNames.GetClasses().Where(item =>
             File.Exists(Path.Combine(classDirectory, ClassNames.GetConfigFileName(item.Id) + ".lua"))).ToList();
-        var hasStaleClassFiles = _activeProfile.Current.AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+        var hasStaleClassFiles = profile.AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
             && ClassNames.GetClasses().Except(availableClasses).Any(item =>
                 File.Exists(Path.Combine(configDirectory, ClassNames.GetConfigFileName(item.Id) + ".json"))
                 || File.Exists(Path.Combine(keymapDirectory,
@@ -308,10 +320,10 @@ public sealed class MainForm : Form, IMessageFilter
             return false;
         }
 
-        AppendLog($"检测到 config 或 keymap 缺失或不完整，正在从项目 {_activeProfile.Current.AddonName} 自动生成");
+        AppendLog($"检测到 config 或 keymap 缺失或不完整，正在从项目 {profile.AddonName} 自动生成");
         try
         {
-            var result = await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
+            var result = await QueueProjectConfigUpdateAsync(profile, savedAddonFilePath: null);
             AppendLog(
                 $"已自动生成运行配置: config {result.Config.UpdatedFiles.Count} 个文件，" +
                 $"keymap {result.Keymap?.UpdatedFiles.Count ?? 0} 个文件");
@@ -325,14 +337,15 @@ public sealed class MainForm : Form, IMessageFilter
     }
 
     private Task ReloadModulesWithDependenciesAsync()
-        => ImportModuleDependenciesAsync(reloadStore: true, showFeedback: true);
+        => ImportModuleDependenciesAsync(_editorProfile, reloadStore: true, showFeedback: true);
 
-    private async Task<bool> ImportModuleDependenciesAsync(bool reloadStore, bool showFeedback)
+    private async Task<bool> ImportModuleDependenciesAsync(
+        GameProfile profile, bool reloadStore, bool showFeedback)
     {
         await _moduleImportGate.WaitAsync();
         try
         {
-            return await ImportModuleDependenciesCoreAsync(reloadStore, showFeedback);
+            return await ImportModuleDependenciesCoreAsync(profile, reloadStore, showFeedback);
         }
         finally
         {
@@ -340,34 +353,47 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private async Task<bool> ImportModuleDependenciesCoreAsync(bool reloadStore, bool showFeedback)
+    private async Task<bool> ImportModuleDependenciesCoreAsync(
+        GameProfile profile, bool reloadStore, bool showFeedback)
     {
-        if (_classConfigEditor.HasUnsavedChanges || _classMacrosEditor.HasUnsavedChanges)
+        var workspace = Workspace(profile);
+        var editingTarget = SameAddon(profile, _editorProfile);
+        if (editingTarget && HasUnsavedProfileEdits())
         {
+            workspace.NeedsImport = true;
             if (showFeedback)
             {
                 MessageBox.Show(
-                    "配置或宏页面存在未保存修改。请先保存或放弃修改，再刷新模块。",
+                    "配置、宏或模块页面存在未保存修改。请先保存或放弃修改，再刷新模块。",
                     "模块依赖未导入",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
+            }
+            if (!workspace.HasValidatedModules)
+            {
+                workspace.Modules.SetImportIssues(
+                    workspace.Modules.GetModulesForDisplay().Select(module => module.Id), []);
             }
             return false;
         }
 
         if (reloadStore)
         {
-            _moduleStore.Reload();
+            workspace.Modules.Reload();
         }
 
         ModuleDependencyImportResult result;
         try
         {
             // 合并阶段保持在 UI 线程，避免配置/宏编辑器在检查脏状态后又并发写同一 Lua。
-            result = _moduleDependencyService.Import(_moduleStore.GetModulesForImport());
+            result = workspace.Dependencies.Import(workspace.Modules.GetModulesForImport());
         }
         catch (Exception ex)
         {
+            workspace.Modules.SetImportIssues(
+                workspace.Modules.GetModulesForDisplay().Select(module => module.Id), []);
+            workspace.HasValidatedModules = false;
+            workspace.NeedsImport = true;
             AppendLog($"模块依赖导入失败: {ex.Message}");
             if (showFeedback)
             {
@@ -382,7 +408,7 @@ public sealed class MainForm : Form, IMessageFilter
         {
             try
             {
-                _moduleStore.SaveDependenciesInPlace(module);
+                workspace.Modules.SaveDependenciesInPlace(module);
                 cleanedModuleCount++;
             }
             catch (Exception ex)
@@ -391,11 +417,14 @@ public sealed class MainForm : Form, IMessageFilter
             }
         }
 
-        _moduleStore.SetImportIssues(
+        workspace.Modules.SetImportIssues(
             result.Rejected.Select(item => item.ModuleId),
             result.ConflictedModuleIds);
-        _moduleEditor.ReloadModulesFromStore(reloadStore: false);
-        RefreshModuleSelector(_lastSnapshot, forceRefresh: false);
+        workspace.HasValidatedModules = true;
+        workspace.NeedsImport = false;
+        if (editingTarget) _moduleEditor.ReloadModulesFromStore(reloadStore: false);
+        if (SameAddon(profile, _activeProfile.Current))
+            RefreshModuleSelector(_lastSnapshot, forceRefresh: true);
 
         foreach (var rejected in result.Rejected)
         {
@@ -423,11 +452,14 @@ public sealed class MainForm : Form, IMessageFilter
         {
             AppendLog(
                 $"已从模块补充本地依赖: 配置新增 {result.ConfigAdded} 项、整理 {result.ConfigUpdated} 项，宏 {result.MacrosAdded} 项；模块 {string.Join("、", result.ChangedModules)}");
-            _classConfigEditor.ReloadFromAddon();
-            _classMacrosEditor.ReloadFromAddon();
+            if (editingTarget)
+            {
+                _classConfigEditor.ReloadFromAddon();
+                _classMacrosEditor.ReloadFromAddon();
+            }
             try
             {
-                await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
+                await QueueProjectConfigUpdateAsync(profile, savedAddonFilePath: null);
             }
             catch (Exception ex)
             {
@@ -531,9 +563,19 @@ public sealed class MainForm : Form, IMessageFilter
     private async void HandleWowProcessMonitorTick(object? sender, EventArgs e)
     {
         var processName = _processLocator.FindFrontmostProcessName();
-        if (_shutdownStarted || _switchingProfile
-            || string.Equals(processName, _lastFrontmostProcessName, StringComparison.OrdinalIgnoreCase))
+        if (_shutdownStarted || _switchingProfile)
         {
+            return;
+        }
+        if (string.Equals(processName, _lastFrontmostProcessName, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_manualAddonName is null && !SameAddon(_editorProfile, _activeProfile.Current)
+                && !HasUnsavedProfileEdits())
+            {
+                SwitchEditorProfile(_activeProfile.Current);
+            }
+            if (Workspace(_editorProfile).NeedsImport && !HasUnsavedProfileEdits())
+                _ = TryResumeDeferredImportAsync(_editorProfile);
             return;
         }
         if (processName is null)
@@ -546,26 +588,17 @@ public sealed class MainForm : Form, IMessageFilter
         {
             return;
         }
-        if (_manualAddonName is not null
-            && !string.Equals(profile.AddonName, _manualAddonName, StringComparison.OrdinalIgnoreCase))
-        {
-            _lastFrontmostProcessName = processName;
-            return;
-        }
-        if (HasUnsavedProfileEdits())
-        {
-            return;
-        }
         _switchingProfile = true;
         UpdateProfileButtons();
         try
         {
-            AppendLog($"检测到 {profile.ProcessName}，正在更新 {profile.AddonName} 配置");
-            await ActivateProfileAsync(profile, updateWhenUnchanged: true);
+            AppendLog($"检测到前台游戏 {profile.ProcessName} / {profile.AddonName}");
+            await ActivateRuntimeProfileAsync(profile);
             if (!_shutdownStarted)
             {
                 _lastFrontmostProcessName = processName;
-                AppendLog($"{profile.ProcessName} 配置更新已完成");
+                if (_manualAddonName is null && !HasUnsavedProfileEdits())
+                    SwitchEditorProfile(profile);
             }
         }
         catch (OperationCanceledException) when (_shutdownStarted)
@@ -576,7 +609,7 @@ public sealed class MainForm : Form, IMessageFilter
         {
             if (!_shutdownStarted)
             {
-                AppendLog($"{processName} 配置更新失败: {ex.Message}");
+                AppendLog($"{processName} 运行版本切换失败: {ex.Message}");
             }
         }
         finally
@@ -587,127 +620,113 @@ public sealed class MainForm : Form, IMessageFilter
     }
 
     private bool HasUnsavedProfileEdits()
-        => _classConfigEditor.HasUnsavedChanges || _classMacrosEditor.HasUnsavedChanges;
+        => _classConfigEditor.HasUnsavedChanges || _classMacrosEditor.HasUnsavedChanges
+            || _moduleEditor.HasUnsavedChanges || _editorSaveInProgress > 0;
 
-    private async Task ActivateProfileAsync(GameProfile profile, bool updateWhenUnchanged)
+    private async Task ActivateRuntimeProfileAsync(GameProfile profile)
     {
         var changed = !string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase);
-        if (changed)
+        if (!changed)
         {
-            AppendLog($"切换到 {profile.ProcessName} / {profile.AddonName}");
-            try
-            {
-                await WaitForPendingConfigUpdatesAsync();
-            }
-            catch
-            {
-                // 上次配置更新的调用方已收到错误；仍可切换版本。
-            }
-            await _runtimeSession.StopAsync();
-            _activeProfile.Current = profile;
-            UpdateGameIcon();
-            _addonSyncService = CreateAddonSyncService(profile);
-            _moduleDependencyService = new ModuleDependencyService(profile.AddonRoot);
-            _moduleStore.UseDirectory(profile.ModuleDirectory);
-            ResetDefaultClassOptions();
-            ResetDefaultSpecOptions(null);
-            ResetDefaultHeroTalentOptions(null, null);
-            _moduleEditor.ReloadCatalogs();
-            _classConfigEditor.ReloadFromAddon();
-            _classMacrosEditor.ReloadFromAddon();
-            await GenerateRuntimeDataAtStartupIfMissingAsync();
-            await ImportModuleDependenciesAsync(reloadStore: true, showFeedback: false);
+            if (!_runtimeSession.IsRunning && !_shutdownStarted) await StartRuntimeAsync();
+            return;
         }
-        if (changed || updateWhenUnchanged)
+        var addonChanged = !SameAddon(profile, _activeProfile.Current);
+        try { await WaitForPendingConfigUpdatesAsync(); }
+        catch { /* 之前的调用方已收到配置更新错误。 */ }
+        await _runtimeSession.StopAsync();
+        _activeProfile.Current = profile;
+        _lastSnapshot = null;
+        if (addonChanged)
         {
-            await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
+            _selectedModuleId = null;
+            _uiCache.SelectedModuleId = null;
+            SaveUiCache();
         }
-        if (!_shutdownStarted)
-        {
-            await StartRuntimeAsync();
-        }
+        UpdateGameIcon();
+        ResetDefaultClassOptions();
+        ResetDefaultSpecOptions(null);
+        ResetDefaultHeroTalentOptions(null, null);
+        _lastModuleSelectorSignature = null;
+        await GenerateRuntimeDataAtStartupIfMissingAsync(profile);
+        if (addonChanged || !Workspace(profile).HasValidatedModules)
+            await ImportModuleDependenciesAsync(profile, reloadStore: true, showFeedback: false);
+        await QueueProjectConfigUpdateAsync(profile, savedAddonFilePath: null);
+        if (!_shutdownStarted) await StartRuntimeAsync();
+        RefreshModuleSelector(_lastSnapshot, forceRefresh: true);
+        RefreshDefaultModuleSelector();
         UpdateProfileButtons();
     }
 
-    private async Task SelectManualProfileAsync(GameProfile requestedProfile)
+    private Task SelectManualProfileAsync(GameProfile requestedProfile)
     {
-        if (_shutdownStarted || _switchingProfile)
+        if (_shutdownStarted || _switchingProfile) return Task.CompletedTask;
+        if (!SameAddon(requestedProfile, _editorProfile) && HasUnsavedProfileEdits())
         {
-            return;
-        }
-        var foregroundName = _processLocator.FindFrontmostProcessName();
-        var foregroundProfile = _profiles.Find(foregroundName);
-        var profile = foregroundProfile is not null
-            && string.Equals(foregroundProfile.AddonName, requestedProfile.AddonName, StringComparison.OrdinalIgnoreCase)
-                ? foregroundProfile
-                : requestedProfile;
-        if (!string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase)
-            && HasUnsavedProfileEdits())
-        {
-            MessageBox.Show("配置或宏页面存在未保存修改。请先保存或放弃修改，再切换版本。",
+            MessageBox.Show("配置、宏或模块页面存在未保存修改。请先保存或放弃修改，再切换界面版本。",
                 "无法切换版本", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            return Task.CompletedTask;
         }
-
         _manualAddonName = requestedProfile.AddonName;
         _uiCache.SelectedAddonName = _manualAddonName;
         SaveUiCache();
-        _switchingProfile = true;
-        UpdateProfileButtons();
-        try
-        {
-            await ActivateProfileAsync(profile, updateWhenUnchanged: false);
-            _lastFrontmostProcessName = foregroundName;
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"手动切换版本失败: {ex.Message}");
-            MessageBox.Show(ex.Message, "切换版本失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-        finally
-        {
-            _switchingProfile = false;
-            UpdateProfileButtons();
-        }
+        SwitchEditorProfile(requestedProfile);
+        return Task.CompletedTask;
     }
 
-    private async Task SelectAutomaticProfileAsync()
+    private Task SelectAutomaticProfileAsync()
     {
-        if (_shutdownStarted || _switchingProfile)
+        if (_shutdownStarted || _switchingProfile) return Task.CompletedTask;
+        if (!SameAddon(_activeProfile.Current, _editorProfile) && HasUnsavedProfileEdits())
         {
-            return;
-        }
-        var foregroundName = _processLocator.FindFrontmostProcessName();
-        var profile = _profiles.Find(foregroundName) ?? _profiles.Default;
-        if (!string.Equals(profile.ProcessName, _activeProfile.Current.ProcessName, StringComparison.OrdinalIgnoreCase)
-            && HasUnsavedProfileEdits())
-        {
-            MessageBox.Show("配置或宏页面存在未保存修改。请先保存或放弃修改，再切换版本。",
+            MessageBox.Show("配置、宏或模块页面存在未保存修改。请先保存或放弃修改，再切换界面版本。",
                 "无法切换版本", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            return Task.CompletedTask;
         }
-
         _manualAddonName = null;
         _uiCache.SelectedAddonName = null;
         SaveUiCache();
+        SwitchEditorProfile(_activeProfile.Current);
+        return Task.CompletedTask;
+    }
+
+    private void SwitchEditorProfile(GameProfile profile)
+    {
+        if (!SameAddon(profile, _editorProfile))
+        {
+            _editorProfile = profile;
+            _moduleEditor.UseModuleStore(Workspace(profile).Modules);
+            _classConfigEditor.ReloadFromAddon();
+            _classMacrosEditor.ReloadFromAddon();
+        }
         UpdateProfileButtons();
-        _switchingProfile = true;
-        UpdateProfileButtons();
+    }
+
+    private async Task TryResumeDeferredImportAsync(GameProfile profile)
+    {
+        var workspace = Workspace(profile);
+        if (!workspace.NeedsImport || workspace.ResumingImport
+            || !SameAddon(profile, _editorProfile)
+            || HasUnsavedProfileEdits() || _shutdownStarted) return;
+        workspace.ResumingImport = true;
         try
         {
-            await ActivateProfileAsync(profile, updateWhenUnchanged: false);
-            _lastFrontmostProcessName = foregroundName;
+            await ImportModuleDependenciesAsync(profile, reloadStore: true, showFeedback: false);
+            if (!workspace.NeedsImport && SameAddon(profile, _activeProfile.Current)
+                && _runtimeSession.IsRunning)
+                await StartOrRestartRuntimeAsync(restart: true);
         }
         catch (Exception ex)
         {
-            AppendLog($"自动切换版本失败: {ex.Message}");
-            MessageBox.Show(ex.Message, "切换版本失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            AppendLog($"延后导入 {profile.AddonName} 模块依赖失败: {ex.Message}");
         }
-        finally
-        {
-            _switchingProfile = false;
-            UpdateProfileButtons();
-        }
+        finally { workspace.ResumingImport = false; }
+    }
+
+    private void ScheduleDeferredImport(GameProfile profile)
+    {
+        if (IsHandleCreated && !_shutdownStarted)
+            BeginInvoke(new Action(() => _ = TryResumeDeferredImportAsync(profile)));
     }
 
     private void UpdateProfileButtons()
@@ -716,9 +735,10 @@ public sealed class MainForm : Form, IMessageFilter
         {
             return;
         }
-        var profile = _activeProfile.Current;
-        _profileStatusLabel.Text = $"当前：{profile.ProcessName} / {profile.AddonName}；" +
-            (_manualAddonName is null ? "自动跟随前台游戏" : "手动选择");
+        var runtime = _activeProfile.Current;
+        _profileStatusLabel.Text = $"运行：{runtime.ProcessName} / {runtime.AddonName}；" +
+            $"界面：{_editorProfile.Version} / {_editorProfile.AddonName}（" +
+            (_manualAddonName is null ? "自动跟随" : "手动查看") + "）";
         _automaticProfileButton.Enabled = !_switchingProfile;
         StyleLayoutButton(_automaticProfileButton, _manualAddonName is null);
         foreach (var (addonName, button) in _profileButtons)
@@ -729,8 +749,86 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
+    private string? SelectedGameExecutablePath(string version)
+        => version.Equals("Retail", StringComparison.OrdinalIgnoreCase)
+            ? _uiCache.RetailGameExecutablePath
+            : _uiCache.ForeverGameExecutablePath;
+
+    private void UpdateGamePathLabels()
+    {
+        UpdateGamePathLabel(_retailGamePathLabel, _uiCache.RetailGameExecutablePath, "Wow.exe");
+        UpdateGamePathLabel(_foreverGamePathLabel, _uiCache.ForeverGameExecutablePath, "WowClassic.exe");
+    }
+
+    private void UpdateGamePathLabel(Label label, string? selectedPath, string executableName)
+    {
+        if (string.IsNullOrWhiteSpace(selectedPath))
+        {
+            label.Text = "未选择；运行中的对应客户端仍会自动同步";
+            label.ForeColor = UiTheme.Muted;
+        }
+        else if (GameExecutablePath.TryValidate(selectedPath, executableName,
+                     out var fullPath, out var error))
+        {
+            label.Text = fullPath;
+            label.ForeColor = UiTheme.Muted;
+        }
+        else
+        {
+            label.Text = $"{selectedPath}（{error}）";
+            label.ForeColor = UiTheme.Warning;
+        }
+
+        _settingsToolTip.SetToolTip(label, label.Text);
+    }
+
+    private void SelectGameExecutablePath(string version, string executableName)
+    {
+        var selectedPath = SelectedGameExecutablePath(version);
+        using var dialog = new OpenFileDialog
+        {
+            Title = $"选择 {executableName}",
+            Filter = $"{executableName} ({executableName})|{executableName}|可执行文件 (*.exe)|*.exe",
+            FilterIndex = 1,
+            FileName = executableName,
+            CheckFileExists = true,
+            Multiselect = false,
+            RestoreDirectory = true
+        };
+        if (GameExecutablePath.TryValidate(selectedPath, executableName,
+                out var existingPath, out _))
+        {
+            dialog.InitialDirectory = Path.GetDirectoryName(existingPath);
+        }
+
+        if (dialog.ShowDialog(_statusForm) != DialogResult.OK) return;
+        if (!GameExecutablePath.TryValidate(dialog.FileName, executableName,
+                out var fullPath, out var error))
+        {
+            MessageBox.Show(_statusForm, error, "无法选择游戏程序",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (version.Equals("Retail", StringComparison.OrdinalIgnoreCase))
+            _uiCache.RetailGameExecutablePath = fullPath;
+        else
+            _uiCache.ForeverGameExecutablePath = fullPath;
+        SaveUiCache();
+        UpdateGamePathLabels();
+    }
+
     private FuyutsuiAddonSyncService CreateAddonSyncService(GameProfile profile)
-        => new(profile.AddonRoot, _processLocator.ForProcess(profile.ProcessName));
+        => new(profile.AddonRoot, _processLocator,
+            _profiles.FindAllByAddon(profile.AddonName).Select(item => item.ProcessName).ToArray(),
+            SelectedGameExecutablePath(profile.Version),
+            profile.Version.Equals("Retail", StringComparison.OrdinalIgnoreCase)
+                ? "Wow.exe" : "WowClassic.exe");
+
+    private GameWorkspace Workspace(GameProfile profile) => _workspaces[profile.AddonName];
+
+    private static bool SameAddon(GameProfile first, GameProfile second)
+        => string.Equals(first.AddonName, second.AddonName, StringComparison.OrdinalIgnoreCase);
 
     private async Task CompleteShutdownAsync()
     {
@@ -1376,13 +1474,34 @@ public sealed class MainForm : Form, IMessageFilter
             profileActions.Controls.Add(button);
             _profileButtons.Add((profile.AddonName, button));
         }
+        FlowLayoutPanel CreateGamePathActions(string version, string executableName)
+        {
+            var actions = CreateActionsHost();
+            var button = UiTheme.CreateButton("选择程序", UiTheme.ButtonKind.Secondary);
+            SizeActionControl(button, primaryControlWidth);
+            button.Click += (_, _) => SelectGameExecutablePath(version, executableName);
+            actions.Controls.Add(button);
+            return actions;
+        }
+
         AddSettingsGroup(
             "游戏版本",
             first: true,
             CreateSettingRow(
-                "当前版本",
+                "运行与编辑版本",
                 _profileStatusLabel,
-                profileActions));
+                profileActions),
+            CreateSettingRow(
+                "魔兽世界-正式服",
+                _retailGamePathLabel = CreateRowDescription("未选择"),
+                CreateGamePathActions("Retail", "Wow.exe")),
+            CreateSettingRow(
+                "魔兽世界-无限服",
+                _foreverGamePathLabel = CreateRowDescription("未选择"),
+                CreateGamePathActions("Forever", "WowClassic.exe")));
+        _retailGamePathLabel.UseMnemonic = false;
+        _foreverGamePathLabel.UseMnemonic = false;
+        UpdateGamePathLabels();
         UpdateProfileButtons();
 
         _toggleKeyButton = UiTheme.CreateButton("XBUTTON2", UiTheme.ButtonKind.Secondary);
@@ -2006,14 +2125,17 @@ public sealed class MainForm : Form, IMessageFilter
 
     private async Task UpdateConfigFromProjectWithFeedbackAsync()
     {
+        var profile = _editorProfile;
+        _editorSaveInProgress++;
         _updateConfigButton.Enabled = false;
         _updateConfigButton.Text = "更新中…";
         _configSourceLabel.ForeColor = UiTheme.Warning;
         _configSourceLabel.Text = "正在生成配置并同步游戏插件…";
         try
         {
-            var updated = await UpdateConfigFromProjectAsync();
-            _configSourceLabel.ForeColor = updated ? UiTheme.Success : UiTheme.Danger;
+            var updated = await UpdateConfigFromProjectAsync(profile);
+            if (SameAddon(profile, _editorProfile))
+                _configSourceLabel.ForeColor = updated ? UiTheme.Success : UiTheme.Danger;
         }
         catch
         {
@@ -2022,6 +2144,7 @@ public sealed class MainForm : Form, IMessageFilter
         }
         finally
         {
+            _editorSaveInProgress--;
             _updateConfigButton.Text = "更新配置";
             _updateConfigButton.Enabled = true;
             _settingsToolTip.SetToolTip(_configSourceLabel, _configSourceLabel.Text);
@@ -2032,7 +2155,8 @@ public sealed class MainForm : Form, IMessageFilter
     {
         try
         {
-            var result = await Task.Run(_addonSyncService.SynchronizeAll);
+            var service = CreateAddonSyncService(_activeProfile.Current);
+            var result = await Task.Run(service.SynchronizeAll);
             LogAddonSyncResult("启动插件同步", result);
         }
         catch (Exception ex)
@@ -2041,11 +2165,11 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private async Task<bool> UpdateConfigFromProjectAsync()
+    private async Task<bool> UpdateConfigFromProjectAsync(GameProfile profile)
     {
         try
         {
-            var result = await QueueProjectConfigUpdateAsync(savedAddonFilePath: null);
+            var result = await QueueProjectConfigUpdateAsync(profile, savedAddonFilePath: null);
             if (!_shutdownStarted)
             {
                 ShowProjectConfigUpdateResult(result);
@@ -2061,7 +2185,8 @@ public sealed class MainForm : Form, IMessageFilter
 
             AppendLog($"更新配置失败: {ex.Message}");
             MessageBox.Show(ex.Message, "更新配置失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            _configSourceLabel.Text = $"更新失败：{ex.Message}";
+            if (SameAddon(profile, _editorProfile))
+                _configSourceLabel.Text = $"更新失败：{ex.Message}";
             return false;
         }
     }
@@ -2070,24 +2195,48 @@ public sealed class MainForm : Form, IMessageFilter
         string savedAddonFilePath,
         int classId)
     {
-        var moduleResult = SaveModulesForClass(classId);
-        var result = await QueueProjectConfigUpdateAsync(savedAddonFilePath);
-        if (moduleResult.Errors.Count > 0)
+        var profile = ResolveSourceProfile(savedAddonFilePath);
+        _editorSaveInProgress++;
+        try
         {
-            throw new InvalidOperationException(
-                $"该职业有 {moduleResult.Errors.Count} 个模块保存失败；"
-                + $"已成功保存 {moduleResult.SavedCount} 个模块。详情见日志。");
-        }
+            var moduleResult = SaveModulesForClass(profile, classId);
+            var result = await QueueProjectConfigUpdateAsync(profile, savedAddonFilePath);
+            if (moduleResult.Errors.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"该职业有 {moduleResult.Errors.Count} 个模块保存失败；"
+                    + $"已成功保存 {moduleResult.SavedCount} 个模块。详情见日志。");
+            }
 
-        return new ClassConfigPostSaveResult(
-            DescribeAddonSyncIssue(result.AddonSync),
-            moduleResult.SavedCount,
-            moduleResult.Warnings);
+            return new ClassConfigPostSaveResult(
+                DescribeAddonSyncIssue(result.AddonSync),
+                moduleResult.SavedCount,
+                moduleResult.Warnings);
+        }
+        finally
+        {
+            _editorSaveInProgress--;
+            await TryResumeDeferredImportAsync(profile);
+        }
     }
 
-    private ClassModuleSaveResult SaveModulesForClass(int classId)
+    private GameProfile ResolveSourceProfile(string sourcePath)
     {
-        var modules = _moduleStore.GetModulesForDisplay()
+        var fullPath = Path.GetFullPath(sourcePath);
+        foreach (var profile in _profiles.DistinctAddons)
+        {
+            var root = Path.GetFullPath(profile.AddonRoot)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            if (fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return profile;
+        }
+        throw new InvalidOperationException($"保存文件不属于已配置插件: {fullPath}");
+    }
+
+    private ClassModuleSaveResult SaveModulesForClass(GameProfile profile, int classId)
+    {
+        var workspace = Workspace(profile);
+        var modules = workspace.Modules.GetModulesForDisplay()
             .Where(module => module.Match.ClassId == classId)
             .ToList();
         var warnings = new List<string>();
@@ -2098,8 +2247,8 @@ public sealed class MainForm : Form, IMessageFilter
         {
             try
             {
-                var warning = _moduleDependencyService.Capture(module);
-                _moduleStore.SaveDependenciesInPlace(module);
+                var warning = workspace.Dependencies.Capture(module);
+                workspace.Modules.SaveDependenciesInPlace(module);
                 savedCount++;
                 if (!string.IsNullOrWhiteSpace(warning))
                 {
@@ -2123,12 +2272,16 @@ public sealed class MainForm : Form, IMessageFilter
             AppendLog($"模块依赖保存失败: {error}");
         }
 
-        RefreshModuleSelector(_lastSnapshot, forceRefresh: true);
-        RefreshDefaultModuleSelector();
+        if (SameAddon(profile, _activeProfile.Current))
+        {
+            RefreshModuleSelector(_lastSnapshot, forceRefresh: true);
+            RefreshDefaultModuleSelector();
+        }
         return new ClassModuleSaveResult(savedCount, warnings, errors);
     }
 
-    private Task<ProjectConfigUpdateResult> QueueProjectConfigUpdateAsync(string? savedAddonFilePath)
+    private Task<ProjectConfigUpdateResult> QueueProjectConfigUpdateAsync(
+        GameProfile profile, string? savedAddonFilePath)
     {
         lock (_configUpdateSync)
         {
@@ -2138,7 +2291,8 @@ public sealed class MainForm : Form, IMessageFilter
                     new OperationCanceledException("程序正在关闭。"));
             }
 
-            var updateTask = RunQueuedConfigUpdateAsync(_configUpdateTail, savedAddonFilePath);
+            var updateTask = RunQueuedConfigUpdateAsync(
+                _configUpdateTail, profile, CreateAddonSyncService(profile), savedAddonFilePath);
             _configUpdateTail = updateTask;
             return updateTask;
         }
@@ -2146,6 +2300,8 @@ public sealed class MainForm : Form, IMessageFilter
 
     private async Task<ProjectConfigUpdateResult> RunQueuedConfigUpdateAsync(
         Task previousUpdate,
+        GameProfile profile,
+        FuyutsuiAddonSyncService syncService,
         string? savedAddonFilePath)
     {
         await Task.Yield();
@@ -2163,7 +2319,7 @@ public sealed class MainForm : Form, IMessageFilter
             throw new OperationCanceledException("程序正在关闭。");
         }
 
-        return await UpdateConfigFromProjectCoreAsync(savedAddonFilePath);
+        return await UpdateConfigFromProjectCoreAsync(profile, syncService, savedAddonFilePath);
     }
 
     private Task GetPendingConfigUpdateTask()
@@ -2190,25 +2346,27 @@ public sealed class MainForm : Form, IMessageFilter
         }
     }
 
-    private async Task<ProjectConfigUpdateResult> UpdateConfigFromProjectCoreAsync(string? savedAddonFilePath)
+    private async Task<ProjectConfigUpdateResult> UpdateConfigFromProjectCoreAsync(
+        GameProfile profile, FuyutsuiAddonSyncService syncService, string? savedAddonFilePath)
     {
         if (_shutdownStarted)
         {
             throw new OperationCanceledException("程序正在关闭。");
         }
 
-        var classDirectory = Path.Combine(_addonSyncService.SourceRoot, "class");
-        var classMacrosPath = Path.Combine(_addonSyncService.SourceRoot, "core", "classmacros.lua");
+        var classDirectory = Path.Combine(syncService.SourceRoot, "class");
+        var classMacrosPath = Path.Combine(syncService.SourceRoot, "core", "classmacros.lua");
         if (!Directory.Exists(classDirectory))
         {
-            throw new DirectoryNotFoundException($"找不到项目 {_activeProfile.Current.AddonName} class 目录: {classDirectory}");
+            throw new DirectoryNotFoundException($"找不到项目 {profile.AddonName} class 目录: {classDirectory}");
         }
 
-        _configSourceLabel.Text = File.Exists(classMacrosPath)
-            ? $"项目 {_activeProfile.Current.AddonName}: {classDirectory} + classmacros.lua"
-            : $"项目 {_activeProfile.Current.AddonName} class: {classDirectory}";
-        var configDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, ConfigService.ConfigDirectoryName);
-        var keymapDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, "keymap");
+        if (SameAddon(profile, _editorProfile))
+            _configSourceLabel.Text = File.Exists(classMacrosPath)
+                ? $"项目 {profile.AddonName}: {classDirectory} + classmacros.lua"
+                : $"项目 {profile.AddonName} class: {classDirectory}";
+        var configDirectory = Path.Combine(profile.RuntimeDirectory, ConfigService.ConfigDirectoryName);
+        var keymapDirectory = Path.Combine(profile.RuntimeDirectory, "keymap");
         Directory.CreateDirectory(keymapDirectory);
 
         try
@@ -2224,9 +2382,9 @@ public sealed class MainForm : Form, IMessageFilter
                 }
 
                 var addonSync = string.IsNullOrWhiteSpace(savedAddonFilePath)
-                    ? _addonSyncService.SynchronizeAll()
-                    : _addonSyncService.SynchronizeFile(savedAddonFilePath);
-                return new ProjectConfigUpdateResult(configResult, keymapResult, addonSync);
+                    ? syncService.SynchronizeAll()
+                    : syncService.SynchronizeFile(savedAddonFilePath);
+                return new ProjectConfigUpdateResult(profile, configResult, keymapResult, addonSync);
             });
 
             if (_shutdownStarted)
@@ -2234,8 +2392,8 @@ public sealed class MainForm : Form, IMessageFilter
                 throw new OperationCanceledException("程序正在关闭。");
             }
 
-            _moduleEditor.ReloadCatalogs();
-            AppendLog($"已从项目 {_activeProfile.Current.AddonName} 更新配置: {result.Config.UpdatedFiles.Count} 个文件 ← {result.Config.ClassDirectory}");
+            if (SameAddon(profile, _editorProfile)) _moduleEditor.ReloadCatalogs();
+            AppendLog($"已从项目 {profile.AddonName} 更新配置: {result.Config.UpdatedFiles.Count} 个文件 ← {result.Config.ClassDirectory}");
             foreach (var warning in result.Config.Warnings.Take(20))
             {
                 AppendLog($"配置警告: {warning}");
@@ -2251,14 +2409,14 @@ public sealed class MainForm : Form, IMessageFilter
             }
             else
             {
-                AppendLog($"项目 {_activeProfile.Current.AddonName} 中未找到 core\\classmacros.lua，已跳过 keymap 更新");
+                AppendLog($"项目 {profile.AddonName} 中未找到 core\\classmacros.lua，已跳过 keymap 更新");
             }
 
             LogAddonSyncResult(
                 string.IsNullOrWhiteSpace(savedAddonFilePath) ? "游戏插件全量同步" : "游戏插件文件同步",
                 result.AddonSync);
 
-            if (_runtimeSession.HasSession)
+            if (_runtimeSession.IsRunning && SameAddon(profile, _activeProfile.Current))
             {
                 AppendLog("配置已更新, 重新启动运行");
                 await StartOrRestartRuntimeAsync(restart: true, waitForConfigUpdates: false);
@@ -2291,18 +2449,21 @@ public sealed class MainForm : Form, IMessageFilter
             ? $"\n游戏插件: 已复制 {result.AddonSync.CopiedFiles.Count}，哈希相同 {result.AddonSync.SkippedFiles.Count}\n{result.AddonSync.TargetRoot}"
             : $"\n游戏插件: {syncIssue}";
 
-        _configSourceLabel.Text = syncIssue is null && warningCount == 0
-            ? $"已更新 {result.Config.UpdatedFiles.Count} 个配置文件，并完成游戏同步"
-            : $"配置已更新；{syncIssue ?? $"存在 {warningCount} 条转换警告"}";
-        _configSourceLabel.ForeColor = syncIssue is null && warningCount == 0
-            ? UiTheme.Success
-            : UiTheme.Warning;
-        _settingsToolTip.SetToolTip(_configSourceLabel, _configSourceLabel.Text);
+        if (SameAddon(result.Profile, _editorProfile))
+        {
+            _configSourceLabel.Text = syncIssue is null && warningCount == 0
+                ? $"已更新 {result.Config.UpdatedFiles.Count} 个配置文件，并完成游戏同步"
+                : $"配置已更新；{syncIssue ?? $"存在 {warningCount} 条转换警告"}";
+            _configSourceLabel.ForeColor = syncIssue is null && warningCount == 0
+                ? UiTheme.Success
+                : UiTheme.Warning;
+            _settingsToolTip.SetToolTip(_configSourceLabel, _configSourceLabel.Text);
+        }
 
         if (syncIssue is not null || warningCount > 0)
         {
             MessageBox.Show(
-                $"已从项目 {_activeProfile.Current.AddonName} 更新 {result.Config.UpdatedFiles.Count} 个职业配置。{keymapText}{syncText}{warningText}",
+                $"已从项目 {result.Profile.AddonName} 更新 {result.Config.UpdatedFiles.Count} 个职业配置。{keymapText}{syncText}{warningText}",
                 "更新配置",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -2311,6 +2472,11 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void LogAddonSyncResult(string operation, FuyutsuiAddonSyncResult result)
     {
+        foreach (var warning in result.Warnings)
+        {
+            AppendLog($"{operation}: {warning}");
+        }
+
         if (!result.TargetFound)
         {
             AppendLog($"{operation}: {result.SkippedReason}");
@@ -2334,18 +2500,22 @@ public sealed class MainForm : Form, IMessageFilter
     {
         if (!result.TargetFound)
         {
-            return result.SkippedReason;
+            return string.Join("；", result.Warnings.Append(result.SkippedReason)
+                .Where(message => !string.IsNullOrWhiteSpace(message)));
         }
 
         if (result.Failures.Count == 0)
         {
-            return null;
+            return result.Warnings.Count == 0 ? null : string.Join("；", result.Warnings);
         }
 
         var first = result.Failures[0];
-        return result.Failures.Count == 1
+        var failureText = result.Failures.Count == 1
             ? $"{first.RelativePath}: {first.Message}"
             : $"{result.Failures.Count} 个文件同步失败；首个失败为 {first.RelativePath}: {first.Message}";
+        return result.Warnings.Count == 0
+            ? failureText
+            : string.Join("；", result.Warnings.Append(failureText));
     }
 
     private void ApplyInitialOptions()
@@ -2538,6 +2708,11 @@ public sealed class MainForm : Form, IMessageFilter
 
     private async Task RestartRuntimeFromEditorAsync()
     {
+        var editedProfile = _editorProfile;
+        var hadDeferredImport = Workspace(editedProfile).NeedsImport;
+        await TryResumeDeferredImportAsync(editedProfile);
+        if (!SameAddon(editedProfile, _activeProfile.Current)) return;
+        if (hadDeferredImport) return;
         RefreshModuleSelector(_lastSnapshot, forceRefresh: false);
         RefreshDefaultModuleSelector();
         if (!_runtimeSession.HasSession)

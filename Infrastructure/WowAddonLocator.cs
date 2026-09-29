@@ -45,6 +45,13 @@ internal static class WowAddonLocator
             return null;
         }
 
+        return FindAddOnsDirectoryFromProcessPath(exePath);
+    }
+
+    public static string? FindAddOnsDirectoryFromProcessPath(string exePath)
+    {
+        if (string.IsNullOrWhiteSpace(exePath)) return null;
+
         var executableDirectory = Path.GetDirectoryName(exePath);
         var directory = executableDirectory;
         while (!string.IsNullOrWhiteSpace(directory))

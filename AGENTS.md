@@ -72,11 +72,11 @@ game_profiles.json 游戏进程、版本与插件映射；构建时复制，启�
 
 ## 插件集成（配置/宏页面）
 
-设置窗口的「配置」和「宏」两个页签编辑的是程序基准目录内当前版本插件（`Retail/Fuyutsui/` 或 `Forever/Shingen/`）的 Lua 文件，**不直接读取游戏插件目录**。项目插件是唯一权威源：保存后重新生成 Shigure 的 config/keymap，并把当前 Lua 部署到游戏；启动和「更新配置」会全量校验并部署整个插件。
+设置窗口的「配置」「宏」「模块」页签按通用页选定的**界面版本**编辑项目目录（`Retail/Fuyutsui/` 或 `Forever/Shingen/`），**不直接读取游戏插件目录**。前台游戏独立决定运行版本；通用页的手动按钮只切换编辑界面。项目插件是唯一权威源：保存后重新生成该版本的 config/keymap，并部署到映射的游戏；启动和「更新配置」会全量校验并部署对应插件。当前模块和默认模块设置仍跟随运行版本。
 
 ### 定位与部署
 
-[Infrastructure/WowProcessLocator.cs](Infrastructure/WowProcessLocator.cs) 使用 `game_profiles.json` 的进程名，按 Windows Z 顺序选择最靠前的候选进程可见顶层窗口；[Infrastructure/WowAddonLocator.cs](Infrastructure/WowAddonLocator.cs) 由进程路径定位预期的 `Interface\AddOns`，即使 Fuyutsui 尚未安装也能返回部署位置。[Infrastructure/FuyutsuiAddonSyncService.cs](Infrastructure/FuyutsuiAddonSyncService.cs) 递归使用 SHA-256 比较项目文件与游戏文件，只复制缺失或不同的文件并保留游戏额外文件；也支持保存后的单文件同步。找不到游戏或启动同步失败不阻止程序运行。
+[Infrastructure/WowProcessLocator.cs](Infrastructure/WowProcessLocator.cs) 使用 `game_profiles.json` 的进程名，按 Windows Z 顺序选择最靠前的候选进程可见顶层窗口；部署时另查找映射进程的全部运行路径，不要求目标位于前台。[Infrastructure/WowAddonLocator.cs](Infrastructure/WowAddonLocator.cs) 由进程路径定位预期的 `Interface\AddOns`，即使插件尚未安装也能返回部署位置。[Infrastructure/FuyutsuiAddonSyncService.cs](Infrastructure/FuyutsuiAddonSyncService.cs) 递归使用 SHA-256 比较项目文件与各游戏目录，只复制缺失或不同的文件并保留游戏额外文件；也支持保存后的单文件同步。找不到游戏或启动同步失败不阻止程序运行。
 
 ### Lua 解析
 
@@ -107,7 +107,7 @@ game_profiles.json 游戏进程、版本与插件映射；构建时复制，启�
 
 - [UI/ClassConfigEditorControl.cs](UI/ClassConfigEditorControl.cs)：左侧职业列表 + 右侧按专精切换的六页编辑器（状态/光环/冷却/队伍/技能列表/物品列表），状态字段用 `ClassStateCatalog` 驱动的 `ComboBoxColumn`。
 - [UI/ClassMacrosEditorControl.cs](UI/ClassMacrosEditorControl.cs)：左侧职业列表 + 右侧三页编辑器（动态宏/静态宏/特殊宏），偏移提示显示槽位编号计算。
-- 两个编辑器均接受 `Func<string?>` 项目路径解析器 + `Func<string, int, Task<ClassConfigPostSaveResult>>` 保存回调，由 `MainForm` 在构造时注入。保存流程：编辑器调 `Store.Save()` → 同步保存该职业模块依赖快照 → 传入已保存文件路径 → 重新生成 config/keymap → 单文件部署游戏 → 重启运行时；部署失败返回说明，但不回滚本地文件。
+- 两个编辑器均接受 `Func<string?>` 项目路径解析器 + `Func<string, int, Task<ClassConfigPostSaveResult>>` 保存回调，由 `MainForm` 在构造时注入。保存流程：编辑器调 `Store.Save()` → 根据已保存文件路径锁定版本 → 同步保存该职业模块依赖快照 → 重新生成该版本 config/keymap → 向映射游戏单文件部署；仅当该版本正在运行时重启运行时。部署失败返回说明，但不回滚本地文件。
 - 配置更新的多个入口通过任务尾队列串行执行；运行时重启会等待该队列稳定，主窗口关闭也会等待正在写盘的转换和部署完成。新增同步入口必须继续走这条队列。
 
 ## UI 约定

@@ -7,20 +7,20 @@ internal interface IShigureRuntimeFactory
 
 internal sealed class ShigureRuntimeFactory : IShigureRuntimeFactory
 {
-    private readonly ModuleStore _moduleStore;
+    private readonly Func<GameProfile, ModuleStore> _resolveModuleStore;
     private readonly ITriggerKeyState _triggerKeyState;
     private readonly WowProcessLocator _processLocator;
     private readonly ActiveGameProfile _activeProfile;
     private readonly TimeProvider _timeProvider;
 
     public ShigureRuntimeFactory(
-        ModuleStore moduleStore,
+        Func<GameProfile, ModuleStore> resolveModuleStore,
         ITriggerKeyState triggerKeyState,
         WowProcessLocator processLocator,
         ActiveGameProfile activeProfile,
         TimeProvider? timeProvider = null)
     {
-        _moduleStore = moduleStore;
+        _resolveModuleStore = resolveModuleStore;
         _triggerKeyState = triggerKeyState;
         _processLocator = processLocator;
         _activeProfile = activeProfile;
@@ -46,7 +46,7 @@ internal sealed class ShigureRuntimeFactory : IShigureRuntimeFactory
             _triggerKeyState,
             new LogicRegistry(
                 keymap,
-                _moduleStore,
+                _resolveModuleStore(profile),
                 options.ModuleId,
                 defaultModules: UiCacheStore.Load().DefaultModules),
             _timeProvider);

@@ -74,24 +74,23 @@ internal static class Program
             var profiles = GameProfiles.Load(baseDirectory);
             var processLocator = new WowProcessLocator(profiles);
             var foregroundProfile = profiles.Find(processLocator.FindFrontmostProcessName());
-            var savedProfile = profiles.FindByAddon(UiCacheStore.Load().SelectedAddonName);
-            var initialProfile = savedProfile is null
-                ? foregroundProfile ?? profiles.Default
-                : foregroundProfile is not null
-                  && string.Equals(foregroundProfile.AddonName, savedProfile.AddonName, StringComparison.OrdinalIgnoreCase)
-                    ? foregroundProfile
-                    : savedProfile;
+            var initialProfile = foregroundProfile ?? profiles.Default;
             var activeProfile = new ActiveGameProfile(initialProfile);
-            var moduleStore = new ModuleStore(initialProfile.ModuleDirectory);
-            ShowModuleMigrationHint(baseDirectory, moduleStore);
+            var workspaces = profiles.DistinctAddons.ToDictionary(
+                profile => profile.AddonName,
+                profile => new GameWorkspace(profile),
+                StringComparer.OrdinalIgnoreCase);
+            ShowModuleMigrationHint(baseDirectory, workspaces[initialProfile.AddonName].Modules);
             var triggerKeyState = new WindowsTriggerKeyState();
-            var runtimeFactory = new ShigureRuntimeFactory(moduleStore, triggerKeyState, processLocator, activeProfile);
+            var runtimeFactory = new ShigureRuntimeFactory(
+                profile => workspaces[profile.AddonName].Modules,
+                triggerKeyState, processLocator, activeProfile);
             var runtimeSession = new RuntimeSessionCoordinator(runtimeFactory);
 
             Application.Run(new MainForm(
                 options,
                 baseDirectory,
-                moduleStore,
+                workspaces,
                 triggerKeyState,
                 processLocator,
                 profiles,

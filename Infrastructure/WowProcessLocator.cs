@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 
@@ -73,6 +74,46 @@ internal sealed class WowProcessLocator
     public string? FindFrontmostProcessName()
     {
         return GetProcessName(FindFrontmostWindow());
+    }
+
+    /// <summary>部署插件时查找指定进程的所有安装位置，不受前台窗口限制。</summary>
+    public IReadOnlyList<string> FindRunningProcessPaths(string processName)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Process[] processes;
+        try
+        {
+            processes = Process.GetProcessesByName(processName);
+        }
+        catch (InvalidOperationException)
+        {
+            return [];
+        }
+        catch (Win32Exception)
+        {
+            return [];
+        }
+
+        foreach (var process in processes)
+        {
+            using (process)
+            {
+                try
+                {
+                    var path = TryGetProcessPath(unchecked((uint)process.Id));
+                    if (!string.IsNullOrWhiteSpace(path)) paths.Add(path);
+                }
+                catch (InvalidOperationException)
+                {
+                    // 进程可能刚退出。
+                }
+                catch (Win32Exception)
+                {
+                    // 无权读取单个进程时继续尝试其它安装位置。
+                }
+            }
+        }
+        return paths.ToArray();
     }
 
     private static string? GetProcessName(nint hwnd)

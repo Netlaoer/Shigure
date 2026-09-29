@@ -17,7 +17,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
     private readonly ListBox _list = new();
     private readonly List<ClassNode> _classes = new();
     private readonly List<VisibleRow> _rows = new();
-    private readonly HashSet<int> _expandedClassIds = new();
+    private int? _expandedClassId;
     private bool _suppressSelection;
     private int? _selectedClassId;
     private int? _selectedSpecId;
@@ -76,20 +76,20 @@ internal sealed class ClassSpecTreeSidebar : Panel
         _suppressSelection = true;
         try
         {
-            var previousExpanded = new HashSet<int>(_expandedClassIds);
+            var previousExpandedClassId = _expandedClassId;
             var previousClassId = _selectedClassId;
             var previousSpecId = _selectedSpecId;
 
             _classes.Clear();
-            _expandedClassIds.Clear();
             foreach (var entry in classes)
             {
                 _classes.Add(new ClassNode(entry.ClassId, entry.Name, []));
-                if (previousExpanded.Contains(entry.ClassId))
-                {
-                    _expandedClassIds.Add(entry.ClassId);
-                }
             }
+
+            _expandedClassId = previousExpandedClassId is { } expandedClassId
+                && _classes.Any(node => node.ClassId == expandedClassId)
+                ? expandedClassId
+                : null;
 
             _selectedClassId = null;
             _selectedSpecId = null;
@@ -130,7 +130,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
         {
             Specs = specs.Select(spec => new SpecNode(spec.SpecId, spec.Name)).ToList()
         };
-        _expandedClassIds.Add(classId);
+        _expandedClassId = classId;
         RebuildVisibleRows();
         SyncListSelection();
     }
@@ -154,7 +154,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
 
         if (expand)
         {
-            _expandedClassIds.Add(classId);
+            _expandedClassId = classId;
         }
 
         var changed = _selectedClassId != classId || _selectedSpecId is not null;
@@ -176,7 +176,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
             return;
         }
 
-        _expandedClassIds.Add(classId);
+        _expandedClassId = classId;
         var changed = _selectedClassId != classId || _selectedSpecId != specId;
         _selectedClassId = classId;
         _selectedSpecId = specId;
@@ -238,7 +238,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
         _rows.Clear();
         foreach (var node in _classes)
         {
-            var expanded = _expandedClassIds.Contains(node.ClassId);
+            var expanded = _expandedClassId == node.ClassId;
             _rows.Add(VisibleRow.Class(node.ClassId, node.Name, expanded));
             if (!expanded)
             {
@@ -316,17 +316,17 @@ internal sealed class ClassSpecTreeSidebar : Panel
         var row = _rows[index];
         if (!row.IsSpec)
         {
-            var wasExpanded = _expandedClassIds.Contains(row.ClassId);
+            var wasExpanded = _expandedClassId == row.ClassId;
             if (wasExpanded)
             {
-                _expandedClassIds.Remove(row.ClassId);
+                _expandedClassId = null;
                 RebuildVisibleRows();
                 // 折叠不改变当前选中专精，避免右侧编辑区闪烁重载。
                 SyncListSelection();
                 return;
             }
 
-            _expandedClassIds.Add(row.ClassId);
+            _expandedClassId = row.ClassId;
             RebuildVisibleRows();
             var node = _classes.First(item => item.ClassId == row.ClassId);
             if (node.Specs.Count > 0)
@@ -355,7 +355,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
         _selectedSpecId = specId;
         if (specId is not null)
         {
-            _expandedClassIds.Add(classId);
+            _expandedClassId = classId;
             RebuildVisibleRows();
         }
         else

@@ -40,6 +40,10 @@ internal sealed class GameProfiles
             : _byProcess.Values.FirstOrDefault(profile =>
                 string.Equals(profile.AddonName, addonName, StringComparison.OrdinalIgnoreCase));
 
+    public IReadOnlyList<GameProfile> FindAllByAddon(string addonName)
+        => _byProcess.Values.Where(profile =>
+            string.Equals(profile.AddonName, addonName, StringComparison.OrdinalIgnoreCase)).ToArray();
+
     public static GameProfiles Load(string baseDirectory)
     {
         var path = Path.Combine(baseDirectory, "game_profiles.json");
