@@ -328,7 +328,7 @@
         ]
       },
       "player.1242974.apps": {
-        "step": "bar",
+        "step": 43,
         "type": "int",
         "category": "玩家",
         "displayName": "奥数齐射层数",
@@ -337,11 +337,10 @@
         "metric": "apps",
         "spellIds": [
           1242974
-        ],
-        "bar": 1
+        ]
       },
       "player.394195.value": {
-        "step": 43,
+        "step": 44,
         "type": "int",
         "category": "玩家",
         "displayName": "溢流能量",
@@ -353,7 +352,7 @@
         ]
       },
       "player.394195.apps": {
-        "step": "bar",
+        "step": 45,
         "type": "int",
         "category": "玩家",
         "displayName": "溢流能量层数",
@@ -362,11 +361,10 @@
         "metric": "apps",
         "spellIds": [
           394195
-        ],
-        "bar": 2
+        ]
       },
       "player.263725.value": {
-        "step": 44,
+        "step": 46,
         "type": "int",
         "category": "玩家",
         "displayName": "节能施法",
@@ -378,7 +376,7 @@
         ]
       },
       "player.263725.apps": {
-        "step": "bar",
+        "step": 47,
         "type": "int",
         "category": "玩家",
         "displayName": "节能施法层数",
@@ -387,11 +385,10 @@
         "metric": "apps",
         "spellIds": [
           263725
-        ],
-        "bar": 3
+        ]
       },
       "player.1277009.value": {
-        "step": 45,
+        "step": 48,
         "type": "int",
         "category": "玩家",
         "displayName": "过载飞弹",
@@ -403,7 +400,7 @@
         ]
       },
       "player.1223797.value": {
-        "step": 46,
+        "step": 49,
         "type": "int",
         "category": "玩家",
         "displayName": "敏锐直觉",
@@ -415,7 +412,7 @@
         ]
       },
       "player.451038.value": {
-        "step": 47,
+        "step": 50,
         "type": "int",
         "category": "玩家",
         "displayName": "奥术之魂",
@@ -427,7 +424,7 @@
         ]
       },
       "player.365362.value": {
-        "step": 48,
+        "step": 51,
         "type": "int",
         "category": "玩家",
         "displayName": "奥术涌动",
@@ -439,7 +436,7 @@
         ]
       },
       "player.235450.value": {
-        "step": 49,
+        "step": 52,
         "type": "int",
         "category": "玩家",
         "displayName": "棱光护体",

@@ -8,6 +8,10 @@ local EnumPowerType = Shingen.EnumPowerType
 local spellsList = Shingen.spellsList
 
 local drinkStatusTimer = nil
+local classRange = {
+    WARRIOR = 5, PALADIN = 5, ROGUE = 5, HUNTER = 35,
+    PRIEST = 40, SHAMAN = 30, MAGE = 40, WARLOCK = 40, DRUID = 30,
+}
 
 function Shingen:InitializeCharacterState()
     self.db.char.level = UnitLevel("player")
@@ -17,12 +21,12 @@ function Shingen:InitializeCharacterState()
 end
 
 function Shingen:InitializeSpecializationState()
-    self.state.specIndex = C_SpecializationInfo.GetSpecialization()
-    local specID, specName, _, _, role = C_SpecializationInfo.GetSpecializationInfo(self.state.specIndex)
-    self.state.specID = specID
-    self.state.specName = specName
-    self.state.specRole = role
-    self.state.specRange = self.rangeSpecID[specID]
+    -- Forever 只有职业。[1] 是现有像素协议/配置解析的固定内部槽位。
+    self.state.specIndex = 1
+    self.state.specID = 1
+    self.state.specName = nil
+    self.state.specRole = UnitGroupRolesAssigned("player") or "NONE"
+    self.state.specRange = classRange[self.state.classFilename] or 30
     self.state.isDead = UnitIsDeadOrGhost("player")
     self.state.isChatOpen = false
     self.state.casting = false
@@ -46,12 +50,11 @@ end
 
 function Shingen:RebuildSpecializationState()
     self:ClearAllTextures()
-    self.state.specIndex = C_SpecializationInfo.GetSpecialization()
-    local specID, specName, _, _, role = C_SpecializationInfo.GetSpecializationInfo(self.state.specIndex)
-    self.state.specID = specID
-    self.state.specName = specName
-    self.state.specRole = role
-    self.state.specRange = self.rangeSpecID[specID]
+    self.state.specIndex = 1
+    self.state.specID = 1
+    self.state.specName = nil
+    self.state.specRole = UnitGroupRolesAssigned("player") or "NONE"
+    self.state.specRange = classRange[self.state.classFilename] or 30
     self:LoadPlayerBlocks(self.state.specIndex)
     self:UpdateSpellKnown()
     self:RefreshPlayerState()
@@ -240,21 +243,6 @@ function Shingen:RefreshGroupCountState()
     self:UpdateStateBlock("状态", "队伍人数")
 end
 
-function Shingen:UpdateHeroTalent()
-    if self.heroTalents then
-        C_Timer.After(1, function()
-            self.state.heroTalent = 0
-            for spellID, index in pairs(self.heroTalents) do
-                if IsSpellKnown(spellID) or IsSpellInSpellBook(spellID) then
-                    self.state.heroTalent = index
-                    break
-                end
-            end
-            self:UpdateStateBlock("状态", "英雄天赋")
-        end)
-    end
-end
-
 function Shingen:RefreshPlayerBars()
     local blocks = self.blocks
     if self.RefreshPlayerAuraContainers then
@@ -264,9 +252,6 @@ function Shingen:RefreshPlayerBars()
         for _, v in ipairs(blocks.bars) do
             self:CreateAutoLayoutBar(v.valueType, v.minValue, v.maxValue, v.spellId)
         end
-    end
-    if self.LayoutAuraApplicationBars then
-        self:LayoutAuraApplicationBars()
     end
 end
 
@@ -413,23 +398,6 @@ function Shingen:UpdatePlayerStagger()
     self:UpdateStateBlock("特殊", "酒池")
 end
 
-local holyArmaments = {
-    [432459] = 1, -- 神圣壁垒
-    [432472] = 2, -- 圣洁武器
-}
-
-function Shingen:UpdateHolyArmaments(spellID) -- 神圣军备
-    if not spellID or spellID ~= 375576 then return end
-    for spellId, index in pairs(holyArmaments) do
-        local overrideSpellID = C_Spell.GetOverrideSpell(375576)
-        if not overrideSpellID then return end
-        if overrideSpellID == spellId then
-            state.holyArmaments = index / 255 or 0
-            self:UpdateStateBlock("特殊", "神圣军备")
-        end
-    end
-end
-
 local forbearanceTimer = nil
 
 function Shingen:UpdatePlayerForbearance() -- 25771 自律
@@ -450,189 +418,4 @@ function Shingen:UpdatePlayerForbearance() -- 25771 自律
             forbearanceTimer = nil
         end
     end, 30)
-end
-
-function Shingen:UpdateVampiricStrike(spellID) -- 吸血鬼打击
-    if spellID == 206930 or spellID == 55090 then
-        local overrideSpellID1 = C_Spell.GetOverrideSpell(206930)
-        local overrideSpellID2 = C_Spell.GetOverrideSpell(55090)
-
-        if overrideSpellID1 == 433895 or overrideSpellID2 == 433895 then
-            state.VampiricStrike = 1 / 255
-            self:UpdateStateBlock("特殊", "吸血鬼打击")
-        else
-            state.VampiricStrike = 0
-            self:UpdateStateBlock("特殊", "吸血鬼打击")
-        end
-    end
-end
-
-local boilingPointTimer = nil
-
-function Shingen:UpdateBoilingPoint(spellID) -- 沸点
-    if spellID ~= 1265982 then return end
-
-    if boilingPointTimer then
-        boilingPointTimer:Cancel()
-        boilingPointTimer = nil
-    end
-
-    local remaining = 3
-    state.boilingPoint = remaining / 255
-    self:UpdateStateBlock("特殊", "沸点")
-
-    boilingPointTimer = C_Timer.NewTicker(1, function()
-        remaining = remaining - 1
-        state.boilingPoint = remaining > 0 and (remaining / 255) or 0
-        self:UpdateStateBlock("特殊", "沸点")
-        if remaining <= 0 then
-            boilingPointTimer = nil
-        end
-    end, 3)
-end
-
--- 死亡骑士天启骑士检测
-local ActiveKnightSpells = {
-    [454393] = 1,
-    [454389] = 2,
-    [454392] = 3,
-    [454390] = 4,
-}
-local InactiveKnightSpells = {
-    [444248] = 1,
-    [444251] = 2,
-    [444252] = 3,
-    [444254] = 4,
-}
-local ActiveKnights = { false, false, false, false }
-
-function Shingen:RecordKnightSpellState(spellID)
-    if ActiveKnightSpells[spellID] then
-        ActiveKnights[ActiveKnightSpells[spellID]] = true
-    end
-    if InactiveKnightSpells[spellID] then
-        ActiveKnights[InactiveKnightSpells[spellID]] = false
-    end
-end
-
-local function GetActiveKnightsCount()
-    local count = 0
-    for i = 1, 4 do
-        if ActiveKnights[i] then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-function Shingen:RefreshActiveKnightCount()
-    state.knightCount = GetActiveKnightsCount() / 255
-    self:UpdateStateBlock("特殊", "天启骑士数量")
-end
-
-function Shingen:UpdateReaverGlaive(spellID) -- 收割者战刃
-    if not spellID or spellID ~= 206930 then return end
-    local overrideSpellID = C_Spell.GetOverrideSpell(204157)
-
-    if overrideSpellID == 433895 then
-        state.reaverGlaive = 1 / 255
-        self:UpdateStateBlock("特殊", "收割者战刃")
-    else
-        state.reaverGlaive = 0
-        self:UpdateStateBlock("特殊", "收割者战刃")
-    end
-end
-
-local heroicStrikeTimer = nil
-
-function Shingen:UpdateHeroicStrike(spellID) -- 英勇打击
-    if not spellID or spellID ~= 1464 then return end
-
-    if heroicStrikeTimer then
-        heroicStrikeTimer:Cancel()
-        heroicStrikeTimer = nil
-    end
-
-    local overrideSpellID = C_Spell.GetOverrideSpell(1464)
-    if overrideSpellID == 1269383 then
-        local remaining = 15
-        state.heroicStrike = remaining / 255
-        self:UpdateStateBlock("特殊", "英勇打击")
-
-        heroicStrikeTimer = C_Timer.NewTicker(1, function()
-            remaining = remaining - 1
-            state.heroicStrike = remaining > 0 and (remaining / 255) or 0
-            self:UpdateStateBlock("特殊", "英勇打击")
-            if remaining <= 0 then
-                heroicStrikeTimer = nil
-            end
-        end, 15)
-    else
-        state.heroicStrike = 0
-        self:UpdateStateBlock("特殊", "英勇打击")
-    end
-end
-
--- 1267068 风暴涌流图腾 / 5394 治疗之泉图腾：每个独立 18 秒，可同时多个
-local TOTEM_DURATION = 18
-local totemSpellConfig = {
-    [1267068] = {
-        remainingKey = "stormSurgeTotem",
-        countKey = "stormSurgeTotemCount",
-        remainingName = "风暴涌流图腾",
-        countName = "风暴涌流图腾数量",
-    },
-    [5394] = {
-        remainingKey = "healingStreamTotem",
-        countKey = "healingStreamTotemCount",
-        remainingName = "治疗之泉图腾",
-        countName = "治疗之泉图腾数量",
-    },
-}
-local activeTotemExpires = {
-    [1267068] = {},
-    [5394] = {},
-}
-local totemTicker = nil
-
-local function RefreshActiveTotemState(self)
-    local now = GetTime()
-    local anyActive = false
-    for spellID, cfg in pairs(totemSpellConfig) do
-        local expires = activeTotemExpires[spellID]
-        while expires[1] and expires[1] <= now do
-            table.remove(expires, 1)
-        end
-
-        local count = #expires
-        local remaining = 0
-        if count > 0 then
-            remaining = math.max(0, expires[#expires] - now)
-            anyActive = true
-        end
-
-        state[cfg.remainingKey] = math.ceil(remaining) / 255
-        state[cfg.countKey] = count / 255
-        self:UpdateStateBlock("特殊", cfg.remainingName)
-        self:UpdateStateBlock("特殊", cfg.countName)
-    end
-
-    if not anyActive and totemTicker then
-        totemTicker:Cancel()
-        totemTicker = nil
-    end
-end
-
-function Shingen:UpdateActiveTotemRemainingTime(spellID)
-    local cfg = totemSpellConfig[spellID]
-    if not cfg then return end
-
-    table.insert(activeTotemExpires[spellID], GetTime() + TOTEM_DURATION)
-    RefreshActiveTotemState(self)
-
-    if not totemTicker then
-        totemTicker = C_Timer.NewTicker(1, function()
-            RefreshActiveTotemState(self)
-        end)
-    end
 end

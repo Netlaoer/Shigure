@@ -95,7 +95,20 @@ internal static partial class FuyutsuiKeymapConverter
         {
             if (classMacros.GetTable(classFile) is not { } classTable)
             {
-                warnings.Add($"跳过 {classFile}: ClassMacros 中无此职业表");
+                if (string.Equals(Path.GetFileName(Path.GetDirectoryName(classMacrosPath)),
+                        "core", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(
+                        Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(classMacrosPath))),
+                        "Shingen", StringComparison.OrdinalIgnoreCase))
+                {
+                    var stalePath = Path.Combine(keymapDirectory,
+                        ClassNames.GetConfigFileName(classId).ToLowerInvariant() + ".json");
+                    if (File.Exists(stalePath)) File.Delete(stalePath);
+                }
+                else
+                {
+                    warnings.Add($"跳过 {classFile}: ClassMacros 中无此职业表");
+                }
                 continue;
             }
 

@@ -2237,7 +2237,13 @@ public sealed class ClassConfigEditorControl : UserControl
         try
         {
             var options = new List<SpecOption>();
-            foreach (var spec in ClassNames.GetSpecs(item.ClassId))
+            var isForever = string.Equals(
+                    Path.GetFileName(Path.GetDirectoryName(_currentDocument.FilePath)),
+                    "class", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(_currentDocument.FilePath))),
+                    "Shingen", StringComparison.OrdinalIgnoreCase);
+            foreach (var spec in isForever ? [] : ClassNames.GetSpecs(item.ClassId))
             {
                 if (_currentDocument.Specs.ContainsKey(spec.Id))
                 {
@@ -2253,7 +2259,8 @@ public sealed class ClassConfigEditorControl : UserControl
                     continue;
                 }
 
-                options.Add(new SpecOption(item.ClassId, specId, $"专精{specId}"));
+                options.Add(new SpecOption(item.ClassId, specId,
+                    isForever && specId == 1 ? "职业技能" : $"专精{specId}"));
             }
 
             RebuildSpecList(options);

@@ -43,28 +43,8 @@ end
 Shingen.DebugPrintNewSpellEntry = DebugPrintNewSpellEntry
 Shingen.DebugPrintSpellBlockLine = DebugPrintSpellBlockLine
 
-local overrideSpells = {
-    [432459] = 1289728, -- 神圣壁垒
-    [432472] = 1289728, -- 圣洁武器
-    [444995] = 455630,  -- 涌动图腾
-    [1242173] = 228260, -- 虚空齐射
-    [1241413] = 31884,  -- 愤怒之锤
-    [24275] = 31884,    -- 愤怒之锤
-    [1241288] = 31884,  -- 愤怒之锤
-    [1277026] = 31884,  -- 愤怒之锤
-    [1279408] = 31884,  -- 愤怒之锤
-}
-
 function Shingen:IsSpellKnown(spellID)
-    local isKnown = IsSpellKnown(spellID)
-    if isKnown then
-        return isKnown
-    end
-    local overrideSpellID = overrideSpells[spellID]
-    if overrideSpellID then
-        isKnown = IsSpellKnown(overrideSpellID)
-    end
-    return isKnown
+    return IsSpellKnown(spellID)
 end
 
 function Shingen:ClearInsertSpell()

@@ -45,14 +45,10 @@ class/Paladin.lua
 class/Rogue.lua
 class/Hunter.lua
 class/Priest.lua
-class/DeathKnight.lua
 class/Shaman.lua
 class/Mage.lua
 class/Warlock.lua
-class/Monk.lua
 class/Druid.lua
-class/DemonHunter.lua
-class/Evoker.lua
 
 unit/player.lua
 core/spells.lua

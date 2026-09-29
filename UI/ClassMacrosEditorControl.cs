@@ -707,6 +707,10 @@ public sealed class ClassMacrosEditorControl : UserControl
             {
                 var classFile = ClassMacrosStore.ToClassFileKey(classId);
                 var has = _document.Classes.ContainsKey(classFile);
+                if (!has && path.Contains("Shingen", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
                 _classItems.Add(new ClassListItem(classId, className, classFile, has));
             }
 

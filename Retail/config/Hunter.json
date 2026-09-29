@@ -366,7 +366,7 @@
         ]
       },
       "player.1299389.apps": {
-        "step": "bar",
+        "step": 51,
         "type": "int",
         "category": "玩家",
         "displayName": "眼镜蛇利牙层数",
@@ -375,11 +375,10 @@
         "metric": "apps",
         "spellIds": [
           1299389
-        ],
-        "bar": 1
+        ]
       },
       "player.1276720.value": {
-        "step": 51,
+        "step": 52,
         "type": "int",
         "category": "玩家",
         "displayName": "自然之友",
@@ -391,7 +390,7 @@
         ]
       },
       "player.268877.value": {
-        "step": 52,
+        "step": 53,
         "type": "int",
         "category": "玩家",
         "displayName": "野兽顺劈",
@@ -403,7 +402,7 @@
         ]
       },
       "player.471878.value": {
-        "step": 53,
+        "step": 54,
         "type": "int",
         "category": "玩家",
         "displayName": "龙",
@@ -415,7 +414,7 @@
         ]
       },
       "player.472324.value": {
-        "step": 54,
+        "step": 55,
         "type": "int",
         "category": "玩家",
         "displayName": "猪",
@@ -427,7 +426,7 @@
         ]
       },
       "player.472325.value": {
-        "step": 55,
+        "step": 56,
         "type": "int",
         "category": "玩家",
         "displayName": "熊",
@@ -439,7 +438,7 @@
         ]
       },
       "target.harmful.259556.value": {
-        "step": 56,
+        "step": 57,
         "type": "int",
         "category": "目标减益",
         "displayName": "猎人印记",
@@ -453,7 +452,7 @@
     },
     "spells": {
       "53480.cooldown": {
-        "step": 57,
+        "step": 58,
         "type": "int",
         "displayName": "牺牲咆哮",
         "spellId": 53480,
@@ -461,7 +460,7 @@
         "displayType": "冷却"
       },
       "109304.cooldown": {
-        "step": 58,
+        "step": 59,
         "type": "int",
         "displayName": "意气风发",
         "spellId": 109304,
@@ -469,7 +468,7 @@
         "displayType": "冷却"
       },
       "19577.cooldown": {
-        "step": 59,
+        "step": 60,
         "type": "int",
         "displayName": "胁迫",
         "spellId": 19577,
@@ -477,7 +476,7 @@
         "displayType": "冷却"
       },
       "5116.cooldown": {
-        "step": 60,
+        "step": 61,
         "type": "int",
         "displayName": "震荡射击",
         "spellId": 5116,
@@ -485,7 +484,7 @@
         "displayType": "冷却"
       },
       "19801.cooldown": {
-        "step": 61,
+        "step": 62,
         "type": "int",
         "displayName": "宁神射击",
         "spellId": 19801,
@@ -493,7 +492,7 @@
         "displayType": "冷却"
       },
       "187698.cooldown": {
-        "step": 62,
+        "step": 63,
         "type": "int",
         "displayName": "焦油陷进",
         "spellId": 187698,
@@ -501,7 +500,7 @@
         "displayType": "冷却"
       },
       "1513.cooldown": {
-        "step": 63,
+        "step": 64,
         "type": "int",
         "displayName": "恐吓野兽",
         "spellId": 1513,
@@ -509,7 +508,7 @@
         "displayType": "冷却"
       },
       "109248.cooldown": {
-        "step": 64,
+        "step": 65,
         "type": "int",
         "displayName": "束缚射击",
         "spellId": 109248,
@@ -517,7 +516,7 @@
         "displayType": "冷却"
       },
       "195645.cooldown": {
-        "step": 65,
+        "step": 66,
         "type": "int",
         "displayName": "摔绊",
         "spellId": 195645,
@@ -525,7 +524,7 @@
         "displayType": "冷却"
       },
       "34026.cooldown": {
-        "step": 66,
+        "step": 67,
         "type": "int",
         "displayName": "杀戮命令",
         "spellId": 34026,
@@ -533,7 +532,7 @@
         "displayType": "冷却"
       },
       "34026.chargeCooldown": {
-        "step": 67,
+        "step": 68,
         "type": "int",
         "displayName": "杀戮命令充能",
         "spellId": 34026,
@@ -541,7 +540,7 @@
         "displayType": "充能"
       },
       "217200.cooldown": {
-        "step": 68,
+        "step": 69,
         "type": "int",
         "displayName": "倒刺射击",
         "spellId": 217200,
@@ -549,7 +548,7 @@
         "displayType": "冷却"
       },
       "217200.chargeCooldown": {
-        "step": 69,
+        "step": 70,
         "type": "int",
         "displayName": "倒刺射击充能",
         "spellId": 217200,
@@ -557,7 +556,7 @@
         "displayType": "充能"
       },
       "147362.cooldown": {
-        "step": 70,
+        "step": 71,
         "type": "int",
         "displayName": "反制射击",
         "spellId": 147362,
@@ -565,7 +564,7 @@
         "displayType": "冷却"
       },
       "19574.cooldown": {
-        "step": 71,
+        "step": 72,
         "type": "int",
         "displayName": "狂野怒火",
         "spellId": 19574,
@@ -573,7 +572,7 @@
         "displayType": "冷却"
       },
       "1264359.cooldown": {
-        "step": 72,
+        "step": 73,
         "type": "int",
         "displayName": "狂野鞭笞",
         "spellId": 1264359,

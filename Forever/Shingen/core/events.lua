@@ -84,10 +84,6 @@ end
 
 function Shingen:PLAYER_ENTERING_WORLD()
     state.mapID = C_Map.GetBestMapForUnit("player") or 0
-    self:UpdateHolyArmaments(375576)
-    self:UpdateVampiricStrike(206930)
-    self:UpdateReaverGlaive(204157)
-    self:UpdateHeroTalent()
     self:CacheCollectedMountSpells()
     self:RefreshChargedComboPoints()
     C_Timer.After(2, function()
@@ -276,20 +272,6 @@ function Shingen:UNIT_SPELLCAST_SUCCEEDED(_, unitTarget, castGUID, spellID, cast
     self:UpdateInsertSpellBySuccess(spellID)
     self:UpdateInsertItemBySuccess(spellID)
     self:PreviousSkill(spellID)
-    self:UpdateActiveTotemRemainingTime(spellID)
-    if spellID == 384255 then
-        self:ClearAllShingenBars()
-        print("切换天赋")
-        C_Timer.After(1, function()
-            self:RebuildSpecializationState()
-        end)
-    elseif spellID == 200749 then
-        self:ClearAllShingenBars()
-        print("切换专精")
-        C_Timer.After(1, function()
-            self:RebuildSpecializationState()
-        end)
-    end
 end
 
 function Shingen:SPELL_UPDATE_COOLDOWN(_, spellID, baseSpellID)
@@ -298,26 +280,7 @@ function Shingen:SPELL_UPDATE_COOLDOWN(_, spellID, baseSpellID)
     if spellID == 25771 then
         self:UpdatePlayerForbearance()
     end
-    self:RecordKnightSpellState(spellID)
-    self:UpdateBoilingPoint(spellID) -- 沸点
 end
-
-local potions = {
-    [241304] = "银月城生命药水",
-    [241305] = "银月城生命药水",
-    [271884] = "浓缩银月城生命药水",
-    [271885] = "浓缩银月城生命药水",
-    [5512] = "治疗石",
-    [224464] = "恶魔治疗石",
-    [241301] = "光注法力药水",
-    [241300] = "光注法力药水",
-    [241288] = "鲁莽药水",
-    [241289] = "鲁莽药水",
-    [241308] = "圣光潜力",
-    [241309] = "圣光潜力",
-    [241292] = "狂放恣意饮剂",
-    [241293] = "狂放恣意饮剂",
-}
 
 function Shingen:ITEM_COUNT_CHANGED()
     self:UpdateItemCooldown()
@@ -426,10 +389,6 @@ end
 
 function Shingen:SPELL_UPDATE_ICON(_, spellID)
     if issecretvalue(spellID) then return end
-    self:UpdateHolyArmaments(spellID)
-    self:UpdateVampiricStrike(spellID)
-    self:UpdateReaverGlaive(spellID)
-    self:UpdateHeroicStrike(spellID)
 end
 
 local rosterTimer
@@ -654,7 +613,6 @@ function Shingen:OnUpdate(elapsed)
     self.timeElapsed1 = self.timeElapsed1 + elapsed
     if self.timeElapsed1 >= 1 then
         RunUpdateSafely(self, "RefreshPlayerCombatDuration")
-        RunUpdateSafely(self, "RefreshActiveKnightCount")
         self.timeElapsed1 = 0
     end
 

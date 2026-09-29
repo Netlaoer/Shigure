@@ -265,9 +265,6 @@ function Fuyutsui:RefreshPlayerBars()
             self:CreateAutoLayoutBar(v.valueType, v.minValue, v.maxValue, v.spellId)
         end
     end
-    if self.LayoutAuraApplicationBars then
-        self:LayoutAuraApplicationBars()
-    end
 end
 
 function Fuyutsui:RefreshPlayerPetState()

@@ -140,7 +140,6 @@ local stateBlockGetters = {
         ["队伍人数"] = function() return state.groupCount or 0 end,
         ["首领战"] = function() return state.bossID or 0 end,
         ["难度"] = function() return (state.difficultyID or 0) / 255 end,
-        ["英雄天赋"] = function(self) return (self.state.heroTalent or 0) / 255 end,
         ["施法目标"] = function() return state.castTargetIndex or 0 end,
         ["施法技能"] = function() return state.castingSpell or 0 end,
         ["敌人数量"] = function() return state.enemyCount or 0 end,

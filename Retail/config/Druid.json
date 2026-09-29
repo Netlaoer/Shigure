@@ -852,7 +852,7 @@
         ]
       },
       "player.192081.apps": {
-        "step": "bar",
+        "step": 44,
         "type": "int",
         "category": "玩家",
         "displayName": "铁鬓层数",
@@ -861,11 +861,10 @@
         "metric": "apps",
         "spellIds": [
           192081
-        ],
-        "bar": 1
+        ]
       },
       "player.102558.value": {
-        "step": 44,
+        "step": 45,
         "type": "int",
         "category": "玩家",
         "displayName": "化身：乌索克的守护者",
@@ -877,7 +876,7 @@
         ]
       },
       "player.213708.value": {
-        "step": 45,
+        "step": 46,
         "type": "int",
         "category": "玩家",
         "displayName": "星河守护者",
@@ -889,7 +888,7 @@
         ]
       },
       "target.harmful.164812.value": {
-        "step": 46,
+        "step": 47,
         "type": "int",
         "category": "目标减益",
         "displayName": "月火术",
@@ -901,7 +900,7 @@
         ]
       },
       "target.harmful.192090.value": {
-        "step": 47,
+        "step": 48,
         "type": "int",
         "category": "目标减益",
         "displayName": "痛击",
@@ -913,7 +912,7 @@
         ]
       },
       "target.harmful.192090.apps": {
-        "step": "bar",
+        "step": 49,
         "type": "int",
         "category": "目标减益",
         "displayName": "痛击层数",
@@ -922,11 +921,10 @@
         "metric": "apps",
         "spellIds": [
           192090
-        ],
-        "bar": 2
+        ]
       },
       "target.harmful.1270292.value": {
-        "step": 48,
+        "step": 50,
         "type": "int",
         "category": "目标减益",
         "displayName": "月光普照",
@@ -940,7 +938,7 @@
     },
     "spells": {
       "22812.cooldown": {
-        "step": 49,
+        "step": 51,
         "type": "int",
         "displayName": "树皮术",
         "spellId": 22812,
@@ -948,7 +946,7 @@
         "displayType": "冷却"
       },
       "132469.cooldown": {
-        "step": 50,
+        "step": 52,
         "type": "int",
         "displayName": "台风",
         "spellId": 132469,
@@ -956,7 +954,7 @@
         "displayType": "冷却"
       },
       "99.cooldown": {
-        "step": 51,
+        "step": 53,
         "type": "int",
         "displayName": "夺魂咆哮",
         "spellId": 99,
@@ -964,7 +962,7 @@
         "displayType": "冷却"
       },
       "29166.cooldown": {
-        "step": 52,
+        "step": 54,
         "type": "int",
         "displayName": "激活",
         "spellId": 29166,
@@ -972,7 +970,7 @@
         "displayType": "冷却"
       },
       "102793.cooldown": {
-        "step": 53,
+        "step": 55,
         "type": "int",
         "displayName": "乌索尔旋风",
         "spellId": 102793,
@@ -980,7 +978,7 @@
         "displayType": "冷却"
       },
       "22842.cooldown": {
-        "step": 54,
+        "step": 56,
         "type": "int",
         "displayName": "狂暴回复",
         "spellId": 22842,
@@ -988,7 +986,7 @@
         "displayType": "冷却"
       },
       "22842.chargeCooldown": {
-        "step": 55,
+        "step": 57,
         "type": "int",
         "displayName": "狂暴回复充能",
         "spellId": 22842,
@@ -996,7 +994,7 @@
         "displayType": "充能"
       },
       "61336.cooldown": {
-        "step": 56,
+        "step": 58,
         "type": "int",
         "displayName": "生存本能",
         "spellId": 61336,
@@ -1004,7 +1002,7 @@
         "displayType": "冷却"
       },
       "102558.cooldown": {
-        "step": 57,
+        "step": 59,
         "type": "int",
         "displayName": "化身：乌索克的守护者",
         "spellId": 102558,
@@ -1012,7 +1010,7 @@
         "displayType": "冷却"
       },
       "1261867.cooldown": {
-        "step": 58,
+        "step": 60,
         "type": "int",
         "displayName": "野性之心",
         "spellId": 1261867,
@@ -1020,7 +1018,7 @@
         "displayType": "冷却"
       },
       "1253799.cooldown": {
-        "step": 59,
+        "step": 61,
         "type": "int",
         "displayName": "碎甲咆哮",
         "spellId": 1253799,
@@ -1028,7 +1026,7 @@
         "displayType": "冷却"
       },
       "1252871.cooldown": {
-        "step": 60,
+        "step": 62,
         "type": "int",
         "displayName": "赤红之月",
         "spellId": 1252871,
@@ -1036,7 +1034,7 @@
         "displayType": "冷却"
       },
       "6807.cooldown": {
-        "step": 61,
+        "step": 63,
         "type": "int",
         "displayName": "重殴",
         "spellId": 6807,
@@ -1044,7 +1042,7 @@
         "displayType": "冷却"
       },
       "77758.cooldown": {
-        "step": 62,
+        "step": 64,
         "type": "int",
         "displayName": "痛击",
         "spellId": 77758,

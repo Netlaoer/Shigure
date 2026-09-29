@@ -59,6 +59,8 @@ internal static class FuyutsuiConfigConverter
         EnsureCommonConfig(configDirectory);
         var updated = new List<string>();
         var warnings = new List<string>();
+        var isForever = string.Equals(Path.GetFileName(Path.GetDirectoryName(classDirectory)),
+            "Shingen", StringComparison.OrdinalIgnoreCase);
 
         foreach (var (classId, _) in ClassNames.GetClasses())
         {
@@ -66,7 +68,7 @@ internal static class FuyutsuiConfigConverter
             var luaPath = Path.Combine(classDirectory, $"{fileName}.lua");
             if (!File.Exists(luaPath))
             {
-                warnings.Add($"跳过 {fileName}: 未找到 {luaPath}");
+                if (!isForever) warnings.Add($"跳过 {fileName}: 未找到 {luaPath}");
                 continue;
             }
 
@@ -119,6 +121,20 @@ internal static class FuyutsuiConfigConverter
 
             File.WriteAllText(jsonPath, root.ToJsonString(WriteOptions) + Environment.NewLine, Encoding.UTF8);
             updated.Add(jsonPath);
+        }
+
+        // 永久服只保留 class 目录中实际存在的职业，清除旧版遗留的职业配置。
+        if (isForever)
+        {
+            foreach (var (classId, _) in ClassNames.GetClasses())
+            {
+                var fileName = ClassNames.GetConfigFileName(classId);
+                if (!File.Exists(Path.Combine(classDirectory, fileName + ".lua")))
+                {
+                    var stalePath = Path.Combine(configDirectory, fileName + ".json");
+                    if (File.Exists(stalePath)) File.Delete(stalePath);
+                }
+            }
         }
 
         if (updated.Count == 0)
@@ -346,9 +362,7 @@ internal static class FuyutsuiConfigConverter
         }
 
         var aurasObject = new JsonObject();
-        var playerAuraBarNames = new List<string>();
-
-        // auras：主色块按 player → target → focus → boss1–5；层数条按相同单位顺序排在 spell 条之后。
+        // auras：按 player → target → focus → boss1–5 排列；层数格紧接对应的光环格。
         if (spec.GetTable("auras") is { } auras)
         {
             var nested = auras.GetTable("player") is not null
@@ -358,31 +372,31 @@ internal static class FuyutsuiConfigConverter
 
             if (nested)
             {
-                AppendAuraList(auras.GetTable("player"), "player", "玩家", true, aurasObject, ref index, playerAuraBarNames, warnings, label);
+                AppendAuraList(auras.GetTable("player"), "player", "玩家", aurasObject, ref index, warnings, label);
                 if (auras.GetTable("target") is { } target)
                 {
-                    AppendAuraList(target.GetTable("harmful"), "target", "目标减益", true, aurasObject, ref index, playerAuraBarNames, warnings, label);
-                    AppendAuraList(target.GetTable("helpful"), "target", "目标增益", false, aurasObject, ref index, playerAuraBarNames, warnings, label);
+                    AppendAuraList(target.GetTable("harmful"), "target", "目标减益", aurasObject, ref index, warnings, label);
+                    AppendAuraList(target.GetTable("helpful"), "target", "目标增益", aurasObject, ref index, warnings, label);
                 }
 
                 if (auras.GetTable("focus") is { } focus)
                 {
-                    AppendAuraList(focus.GetTable("harmful"), "focus", "焦点减益", true, aurasObject, ref index, playerAuraBarNames, warnings, label);
-                    AppendAuraList(focus.GetTable("helpful"), "focus", "焦点增益", false, aurasObject, ref index, playerAuraBarNames, warnings, label);
+                    AppendAuraList(focus.GetTable("harmful"), "focus", "焦点减益", aurasObject, ref index, warnings, label);
+                    AppendAuraList(focus.GetTable("helpful"), "focus", "焦点增益", aurasObject, ref index, warnings, label);
                 }
 
                 for (var bossIndex = 1; bossIndex <= 5; bossIndex++)
                 {
                     if (auras.GetTable($"boss{bossIndex}") is { } boss)
                     {
-                        AppendAuraList(boss.GetTable("harmful"), $"boss{bossIndex}", $"首领{bossIndex}减益", true,
-                            aurasObject, ref index, playerAuraBarNames, warnings, label);
+                        AppendAuraList(boss.GetTable("harmful"), $"boss{bossIndex}", $"首领{bossIndex}减益",
+                            aurasObject, ref index, warnings, label);
                     }
                 }
             }
             else
             {
-                AppendAuraList(auras, "player", "玩家", true, aurasObject, ref index, playerAuraBarNames, warnings, label);
+                AppendAuraList(auras, "player", "玩家", aurasObject, ref index, warnings, label);
             }
         }
 
@@ -462,15 +476,6 @@ internal static class FuyutsuiConfigConverter
                             "施法次数");
                     }
                 }
-            }
-        }
-
-        foreach (var barName in playerAuraBarNames)
-        {
-            if (aurasObject[barName] is JsonObject metadata)
-            {
-                metadata["step"] = "bar";
-                metadata["bar"] = barIndex++;
             }
         }
 
@@ -687,10 +692,8 @@ internal static class FuyutsuiConfigConverter
         TableValue? list,
         string unit,
         string classification,
-        bool includeApplicationBars,
         JsonObject aurasObject,
         ref int index,
-        List<string> playerAuraBarNames,
         List<string> warnings,
         string label)
     {
@@ -752,18 +755,18 @@ internal static class FuyutsuiConfigConverter
                 classification);
             index++;
 
-            if (aura.GetNumber("maxApps") is not null && includeApplicationBars)
+            if (aura.GetNumber("maxApps") is > 0)
             {
                 var appsKey = $"{scope}.{canonicalId}.{SpellFieldKey.AuraApplications}";
                 aurasObject[appsKey] = AuraField(
-                    0,
+                    index,
                     EnsureSuffix(name, "层数"),
                     canonicalId.Value,
                     scope,
                     SpellFieldKey.AuraApplications,
                     ids,
                     classification);
-                playerAuraBarNames.Add(appsKey);
+                index++;
             }
         }
     }

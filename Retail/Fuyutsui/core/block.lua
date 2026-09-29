@@ -16,7 +16,7 @@ local BLOCK_SPACING = 0                -- 色块间距
 local COLOR_BARS_STRATA = "TOOLTIP"
 local COLOR_BARS_LEVEL = 9001
 
--- 横向条（FuyutsuiCountBars：计数条 + 光环层数条，BAR_END_COLOR 收尾）
+-- 横向条（FuyutsuiCountBars：法术计数条，BAR_END_COLOR 收尾）
 local BAR_UNIT_COUNT = 500  -- 横向单元数
 local BAR_HEIGHT = 2        -- 条高度
 local BAR_FRAME_HEIGHT = 20 -- 容器高度
@@ -32,10 +32,6 @@ local AURA_DURATION_CHAR = "█"
 local AURA_ENABLE_MOUSE = false        -- false = 关闭悬停提示
 local AURA_DURATION_STRATA = "TOOLTIP"
 local AURA_DURATION_LEVEL = 9003
-
--- AuraContainer 层数条
-local AURA_BAR_STRATA = "TOOLTIP"
-local AURA_BAR_LEVEL = 9004
 
 -- 队伍治疗吸收条（FuyutsuiHealAbsorbBars）
 local HEAL_ABSORB_MAX_SLOTS = 40  -- 最大槽位数
@@ -197,8 +193,8 @@ end
 DrawBlockEndMarker()
 
 --[[============================================================================
-    横向计数条布局（计数条 + AuraContainer 层数条共用）
-    排布：计数条 → 光环层数条 → BAR_END_COLOR（终点色块始终在最后）
+    横向计数条布局
+    排布：法术计数条 → BAR_END_COLOR（终点色块始终在最后）
     单条占用：背景单元 [-1..max] + 预留终点位 + 间隔 → 步进 max+3
 ============================================================================]]
 
@@ -211,10 +207,7 @@ countBars:SetFrameLevel(BAR_LEVEL)
 local createdBars = {}
 local spellIdToBar = {}
 local nextAvailableIndex = BAR_START_INDEX
--- 计数条排完后的 nextAvailableIndex；层数条从此处起排，释放后回退到这里避免错位
-local countBarLayoutEndIndex = BAR_START_INDEX
 local countBarEndTexture = nil
-local auraBarLaidOut = false
 local anyHorizontalBarLaidOut = false
 
 local BAR_EVENTS = { "SPELL_UPDATE_USES", "PLAYER_ENTERING_WORLD", "SPELL_UPDATE_CHARGES" }
@@ -318,7 +311,7 @@ function Fuyutsui:CreateAutoLayoutBar(valueType, minValue, maxValue, spellId)
 
     tinsert(createdBars, bar)
     spellIdToBar[spellId] = bar
-    countBarLayoutEndIndex = nextAvailableIndex
+    UpdateHorizontalBarEndMarker()
     return bar
 end
 
@@ -351,9 +344,7 @@ function Fuyutsui:ClearAllFuyutsuiBars()
     wipe(createdBars)
     wipe(spellIdToBar)
     nextAvailableIndex = BAR_START_INDEX
-    countBarLayoutEndIndex = BAR_START_INDEX
     anyHorizontalBarLaidOut = false
-    auraBarLaidOut = false
     if Fuyutsui.ReleasePlayerAuraContainers then
         Fuyutsui:ReleasePlayerAuraContainers()
     end
@@ -650,11 +641,60 @@ local function ConfigureAuraButtonMouse(button)
     end
 end
 
-local function AnchorAuraPixelButton(button, index)
-    button:SetSize(AURA_BLOCK_W, AURA_BLOCK_H)
+local function AnchorAuraPixelButton(button, index, hasApplications)
+    button:SetSize(AURA_BLOCK_W * (hasApplications and 2 or 1), AURA_BLOCK_H)
     button:SetClipsChildren(true)
     ConfigureAuraButtonMouse(button)
     button:SetPoint("TOPLEFT", UIParent, "TOPLEFT", AuraBlockXOffset(index), 0)
+end
+
+local function CreateAuraPixelCell(button, index, offset, blue)
+    local cell = CreateFrame("Frame", nil, button)
+    cell:SetSize(AURA_BLOCK_W, AURA_BLOCK_H)
+    cell:SetPoint("TOPLEFT", button, "TOPLEFT", offset * AURA_BLOCK_W, 0)
+    cell:SetClipsChildren(true)
+    cell:EnableMouse(false)
+
+    local bg = cell:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(cell)
+    local r, g = EncodeBlockChannels(index)
+    bg:SetColorTexture(r, g, blue, 1)
+    return cell
+end
+
+local applicationFormatters = {}
+
+local function GetApplicationFormatter(index)
+    if applicationFormatters[index] then
+        return applicationFormatters[index]
+    end
+
+    local formatter = C_StringUtil.CreateNumericRuleFormatter()
+    local rules = {}
+    local scheme = math.floor((index - 1) / BLOCK_SCHEME_SPAN)
+    local position = index - scheme * BLOCK_SCHEME_SPAN
+    -- R/G 标识格子，B 编码层数；超过 255 层时沿用最后一条规则。
+    for count = 0, 255 do
+        rules[#rules + 1] = {
+            threshold = count,
+            format = string.format("|cFF%02X%02X%02X%s|r",
+                scheme, position, count, AURA_DURATION_CHAR),
+        }
+    end
+    formatter:SetBreakpoints(rules)
+    applicationFormatters[index] = formatter
+    return formatter
+end
+
+local function SetupAuraApplicationPixel(button, index)
+    local cell = CreateAuraPixelCell(button, index, 1, 0)
+    local count = cell:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    count:SetPoint("CENTER", cell, "CENTER", 0, 0)
+    count:SetJustifyH("CENTER")
+    count:SetJustifyV("MIDDLE")
+    count:SetFontHeight(88)
+    count:SetFixedColor(false)
+    button:SetApplicationCount(count, { formatter = GetApplicationFormatter(index) })
 end
 
 --- 对齐 CreateTexture(i, b)：绿通道编码索引，蓝通道将不足 1 秒钳为 1，其余编码到 255
@@ -669,12 +709,12 @@ local function MakeDurationColorCurve(index)
 end
 
 --- 永久光环槽：整格底层 b=1（无 DurationText）
-local function SetupPermanentAuraPixel(button, index)
-    AnchorAuraPixelButton(button, index)
-    local bg = button:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints(button)
-    local r, g = EncodeBlockChannels(index)
-    bg:SetColorTexture(r, g, 1, 1)
+local function SetupPermanentAuraPixel(button, index, hasApplications)
+    AnchorAuraPixelButton(button, index, hasApplications)
+    CreateAuraPixelCell(button, index, 0, 1)
+    if hasApplications then
+        SetupAuraApplicationPixel(button, index + 1)
+    end
 end
 
 --- 职责覆盖槽：光环存在时保留职责像素的索引通道，并把数值通道覆盖为 0。
@@ -688,17 +728,14 @@ local function SetupZeroAuraPixel(button, index)
 end
 
 --- 限时光环槽：底层 b=0，█ 用剩余时间曲线；叠在永久槽之上
-local function SetupTimedAuraDuration(button, index)
-    AnchorAuraPixelButton(button, index)
+local function SetupTimedAuraDuration(button, index, hasApplications)
+    AnchorAuraPixelButton(button, index, hasApplications)
     button:SetFrameLevel((button:GetFrameLevel() or 0) + 2)
 
-    local bg = button:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints(button)
-    local r, g = EncodeBlockChannels(index)
-    bg:SetColorTexture(r, g, 0, 1)
+    local cell = CreateAuraPixelCell(button, index, 0, 0)
 
-    local duration = button:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    duration:SetPoint("CENTER", button, "CENTER", 0, 0)
+    local duration = cell:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    duration:SetPoint("CENTER", cell, "CENTER", 0, 0)
     duration:SetJustifyH("CENTER")
     duration:SetJustifyV("MIDDLE")
     button:SetDurationText(duration, {
@@ -711,17 +748,20 @@ local function SetupTimedAuraDuration(button, index)
             property = Enum.DurationTextBindingProperty.RemainingDuration,
         },
     })
-end
-
-local function MakePermanentSlotInitializer(index)
-    return function(button)
-        SetupPermanentAuraPixel(button, index)
+    if hasApplications then
+        SetupAuraApplicationPixel(button, index + 1)
     end
 end
 
-local function MakeTimedSlotInitializer(index)
+local function MakePermanentSlotInitializer(index, hasApplications)
     return function(button)
-        SetupTimedAuraDuration(button, index)
+        SetupPermanentAuraPixel(button, index, hasApplications)
+    end
+end
+
+local function MakeTimedSlotInitializer(index, hasApplications)
+    return function(button)
+        SetupTimedAuraDuration(button, index, hasApplications)
     end
 end
 
@@ -731,21 +771,22 @@ local function MakeZeroSlotInitializer(index)
     end
 end
 
-local function AddDurationAuraSlotPair(container, slotKeyPrefix, filter, includeSpellIDs, index)
+local function AddDurationAuraSlotPair(container, slotKeyPrefix, filter, includeSpellIDs, index, maxApps)
+    local hasApplications = type(maxApps) == "number" and maxApps > 0
     -- 先限时后永久：若容器对 auraInstance 互斥分配，避免限时光环被永久槽抢走。
     -- 限时槽：maxDuration 排除永久；底层 b=0 + █ 曲线
     container:AddAuraSlot(slotKeyPrefix .. "_timed_" .. index, filter, {
         candidateFilters = AuraSlotFilters(includeSpellIDs, AURA_TIMED_MAX_DURATION),
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Normal,
-        initializeFrame = MakeTimedSlotInitializer(index),
+        initializeFrame = MakeTimedSlotInitializer(index, hasApplications),
     })
     -- 永久槽：无 maxDuration；永久命中时整格 b=1（限时若也命中则被上层限时槽盖住）
     container:AddAuraSlot(slotKeyPrefix .. "_permanent_" .. index, filter, {
         candidateFilters = AuraSlotFilters(includeSpellIDs),
         sortMethod = AuraContainerSortMethod.Expiration,
         sortDirection = AuraContainerSortDirection.Normal,
-        initializeFrame = MakePermanentSlotInitializer(index),
+        initializeFrame = MakePermanentSlotInitializer(index, hasApplications),
     })
 
     container.fuyutsuiAuraSlots = container.fuyutsuiAuraSlots or {}
@@ -808,18 +849,6 @@ local function RebindContainerSpellFilters(container, unit)
 
     if container.fuyutsuiAuraSlots then
         ApplyUnitAuraReactionFilters(container, bindUnit or "player")
-    end
-    if container.fuyutsuiBarSlots then
-        table.sort(container.fuyutsuiBarSlots, function(a, b)
-            return (a.index or 0) < (b.index or 0)
-        end)
-        for _, slot in ipairs(container.fuyutsuiBarSlots) do
-            if slot.filter and not IsAuraFilterAllowedForUnit(bindUnit or "player", slot.filter) then
-                container:SetAuraSlotCandidateFilters(slot.key, AURA_MATCH_NONE_FILTERS)
-            else
-                container:SetAuraSlotCandidateFilters(slot.key, AuraSlotFilters(slot.includeSpellIDs))
-            end
-        end
     end
     if container.fuyutsuiSpellIdSlots then
         for _, slot in ipairs(container.fuyutsuiSpellIdSlots) do
@@ -910,74 +939,6 @@ local function MakeDispelSlotInitializer(index, showWhenHarmful, showWhenHelpful
     end
 end
 
---- 层数条：与计数条同一套坐标/背景编码，StatusBar 由 AuraContainer 驱动。
---- AuraButton 登录后是受限对象；此布局函数只能由 initializeFrame 调用，运行期重绑不得再调用。
-local function AnchorApplicationBarButton(button, maxApps, startIndex)
-    button:SetSize(maxApps * BAR_CONFIG.width, BAR_CONFIG.height)
-    ConfigureAuraButtonMouse(button)
-    -- 右移 1px，避免白色填充未完全盖住背后背景色
-    button:ClearAllPoints()
-    button:SetPoint("TOPLEFT", countBars, "TOPLEFT", (startIndex - 1) * BAR_CONFIG.width + 1, 0)
-end
-
-local function SetupApplicationBarOnly(button, maxApps, startIndex)
-    AnchorApplicationBarButton(button, maxApps, startIndex)
-
-    local bar = CreateFrame("StatusBar", nil, button)
-    bar:SetAllPoints(button)
-    StyleHorizontalStatusBar(bar)
-    bar:SetFrameLevel((button:GetFrameLevel() or 0) + 1)
-
-    button:SetApplicationBar(bar, {
-        maxApplications = maxApps,
-    })
-end
-
-local function MakeBarSlotInitializer(slotInfo)
-    return function(button)
-        SetupApplicationBarOnly(button, slotInfo.maxApps, slotInfo.startIndex)
-    end
-end
-
-local AURA_BAR_UNIT_ORDER = UNIT_AURA_REBIND_ORDER
-
-local function CollectAuraApplicationSlots(unit)
-    local appSlots = {}
-    for _, info in ipairs(CollectAuraSpellSlots(unit)) do
-        -- 玩家光环保留原有层数条；其他单位只为有害光环显示层数。
-        local isTargetDebuff = unit ~= "player"
-            and (info.filter == "HARMFUL|PLAYER" or info.filter == "HARMFUL")
-        if info.maxApps and (unit == "player" or isTargetDebuff) then
-            tinsert(appSlots, info)
-        end
-    end
-    return appSlots
-end
-
-local function ReclaimAuraBarLayoutSpace()
-    nextAvailableIndex = countBarLayoutEndIndex
-    anyHorizontalBarLaidOut = countBarLayoutEndIndex > BAR_START_INDEX
-    auraBarLaidOut = false
-    UpdateHorizontalBarEndMarker()
-end
-
-local function AuraBarSlotsMatch(container, appSlots)
-    local slots = container and container.fuyutsuiBarSlots
-    if not slots or #slots ~= #appSlots then
-        return false
-    end
-    for i, info in ipairs(appSlots) do
-        local slot = slots[i]
-        if not slot
-            or slot.index ~= info.index
-            or slot.maxApps ~= info.maxApps
-            or slot.filter ~= info.filter then
-            return false
-        end
-    end
-    return true
-end
-
 local function ReleaseFrame(frame)
     if not frame then
         return
@@ -998,27 +959,11 @@ local UNIT_AURA_CONTAINER_KEYS = {
     boss5 = "Boss5AuraContainer",
 }
 
-local UNIT_AURA_BAR_CONTAINER_KEYS = {
-    player = "PlayerAuraBarContainer",
-    target = "TargetAuraBarContainer",
-    focus = "FocusAuraBarContainer",
-    boss1 = "Boss1AuraBarContainer",
-    boss2 = "Boss2AuraBarContainer",
-    boss3 = "Boss3AuraBarContainer",
-    boss4 = "Boss4AuraBarContainer",
-    boss5 = "Boss5AuraBarContainer",
-}
-
 function Fuyutsui:ReleaseUnitAuraContainers()
     for _, key in pairs(UNIT_AURA_CONTAINER_KEYS) do
         ReleaseFrame(Fuyutsui[key])
         Fuyutsui[key] = nil
     end
-    for _, key in pairs(UNIT_AURA_BAR_CONTAINER_KEYS) do
-        ReleaseFrame(Fuyutsui[key])
-        Fuyutsui[key] = nil
-    end
-    ReclaimAuraBarLayoutSpace()
 end
 
 -- 兼容旧名
@@ -1090,7 +1035,7 @@ local function CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex)
 
     for _, info in ipairs(spellSlots) do
         local filter = info.filter or "HELPFUL"
-        AddDurationAuraSlotPair(durationSlots, "duration_index", filter, info.includeSpellIDs, info.index)
+        AddDurationAuraSlotPair(durationSlots, "duration_index", filter, info.includeSpellIDs, info.index, info.maxApps)
     end
 
     AddUnitDispelSlots(durationSlots, unit, dispelIndex)
@@ -1120,95 +1065,11 @@ function Fuyutsui:UpdateUnitAuraContainer(unit)
         return
     end
     RebindContainerSpellFilters(Fuyutsui[key], unit)
-    RebindContainerSpellFilters(Fuyutsui[UNIT_AURA_BAR_CONTAINER_KEYS[unit]], unit)
 end
 
 -- 兼容旧名
 function Fuyutsui:RefreshPlayerAuraContainers()
     self:RefreshUnitAuraContainers()
-end
-
---- 在计数条之后排布层数条，最后放置 BAR_END_COLOR
---- 按 auras 索引升序固定条序；若容器已存在但槽位集合变化则整表重建
-function Fuyutsui:LayoutAuraApplicationBars()
-    local slotsByUnit = {}
-    local needsRebuild = not auraBarLaidOut
-    for _, unit in ipairs(AURA_BAR_UNIT_ORDER) do
-        local appSlots = CollectAuraApplicationSlots(unit)
-        slotsByUnit[unit] = appSlots
-        local key = UNIT_AURA_BAR_CONTAINER_KEYS[unit]
-        local hasContainer = Fuyutsui[key] ~= nil
-        if not AuraBarSlotsMatch(Fuyutsui[key], appSlots) then
-            -- 无配置的单位也应视为匹配，避免每帧重建空容器。
-            if #appSlots > 0 or hasContainer then
-                needsRebuild = true
-            end
-        end
-    end
-
-    if not needsRebuild then
-        return
-    end
-
-    for _, key in pairs(UNIT_AURA_BAR_CONTAINER_KEYS) do
-        ReleaseFrame(Fuyutsui[key])
-        Fuyutsui[key] = nil
-    end
-
-    -- 层数条必须紧接计数条之后，按 player → target → focus → boss1–5 排布。
-    nextAvailableIndex = countBarLayoutEndIndex
-    anyHorizontalBarLaidOut = countBarLayoutEndIndex > BAR_START_INDEX
-
-    for _, unit in ipairs(AURA_BAR_UNIT_ORDER) do
-        local appSlots = slotsByUnit[unit]
-        if #appSlots > 0 then
-        EnsureAuraContainerLoaded()
-
-            local key = UNIT_AURA_BAR_CONTAINER_KEYS[unit]
-            local frameName = "Fuyutsui" .. unit:gsub("^%l", string.upper) .. "AuraBarSlots"
-            local barSlots = CreateFrame("AuraContainer", frameName, countBars,
-                                         "CustomAuraContainerTemplate")
-            barSlots:SetPoint("TOPLEFT", countBars, "TOPLEFT", 0, 0)
-            barSlots:SetUnit(unit)
-            barSlots:SetEnabled(true)
-            barSlots:SetFrameStrata(AURA_BAR_STRATA)
-            barSlots:SetFrameLevel(AURA_BAR_LEVEL)
-            barSlots.fuyutsuiBarSlots = {}
-            barSlots.fuyutsuiUnit = unit
-
-            for _, info in ipairs(appSlots) do
-                local startIndex = ReserveHorizontalBarUnits(
-                    info.maxApps,
-                    "警告: Fuyutsui_CountBars 光环层数条空间不足!"
-                )
-                if not startIndex then
-                    break
-                end
-                CreateHorizontalBarBackgrounds(startIndex, info.maxApps)
-                local slotKey = unit .. "_bar_index_" .. info.index
-                local slotInfo = {
-                    key = slotKey,
-                    index = info.index,
-                    maxApps = info.maxApps,
-                    startIndex = startIndex,
-                    includeSpellIDs = info.includeSpellIDs,
-                    filter = info.filter,
-                }
-                barSlots:AddAuraSlot(slotKey, info.filter or "HELPFUL", {
-                    candidateFilters = AuraSlotFilters(info.includeSpellIDs),
-                    sortMethod = AuraContainerSortMethod.Expiration,
-                    sortDirection = AuraContainerSortDirection.Normal,
-                    initializeFrame = MakeBarSlotInitializer(slotInfo),
-                })
-                tinsert(barSlots.fuyutsuiBarSlots, slotInfo)
-            end
-            Fuyutsui[key] = barSlots
-            RebindContainerSpellFilters(barSlots, unit)
-        end
-    end
-
-    UpdateHorizontalBarEndMarker()
-    auraBarLaidOut = true
 end
 
 --[[============================================================================
@@ -1430,29 +1291,11 @@ function Fuyutsui:RefreshGroupAuraContainers()
 end
 
 --- 过场后重绑全部光环槽的 spellId / 驱散过滤，避免槽位落到“第一个光环”。
---- 层数条的尺寸与锚点在 initializeFrame 中已固定；登录后只重绑过滤，不修改受限 AuraButton 布局。
+--- 登录后只重绑过滤，不修改受限 AuraButton 布局。
 function Fuyutsui:RebindAuraSpellFilters()
     for _, unit in ipairs(UNIT_AURA_REBIND_ORDER) do
         local key = UNIT_AURA_CONTAINER_KEYS[unit]
         RebindContainerSpellFilters(Fuyutsui[key], unit)
-    end
-
-    -- 层数条：按 auras 索引同步槽位；集合变化时整表重建。
-    self:LayoutAuraApplicationBars()
-    for _, unit in ipairs(AURA_BAR_UNIT_ORDER) do
-        local key = UNIT_AURA_BAR_CONTAINER_KEYS[unit]
-        local barContainer = Fuyutsui[key]
-        if barContainer and barContainer.fuyutsuiBarSlots then
-            local appSlots = CollectAuraApplicationSlots(unit)
-            for i, slot in ipairs(barContainer.fuyutsuiBarSlots) do
-                local info = appSlots[i]
-                if info then
-                    slot.includeSpellIDs = info.includeSpellIDs
-                    slot.filter = info.filter
-                end
-            end
-            RebindContainerSpellFilters(barContainer, unit)
-        end
     end
 
     RefreshAllCreatedBars()

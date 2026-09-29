@@ -285,16 +285,25 @@ public sealed class MainForm : Form, IMessageFilter
     {
         var configDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, ConfigService.ConfigDirectoryName);
         var keymapDirectory = Path.Combine(_activeProfile.Current.RuntimeDirectory, "keymap");
+        var classDirectory = Path.Combine(_activeProfile.Current.AddonRoot, "class");
+        var availableClasses = ClassNames.GetClasses().Where(item =>
+            File.Exists(Path.Combine(classDirectory, ClassNames.GetConfigFileName(item.Id) + ".lua"))).ToList();
+        var hasStaleClassFiles = _activeProfile.Current.AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+            && ClassNames.GetClasses().Except(availableClasses).Any(item =>
+                File.Exists(Path.Combine(configDirectory, ClassNames.GetConfigFileName(item.Id) + ".json"))
+                || File.Exists(Path.Combine(keymapDirectory,
+                    ClassNames.GetConfigFileName(item.Id).ToLowerInvariant() + ".json")));
         var hasAllConfigFiles = Directory.Exists(configDirectory)
+            && availableClasses.Count > 0
             && File.Exists(Path.Combine(configDirectory, ConfigService.CommonConfigFileName))
-            && ClassNames.GetClasses().All(item =>
+            && availableClasses.All(item =>
                 File.Exists(Path.Combine(configDirectory, $"{ClassNames.GetConfigFileName(item.Id)}.json")));
         var hasAllKeymapFiles = Directory.Exists(keymapDirectory)
-            && ClassNames.GetClasses().All(item =>
+            && availableClasses.All(item =>
                 File.Exists(Path.Combine(
                     keymapDirectory,
                     $"{ClassNames.GetConfigFileName(item.Id).ToLowerInvariant()}.json")));
-        if (hasAllConfigFiles && hasAllKeymapFiles)
+        if (hasAllConfigFiles && hasAllKeymapFiles && !hasStaleClassFiles)
         {
             return false;
         }
@@ -600,6 +609,9 @@ public sealed class MainForm : Form, IMessageFilter
             _addonSyncService = CreateAddonSyncService(profile);
             _moduleDependencyService = new ModuleDependencyService(profile.AddonRoot);
             _moduleStore.UseDirectory(profile.ModuleDirectory);
+            ResetDefaultClassOptions();
+            ResetDefaultSpecOptions(null);
+            ResetDefaultHeroTalentOptions(null, null);
             _moduleEditor.ReloadCatalogs();
             _classConfigEditor.ReloadFromAddon();
             _classMacrosEditor.ReloadFromAddon();
@@ -1352,9 +1364,9 @@ public sealed class MainForm : Form, IMessageFilter
         foreach (var profile in _profiles.DistinctAddons)
         {
             var buttonText = profile.AddonName.Equals("Fuyutsui", StringComparison.OrdinalIgnoreCase)
-                ? "Retail Fuyutsui"
+                ? "Retail × Fuyutsui"
                 : profile.AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
-                    ? "Forever Shingen"
+                    ? "Forever × Shingen"
                     : $"{profile.ProcessName} · {profile.AddonName}";
             var button = UiTheme.CreateButton(
                 buttonText,
@@ -2780,6 +2792,8 @@ public sealed class MainForm : Form, IMessageFilter
         _defaultClassComboBox.Items.Add(new DefaultFilterOption("职业：任意", null));
         foreach (var item in ClassNames.GetClasses())
         {
+            if (!File.Exists(Path.Combine(_activeProfile.Current.AddonRoot, "class",
+                    ClassNames.GetConfigFileName(item.Id) + ".lua"))) continue;
             _defaultClassComboBox.Items.Add(new DefaultFilterOption($"职业：{item.Name}", item.Id));
         }
 
@@ -2789,6 +2803,16 @@ public sealed class MainForm : Form, IMessageFilter
     private void ResetDefaultSpecOptions(int? classId)
     {
         _defaultSpecComboBox.Items.Clear();
+        if (_activeProfile.Current.AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase))
+        {
+            _defaultSpecComboBox.Items.Add(new DefaultFilterOption("职业配置", null));
+            _defaultSpecComboBox.SelectedIndex = 0;
+            _defaultSpecComboBox.Visible = false;
+            _defaultHeroTalentComboBox.Visible = false;
+            return;
+        }
+        _defaultSpecComboBox.Visible = true;
+        _defaultHeroTalentComboBox.Visible = true;
         _defaultSpecComboBox.Items.Add(new DefaultFilterOption("专精：任意", null));
         if (classId is not null)
         {

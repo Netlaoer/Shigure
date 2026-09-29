@@ -17,7 +17,6 @@ function Shingen:RefreshPlayerState()
     self:RefreshFocusTypeState()
     self:RefreshGroupTypeState()
     self:RefreshGroupCountState()
-    self:UpdateHeroTalent()
     self:RefreshPlayerBars()
     self:RefreshShapeshiftFormState()
     self:UpdatePlayerStagger()
@@ -109,15 +108,16 @@ function Shingen:LoadPlayerBlocks(specIndex)
                     if aura.isPlayer == true then
                         auraFilter = auraFilter .. "|PLAYER"
                     end
+                    local hasApplications = type(aura.maxApps) == "number" and aura.maxApps > 0
                     blocks.auras[index] = {
                         name = aura.name,
                         spellId = aura.spellId,
                         spellIds = aura.spellIds,
-                        maxApps = aura.maxApps,
+                        maxApps = hasApplications and aura.maxApps or nil,
                         unit = unit,
                         filter = auraFilter,
                     }
-                    index = index + 1
+                    index = index + (hasApplications and 2 or 1)
                 else
                     print("LoadPlayerBlocks: aura 缺少 spellId/spellIds，已跳过")
                 end

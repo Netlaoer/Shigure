@@ -27,6 +27,9 @@ public sealed class ModuleEditorControl : UserControl
     private readonly UiDropDown _specBox = new();
     private readonly UiDropDown _partyTypeBox = new();
     private readonly UiDropDown _heroTalentBox = new();
+    private TableLayoutPanel? _matchRow;
+    private Label? _specLabel;
+    private Label? _heroTalentLabel;
     private readonly DataGridView _rulesGrid = new();
     private readonly UiDarkScrollBar _rulesScrollBar = new();
     private readonly DataGridView _adjustmentsGrid = new();
@@ -88,7 +91,6 @@ public sealed class ModuleEditorControl : UserControl
         new("团队 (1-40)", "1-40"),
         new("队伍 (46)", "46")
     ];
-    private static readonly MatchOption[] ClassOptions = BuildClassOptions();
     private static readonly HashSet<string> NonAuraGroupFields = new(StringComparer.OrdinalIgnoreCase)
     {
         "生命值",
@@ -141,6 +143,18 @@ public sealed class ModuleEditorControl : UserControl
     {
         _fieldCatalog = ConditionFieldCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
         _keymapCatalog = KeymapCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
+        UpdateMatchRowProfile();
+        var selectedClassId = ReadMatchCombo(_classBox);
+        ResetClassOptions(_classBox);
+        if (selectedClassId is not null)
+        {
+            var index = FindMatchOption(_classBox, selectedClassId);
+            if (index >= 0) _classBox.SelectedIndex = index;
+        }
+        var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
+        filterItems.AddRange(GetAvailableClasses().Select(item => ((int?)item.Id, item.Name)));
+        _classFilterStrip.SetItems(filterItems);
+        _classFilterStrip.SelectClassId(null);
         ReloadCurrentClassSpellIds();
         // “更新配置”可能刚重建了 keymap；立即刷新当前规则的技能/目标/宏条件下拉，
         // 避免必须切换职业或重启应用后才能看到新解析出的宏条件。
@@ -161,7 +175,7 @@ public sealed class ModuleEditorControl : UserControl
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
         var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
-        filterItems.AddRange(ClassNames.GetClasses().Select(item => ((int?)item.Id, item.Name)));
+        filterItems.AddRange(GetAvailableClasses().Select(item => ((int?)item.Id, item.Name)));
         _classFilterStrip.SetItems(filterItems);
         _classFilterStrip.SelectClassId(null);
         _classFilterStrip.SelectionChanged += (_, _) =>
@@ -972,8 +986,12 @@ public sealed class ModuleEditorControl : UserControl
         // 列：标签0 / 框1 / 隙2 / 标签3 / 框4 / …
         for (var i = 0; i < matchLabels.Length; i++)
         {
-            AddMatchField(row, matchLabels[i], matchBoxes[i], i * 3);
+            var label = AddMatchField(row, matchLabels[i], matchBoxes[i], i * 3);
+            if (i == 1) _specLabel = label;
+            if (i == 2) _heroTalentLabel = label;
         }
+        _matchRow = row;
+        UpdateMatchRowProfile();
 
         var recommendedTalentRow = new TableLayoutPanel
         {
@@ -4657,9 +4675,11 @@ public sealed class ModuleEditorControl : UserControl
         module.Match = new ModuleMatch
         {
             ClassId = ReadMatchCombo(_classBox),
-            SpecId = ReadMatchCombo(_specBox),
+            SpecId = _resolveProfile().AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+                ? null : ReadMatchCombo(_specBox),
             PartyType = ReadPartyTypeCombo(),
-            HeroTalent = ReadMatchCombo(_heroTalentBox)
+            HeroTalent = _resolveProfile().AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+                ? null : ReadMatchCombo(_heroTalentBox)
         };
 
         module.Units = _units.Select(unit => unit.Clone()).ToList();
@@ -5070,7 +5090,7 @@ public sealed class ModuleEditorControl : UserControl
         };
     }
 
-    private static void AddMatchField(
+    private static Label AddMatchField(
         TableLayoutPanel row,
         string label,
         UiDropDown box,
@@ -5085,6 +5105,46 @@ public sealed class ModuleEditorControl : UserControl
         box.Dock = DockStyle.Fill;
         box.Margin = Padding.Empty;
         row.Controls.Add(box, column + 1, 0);
+        return fieldLabel;
+    }
+
+    private void UpdateMatchRowProfile()
+    {
+        if (_matchRow is null) return;
+        var forever = _resolveProfile().AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase);
+        if (forever)
+        {
+            _specBox.SelectedIndex = 0;
+            _heroTalentBox.SelectedIndex = 0;
+        }
+        _specBox.Visible = !forever;
+        _heroTalentBox.Visible = !forever;
+        if (_specLabel is not null) _specLabel.Visible = !forever;
+        if (_heroTalentLabel is not null) _heroTalentLabel.Visible = !forever;
+        for (var i = 0; i < 11; i++)
+        {
+            if (i is 2 or 5 or 8)
+            {
+                _matchRow.ColumnStyles[i].SizeType = forever && i != 2
+                    ? SizeType.Absolute : SizeType.Percent;
+                _matchRow.ColumnStyles[i].Width = forever && i != 2 ? 0 : 100;
+            }
+            else if (forever && i is >= 3 and <= 7)
+            {
+                _matchRow.ColumnStyles[i].SizeType = SizeType.Absolute;
+                _matchRow.ColumnStyles[i].Width = 0;
+            }
+            else if (!forever && (i is 3 or 6))
+            {
+                _matchRow.ColumnStyles[i].SizeType = SizeType.Absolute;
+                _matchRow.ColumnStyles[i].Width = MeasureLabelColumnWidth(i == 3 ? "专精:" : "英雄天赋:", Font);
+            }
+            else if (!forever && (i is 4 or 7))
+            {
+                _matchRow.ColumnStyles[i].SizeType = SizeType.Absolute;
+                _matchRow.ColumnStyles[i].Width = UiTheme.ModuleMatchFieldWidth;
+            }
+        }
     }
 
     private static Label CreateLabel(string text)
@@ -5185,10 +5245,13 @@ public sealed class ModuleEditorControl : UserControl
         return comboBox.SelectedItem is MatchOption option ? option.Value : null;
     }
 
-    private static void ResetClassOptions(UiDropDown comboBox)
+    private void ResetClassOptions(UiDropDown comboBox)
     {
         comboBox.Items.Clear();
-        comboBox.Items.AddRange(ClassOptions);
+        comboBox.Items.AddRange(GetAvailableClasses()
+            .Select(item => new MatchOption($"{item.Name} ({item.Id})", item.Id))
+            .Prepend(new MatchOption("任意 (*)", null))
+            .ToArray());
         comboBox.SelectedIndex = 0;
     }
 
@@ -5235,11 +5298,12 @@ public sealed class ModuleEditorControl : UserControl
         return -1;
     }
 
-    private static MatchOption[] BuildClassOptions()
+    private IReadOnlyList<(int Id, string Name)> GetAvailableClasses()
     {
+        var classDirectory = Path.Combine(_resolveProfile().AddonRoot, "class");
         return ClassNames.GetClasses()
-            .Select(item => new MatchOption($"{item.Name} ({item.Id})", item.Id))
-            .Prepend(new MatchOption("任意 (*)", null))
+            .Where(item => File.Exists(Path.Combine(classDirectory,
+                ClassNames.GetConfigFileName(item.Id) + ".lua")))
             .ToArray();
     }
 

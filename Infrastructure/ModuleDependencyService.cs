@@ -30,10 +30,12 @@ internal sealed class ModuleDependencyService
 
     private readonly string _classDirectory;
     private readonly string _classMacrosPath;
+    private readonly bool _classOnly;
     private readonly object _gate = new();
 
     public ModuleDependencyService(string addonRoot)
     {
+        _classOnly = string.Equals(Path.GetFileName(addonRoot), "Shingen", StringComparison.OrdinalIgnoreCase);
         _classDirectory = Path.Combine(addonRoot, "class");
         _classMacrosPath = Path.Combine(addonRoot, "core", "classmacros.lua");
     }
@@ -49,11 +51,13 @@ internal sealed class ModuleDependencyService
     private string? CaptureCore(ModuleDefinition module)
     {
         var classId = module.Match.ClassId;
-        var specId = module.Match.SpecId;
+        var specId = _classOnly ? 1 : module.Match.SpecId;
         if (classId is null || specId is null)
         {
             module.Dependencies = null;
-            return "模块未同时指定职业和专精，已保存模块逻辑，但未携带配置和宏。";
+            return _classOnly
+                ? "模块未指定职业，已保存模块逻辑，但未携带配置和宏。"
+                : "模块未同时指定职业和专精，已保存模块逻辑，但未携带配置和宏。";
         }
 
         var classPath = ResolveClassPath(classId.Value);
@@ -203,7 +207,7 @@ internal sealed class ModuleDependencyService
         }
     }
 
-    private static void ValidateSnapshot(ModuleDefinition module, ModuleDependencySnapshot snapshot)
+    private void ValidateSnapshot(ModuleDefinition module, ModuleDependencySnapshot snapshot)
     {
         if (snapshot.SchemaVersion is < 1 or > ModuleDependencySnapshot.CurrentSchemaVersion)
         {
@@ -212,9 +216,12 @@ internal sealed class ModuleDependencyService
 
         UpgradeLegacyItems(snapshot);
 
-        if (module.Match.ClassId != snapshot.ClassId || module.Match.SpecId != snapshot.SpecId)
+        if (module.Match.ClassId != snapshot.ClassId
+            || (_classOnly ? 1 : module.Match.SpecId) != snapshot.SpecId)
         {
-            throw new InvalidDataException("依赖快照的职业/专精与模块匹配条件不一致。");
+            throw new InvalidDataException(_classOnly
+                ? "依赖快照的职业与模块匹配条件不一致。"
+                : "依赖快照的职业/专精与模块匹配条件不一致。");
         }
 
         var unknownCategory = snapshot.Config.Spec.CategorizedStates.Keys

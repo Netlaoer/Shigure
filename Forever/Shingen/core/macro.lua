@@ -67,6 +67,11 @@ local function resolveMacroBody(spell)
     if not spell or spell == "" then
         return nil
     end
+    local spellID = spell:match("^#(%d+)$")
+    if spellID then
+        local localizedName = C_Spell.GetSpellName(tonumber(spellID))
+        return localizedName and ("/cast " .. localizedName) or nil
+    end
     local bodies = Shingen.MacroBodies
     local body = bodies and bodies[spell]
     if body then
@@ -112,6 +117,10 @@ function Shingen:CreateMacro(dynamicData, staticData, specialData)
 
     -- 1. dynamicSpells：每组占 40 个键（raid/party 展开）
     for _, spell in ipairs(dynamicData) do
+        local spellID = spell and spell:match("^#(%d+)$")
+        if spellID then
+            spell = C_Spell.GetSpellName(tonumber(spellID))
+        end
         for raidIdx = 1, 40 do
             local macroBody
             if spell and spell ~= "" then
