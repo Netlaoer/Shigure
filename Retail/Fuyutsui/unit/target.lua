@@ -10,37 +10,6 @@ local pet = Fuyutsui.pet
 local boss = Fuyutsui.boss
 local nameplate = Fuyutsui.nameplate
 
-local GARROTE_SPELL_ID = 703
-local IMPROVED_GARROTE_ICON = 7195162
-local GARROTE_ICON = 132297
-
-function Fuyutsui:RefreshTargetImprovedGarroteState()
-    local stateBlocks = self.blocks and self.blocks.state
-    if not stateBlocks or not stateBlocks["目标强化锁喉"] then return end
-
-    local value = 0
-    if UnitExists("target") then
-        local index = 1
-        while true do
-            local aura = C_UnitAuras.GetAuraDataByIndex("target", index, "HARMFUL")
-            if issecretvalue(aura) or not aura then break end
-            -- 光环 ID 与图标可能是保密值，不能直接比较；不可识别时输出 0。
-            if not issecretvalue(aura.spellId) and aura.spellId == GARROTE_SPELL_ID
-                and not issecretvalue(aura.icon) then
-                if aura.icon == IMPROVED_GARROTE_ICON then
-                    value = 1
-                    break
-                elseif aura.icon == GARROTE_ICON then
-                    value = 2
-                end
-            end
-            index = index + 1
-        end
-    end
-    state.targetImprovedGarrote = value / 255
-    self:UpdateStateBlock("特殊", "目标强化锁喉")
-end
-
 function Fuyutsui:GetUnitRangeBounds(unit)
     local minRange, maxRange = rc:GetRange(unit)
     return minRange, maxRange

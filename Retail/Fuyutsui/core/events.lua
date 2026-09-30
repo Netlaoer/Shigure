@@ -487,16 +487,10 @@ end
 
 function Fuyutsui:PLAYER_TARGET_CHANGED()
     self:RefreshTargetState()
-    self:RefreshTargetImprovedGarroteState()
     self:UpdateUnitAuraContainer("target")
     if self.RefreshNameplateUnitMappings then
         self:RefreshNameplateUnitMappings()
     end
-end
-
-function Fuyutsui:UNIT_AURA(_, unit)
-    if isSec(unit) or unit ~= "target" then return end
-    self:RefreshTargetImprovedGarroteState()
 end
 
 function Fuyutsui:PLAYER_FOCUS_CHANGED()
@@ -648,7 +642,6 @@ function Fuyutsui:OnUpdate(elapsed)
     if self.timeElapsed > 0.2 then
         RunUpdateSafely(self, "RefreshPlayerStealthState")
         RunUpdateSafely(self, "RefreshImprovedGarroteState")
-        RunUpdateSafely(self, "RefreshTargetImprovedGarroteState")
         RunUpdateSafely(self, "UpdateSpellCooldown")
         RunUpdateSafely(self, "RefreshAssistedCombatSuggestion")
         RunUpdateSafely(self, "UpdateRune")

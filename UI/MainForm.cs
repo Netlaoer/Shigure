@@ -2472,6 +2472,10 @@ public sealed class MainForm : Form, IMessageFilter
 
     private void LogAddonSyncResult(string operation, FuyutsuiAddonSyncResult result)
     {
+        foreach (var notice in result.Notices)
+        {
+            AppendLog($"{operation}: {notice}");
+        }
         foreach (var warning in result.Warnings)
         {
             AppendLog($"{operation}: {warning}");

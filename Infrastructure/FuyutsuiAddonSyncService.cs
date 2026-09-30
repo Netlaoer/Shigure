@@ -7,6 +7,11 @@ namespace Shigure;
 /// </summary>
 internal sealed class FuyutsuiAddonSyncService
 {
+    private static readonly string[] InterfaceIconNames =
+    [
+        "Ability_Rogue_Garrote.tga",
+        "INV12_Ability_Rogue_Garrote_Empowered.tga",
+    ];
     private readonly string _sourceRoot;
     private readonly WowProcessLocator _processLocator;
     private readonly IReadOnlyList<string> _processNames;
@@ -36,15 +41,17 @@ internal sealed class FuyutsuiAddonSyncService
         }
 
         var sourcePaths = Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories).ToArray();
-        return SynchronizeTargets(sourcePaths);
+        return SynchronizeTargets(sourcePaths, includeInterfaceIcons: true);
     }
 
-    private FuyutsuiAddonSyncResult SynchronizeTargets(IReadOnlyList<string> sourcePaths)
+    private FuyutsuiAddonSyncResult SynchronizeTargets(
+        IReadOnlyList<string> sourcePaths, bool includeInterfaceIcons = false)
     {
         var (targets, warnings) = ResolveTargetRoots();
         if (targets.Count == 0) return FuyutsuiAddonSyncResult.TargetNotFound(_sourceRoot, warnings);
 
         var results = new List<FuyutsuiAddonSyncTargetResult>();
+        var iconsUpdated = false;
         foreach (var targetRoot in targets)
         {
             var copied = new List<string>();
@@ -55,9 +62,27 @@ internal sealed class FuyutsuiAddonSyncService
                 var relativePath = Path.GetRelativePath(_sourceRoot, sourcePath);
                 SynchronizeCore(sourcePath, relativePath, targetRoot, copied, skipped, failures);
             }
+            if (includeInterfaceIcons && _expectedExecutableName.Equals("Wow.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                // 正式服纹理位于插件项目的同级 Interface，部署到游戏 Interface 而非 AddOns。
+                var interfaceRoot = Path.GetDirectoryName(Path.GetDirectoryName(targetRoot))!;
+                var iconSourceRoot = Path.Combine(Path.GetDirectoryName(_sourceRoot)!, "Interface", "ICONS");
+                var copiedBeforeIcons = copied.Count;
+                foreach (var name in InterfaceIconNames)
+                {
+                    SynchronizeCore(Path.Combine(iconSourceRoot, name), Path.Combine("ICONS", name),
+                        interfaceRoot, copied, skipped, failures, backupExisting: true);
+                }
+                iconsUpdated |= copied.Count > copiedBeforeIcons;
+            }
             results.Add(new FuyutsuiAddonSyncTargetResult(targetRoot, copied, skipped, failures));
         }
-        return new FuyutsuiAddonSyncResult(_sourceRoot, results, null, warnings);
+        return new FuyutsuiAddonSyncResult(_sourceRoot, results, null, warnings)
+        {
+            Notices = iconsUpdated
+                ? ["锁喉图标纹理已更新；请完全退出并重新启动游戏，/reload 无法保证加载新纹理。"]
+                : [],
+        };
     }
 
     public FuyutsuiAddonSyncResult SynchronizeFile(string sourcePath)
@@ -120,14 +145,20 @@ internal sealed class FuyutsuiAddonSyncService
         string targetRoot,
         ICollection<string> copied,
         ICollection<string> skipped,
-        ICollection<FuyutsuiAddonSyncFailure> failures)
+        ICollection<FuyutsuiAddonSyncFailure> failures,
+        bool backupExisting = false)
     {
+        var reportedPath = backupExisting ? Path.Combine("Interface", relativePath) : relativePath;
         try
         {
+            if (!File.Exists(sourcePath))
+            {
+                throw new FileNotFoundException("项目源文件缺失，未修改游戏文件。", sourcePath);
+            }
             var targetPath = Path.Combine(targetRoot, relativePath);
             if (File.Exists(targetPath) && FilesHaveSameHash(sourcePath, targetPath))
             {
-                skipped.Add(relativePath);
+                skipped.Add(reportedPath);
                 return;
             }
 
@@ -137,12 +168,34 @@ internal sealed class FuyutsuiAddonSyncService
                 Directory.CreateDirectory(targetDirectory);
             }
 
-            File.Copy(sourcePath, targetPath, overwrite: true);
-            copied.Add(relativePath);
+            if (backupExisting)
+            {
+                // 第一次覆盖时保留原纹理；后续更新不得覆盖最初备份。
+                var backupPath = targetPath + ".shigure-original";
+                if (File.Exists(targetPath) && !File.Exists(backupPath))
+                {
+                    File.Copy(targetPath, backupPath, overwrite: false);
+                }
+                var temporaryPath = targetPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    File.Copy(sourcePath, temporaryPath, overwrite: false);
+                    File.Move(temporaryPath, targetPath, overwrite: true);
+                }
+                finally
+                {
+                    if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+                }
+            }
+            else
+            {
+                File.Copy(sourcePath, targetPath, overwrite: true);
+            }
+            copied.Add(reportedPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            failures.Add(new FuyutsuiAddonSyncFailure(relativePath, ex.Message));
+            failures.Add(new FuyutsuiAddonSyncFailure(reportedPath, ex.Message));
         }
     }
 
@@ -170,6 +223,7 @@ internal sealed record FuyutsuiAddonSyncResult(
     string? SkippedReason,
     IReadOnlyList<string> Warnings)
 {
+    public IReadOnlyList<string> Notices { get; init; } = [];
     public bool TargetFound => Targets.Count > 0;
     public string? TargetRoot => TargetFound
         ? string.Join("；", Targets.Select(target => target.TargetRoot)) : null;

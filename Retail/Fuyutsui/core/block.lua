@@ -704,6 +704,20 @@ local function MakeZeroSlotInitializer(index)
     end
 end
 
+--- 图标中心编码：TGA 中央横条为 (255,255,1/2)，固定顶点颜色保留索引通道。
+local function MakeGarroteIconSlotInitializer(index)
+    return function(button)
+        AnchorAuraPixelButton(button, index)
+        local icon = button:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints(button)
+        -- 128×128 图标仅采样中央 2×2；远离横条边缘，避免缩小时混入外围颜色。
+        icon:SetTexCoord(63 / 128, 65 / 128, 63 / 128, 65 / 128)
+        local r, g = EncodeBlockChannels(index)
+        icon:SetVertexColor(r, g, 1, 1)
+        button:SetIcon(icon)
+    end
+end
+
 local function AddDurationAuraSlotPair(container, slotKeyPrefix, filter, includeSpellIDs, index, maxApps)
     local hasApplications = type(maxApps) == "number" and maxApps > 0
     -- 先限时后永久：若容器对 auraInstance 互斥分配，避免限时光环被永久槽抢走。
@@ -785,7 +799,9 @@ local function RebindContainerSpellFilters(container, unit)
     end
     if container.fuyutsuiSpellIdSlots then
         for _, slot in ipairs(container.fuyutsuiSpellIdSlots) do
-            container:SetAuraSlotCandidateFilters(slot.key, AuraSlotFilters(slot.includeSpellIDs))
+            local filters = (not slot.filter or IsAuraFilterAllowedForUnit(bindUnit, slot.filter))
+                and AuraSlotFilters(slot.includeSpellIDs) or AURA_MATCH_NONE_FILTERS
+            container:SetAuraSlotCandidateFilters(slot.key, filters)
         end
     end
     if container.fuyutsuiDispelSlot then
@@ -946,8 +962,31 @@ local function AddUnitDispelSlots(container, unit, index)
     container.fuyutsuiUnitDispelSlots = slots
 end
 
-local function CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex)
-    if (not spellSlots or #spellSlots == 0) and not dispelIndex then
+local function GetUnitGarroteStateIndex(unit)
+    local stateBlocks = Fuyutsui.blocks and Fuyutsui.blocks.state
+    return unit == "target" and stateBlocks and stateBlocks["目标强化锁喉"] or nil
+end
+
+local function AddGarroteIconSlot(container, index)
+    if not index then return end
+    local slot = {
+        key = "target_garrote_icon",
+        filter = "HARMFUL|PLAYER",
+        includeSpellIDs = { [703] = true },
+    }
+    -- 没有光环时按钮由容器隐藏，露出主色条的 0 底色；敌友过滤统一在重绑时启用。
+    container:AddAuraSlot(slot.key, slot.filter, {
+        candidateFilters = AURA_MATCH_NONE_FILTERS,
+        sortMethod = AuraContainerSortMethod.Expiration,
+        sortDirection = AuraContainerSortDirection.Normal,
+        initializeFrame = MakeGarroteIconSlotInitializer(index),
+    })
+    container.fuyutsuiSpellIdSlots = container.fuyutsuiSpellIdSlots or {}
+    tinsert(container.fuyutsuiSpellIdSlots, slot)
+end
+
+local function CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex, garroteIndex)
+    if (not spellSlots or #spellSlots == 0) and not dispelIndex and not garroteIndex then
         return
     end
 
@@ -972,6 +1011,7 @@ local function CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex)
     end
 
     AddUnitDispelSlots(durationSlots, unit, dispelIndex)
+    AddGarroteIconSlot(durationSlots, garroteIndex)
 
     Fuyutsui[key] = durationSlots
     durationSlots.fuyutsuiUnit = unit
@@ -984,8 +1024,9 @@ function Fuyutsui:RefreshUnitAuraContainers()
         if not Fuyutsui[key] then
             local spellSlots = CollectAuraSpellSlots(unit)
             local dispelIndex = GetUnitDispelStateIndex(unit)
-            if #spellSlots > 0 or dispelIndex then
-                CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex)
+            local garroteIndex = GetUnitGarroteStateIndex(unit)
+            if #spellSlots > 0 or dispelIndex or garroteIndex then
+                CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex, garroteIndex)
             end
         end
     end
