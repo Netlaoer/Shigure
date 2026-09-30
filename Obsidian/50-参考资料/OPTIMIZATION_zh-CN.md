@@ -21,9 +21,9 @@ related:
   - "[[20-Fuyutsui/00-Fuyutsui-MOC|Fuyutsui MOC]]"
   - "[[40-跨项目/04-Shigure-兼容性变更检查清单|兼容性变更检查清单]]"
 source_files:
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/core/*.lua"
-  - "Fuyutsui/class/*.lua"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/*.lua"
+  - "Retail/Fuyutsui/class/*.lua"
 source_symbols: []
 verified_at: "2026-07-25"
 ---

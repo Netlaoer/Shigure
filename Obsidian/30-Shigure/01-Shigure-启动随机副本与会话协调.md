@@ -53,12 +53,12 @@ verified_at: 2026-08-10
 | 输入 | 处理 | 输出 |
 |---|---|---|
 | 命令行参数 | `AppOptions.FromArgs` | 触发键、模式、模块、逻辑/渲染间隔 |
-| `wow_process.txt` | `WowProcessLocator` | 每次查询时的目标进程名和最靠前候选可见窗口 |
+| `game_profiles.json` | `WowProcessLocator` | 每次查询时的目标进程名和最靠前候选可见窗口 |
 | 当前可执行文件和环境变量 | `TryRelaunch` / `AppPaths` | 随机名称子进程，以及稳定的业务数据根目录 |
 | UI 的启动/重启/停止请求 | `RuntimeSessionCoordinator` | 唯一活动会话、快照事件、失败/停止事件 |
 | 共享 `ModuleStore` 和触发键读取器 | `ShigureRuntimeFactory` | 每个会话一套配置、Keymap、扫描、状态、逻辑和输出对象 |
 
-支持的选项以源码为准：`--toggle`、`--mode`、`--module`、`--logic-ms`、`--render-ms`。`--window` 已移除；目标进程改由 `wow_process.txt` 配置。模式不识别时回退到 `Switch`；逻辑间隔最低 50 ms，渲染间隔最低 100 ms。
+支持的选项以源码为准：`--toggle`、`--mode`、`--module`、`--logic-ms`、`--render-ms`。`--window` 已移除；目标进程改由 `game_profiles.json` 配置。模式不识别时回退到 `Switch`；逻辑间隔最低 50 ms，渲染间隔最低 100 ms。
 
 ## 执行链路
 

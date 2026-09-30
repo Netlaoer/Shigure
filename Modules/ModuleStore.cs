@@ -291,7 +291,18 @@ public sealed class ModuleStore
         Reload();
     }
 
-    public string ModuleDirectory { get; }
+    public string ModuleDirectory { get; private set; }
+
+    public void UseDirectory(string directory)
+    {
+        lock (_gate)
+        {
+            ModuleDirectory = directory;
+            _rejectedModuleIds.Clear();
+            _importIssueModuleIds.Clear();
+            Reload();
+        }
+    }
 
     public static string ResolveModuleDirectory()
     {

@@ -1,6 +1,6 @@
 # keymap
 
-热键池槽位对照：26 组左右修饰符 × 44 个主键，屏蔽 `RALT-RCTRL-RSHIFT-NUMPADMULTIPLY` 后共 1143 个可用组合。序号从 1 起，与 `Fuyutsui/core/macro.lua` 的 `macroKind` 以及 `keymap/*.json` 的键一致。当前不含 F4、反引号、NUMPADENTER、数字主键、斜杠主键和 DELETE（避免 ALT-CTRL-DELETE 等系统级组合）。
+热键池槽位对照：26 组左右修饰符 × 44 个主键，屏蔽 `RALT-RCTRL-RSHIFT-NUMPADMULTIPLY` 后共 1143 个可用组合。序号从 1 起，与 `Retail/Fuyutsui/core/macro.lua` 的 `macroKind` 以及 `Retail/keymap/*.json`、`Forever/keymap/*.json` 的键一致。当前不含 F4、反引号、NUMPADENTER、数字主键、斜杠主键和 DELETE（避免 ALT-CTRL-DELETE 等系统级组合）。
 
 | 序号 | 按键 |
 | --- | --- |

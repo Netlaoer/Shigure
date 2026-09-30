@@ -20,8 +20,8 @@ related:
   - "[[40-跨项目/00-Shigure-跨项目契约-MOC|跨项目契约 MOC]]"
   - "[[50-参考资料/00-参考资料-MOC|参考资料 MOC]]"
 source_files:
-  - "Fuyutsui/Fuyutsui.toc"
-  - "Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/Fuyutsui.toc"
+  - "Retail/Fuyutsui/main.lua"
   - "Shigure.csproj"
   - "App/Program.cs"
   - "Infrastructure/FuyutsuiAddonSyncService.cs"
@@ -38,7 +38,7 @@ verified_at: "2026-08-10"
 本仓库包含两个共同发布、职责独立的组件：
 
 - **Fuyutsui** 是 WoW Retail Lua AddOn。它读取游戏 API，把状态编码为屏幕顶部像素和横向条，并创建游戏内宏及覆盖绑定。
-- **Shigure** 是 Windows WinForms 程序。它截取并解码这些像素，构建 `GameState`，按模块规则选择动作，再向 WoW 窗口发送热键；仓库内 `Fuyutsui/` 是它编辑、生成配置和部署游戏插件时使用的唯一权威源。
+- **Shigure** 是 Windows WinForms 程序。它截取并解码这些像素，构建 `GameState`，按模块规则选择动作，再向 WoW 窗口发送热键；仓库内 `Retail/Fuyutsui/` 是它编辑、生成配置和部署游戏插件时使用的唯一权威源。
 
 两者仍通过像素和按键形成生产者—消费者闭环，但源码、构建和发布已整合在同一仓库。Shigure 启动时会把内置插件按 SHA-256 单向部署到目标游戏；游戏目录是运行副本，不是编辑源。开始任何修改前，先读 [[10-系统/00-Shigure-双项目系统全景|双项目系统全景]]，再沿本页的任务路由进入组件 MOC 和跨项目契约。
 
@@ -121,7 +121,7 @@ verified_at: "2026-08-10"
 
 ### 已确认的失败模式
 
-- 旧外部资料曾提到 `auracontainer.lua`；当前内置插件不存在该文件，`Fuyutsui.toc` 也不加载它，光环像素实现以 `Fuyutsui/core/block.lua` 为准。
+- 旧外部资料曾提到 `auracontainer.lua`；当前内置插件不存在该文件，`Fuyutsui.toc` 也不加载它，光环像素实现以 `Retail/Fuyutsui/core/block.lua` 为准。
 - 当前源码与 README 均以 `ModuleDefinition.CurrentUnitMappingVersion = 4` 为准；旧模块按版本逐级迁移。
 - [[50-参考资料/OPTIMIZATION_zh-CN|旧优化审计]] 引用了拆分前千行 `main.lua` 的位置；按行号实施会定位到错误文件。
 - 只写普通文本文件名而不创建 Obsidian 内部笔记链接，不会形成可靠的关系边，容易产生孤立节点。
@@ -140,9 +140,9 @@ verified_at: "2026-08-10"
 
 | 入口 | 作用 |
 |---|---|
-| `Fuyutsui/Fuyutsui.toc` | Fuyutsui 实际加载顺序和版本元数据 |
-| `Fuyutsui/core/core.lua` | AddOn 生命周期、事件分发和 SavedVariables |
-| `Fuyutsui/main.lua` | `ClassBlocks`、宏和初始状态编排 |
+| `Retail/Fuyutsui/Fuyutsui.toc` | Fuyutsui 实际加载顺序和版本元数据 |
+| `Retail/Fuyutsui/core/core.lua` | AddOn 生命周期、事件分发和 SavedVariables |
+| `Retail/Fuyutsui/main.lua` | `ClassBlocks`、宏和初始状态编排 |
 | `App/Program.cs` | Shigure 组合根 |
 | `Infrastructure/FuyutsuiAddonSyncService.cs` | 内置插件到游戏目录的 SHA-256 单向部署 |
 | `Runtime/ShigureRuntime.cs` | 主运行循环 |

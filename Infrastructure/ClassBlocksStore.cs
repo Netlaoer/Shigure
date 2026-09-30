@@ -11,9 +11,6 @@ namespace Shigure;
 /// </summary>
 internal static class ClassBlocksStore
 {
-    public const string AssignmentName = "Fuyutsui.ClassBlocks";
-    public const string SpellsListAssignmentName = "Fuyutsui.spellsList";
-    public const string ItemsListAssignmentName = "Fuyutsui.itemsList";
     private static readonly string[] StateCategories =
     [
         ClassStateCatalog.CategoryState,
@@ -92,6 +89,11 @@ internal static class ClassBlocksStore
         public List<AuraEntry> TargetHelpfulAuras { get; } = new();
         public List<AuraEntry> FocusHarmfulAuras { get; } = new();
         public List<AuraEntry> FocusHelpfulAuras { get; } = new();
+        public List<AuraEntry> Boss1HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss2HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss3HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss4HarmfulAuras { get; } = new();
+        public List<AuraEntry> Boss5HarmfulAuras { get; } = new();
         public List<SpellEntry> Spells { get; } = new();
         public GroupBlocks? Group { get; set; }
         public NameplateBlocks? Nameplates { get; set; }
@@ -128,20 +130,24 @@ internal static class ClassBlocksStore
         public string Name { get; set; } = string.Empty;
         public long? SpellId { get; set; }
         public List<long> SpellIds { get; } = new();
+        public int? MaxApps { get; set; }
     }
 
-    // 生命值/距离是固定像素，配置里只剩光环列表。
+    // 生命值/距离/战斗是固定像素；配置保存光环列表及可选的锁喉类型开关。
     public sealed class NameplateBlocks
     {
+        // null 保留旧配置省略值；正式服奇袭的有效默认值为 true。
+        public bool? ImprovedGarrote { get; set; }
         public List<AuraEntry> Auras { get; } = new();
     }
 
     public static ClassFileDocument Load(string filePath)
     {
         var source = File.ReadAllText(filePath, Encoding.UTF8);
-        if (!TryExtractAssignedTable(source, AssignmentName, out var table, out var start, out var end))
+        var assignmentName = AddonLuaNames.Assignment(source, "ClassBlocks");
+        if (!TryExtractAssignedTable(source, assignmentName, out var table, out var start, out var end))
         {
-            throw new InvalidDataException($"{Path.GetFileName(filePath)} 中未找到 {AssignmentName}");
+            throw new InvalidDataException($"{Path.GetFileName(filePath)} 中未找到 {assignmentName}");
         }
 
         var specs = new Dictionary<int, SpecBlocks>();
@@ -158,8 +164,8 @@ internal static class ClassBlocksStore
             specs[(int)specId] = spec;
         }
 
-        var spellsList = ParseSpellsList(ExtractAssignedTable(source, SpellsListAssignmentName));
-        var itemsList = ParseItemsList(ExtractAssignedTable(source, ItemsListAssignmentName));
+        var spellsList = ParseSpellsList(ExtractAssignedTable(source, AddonLuaNames.Assignment(source, "spellsList")));
+        var itemsList = ParseItemsList(ExtractAssignedTable(source, AddonLuaNames.Assignment(source, "itemsList")));
         return new ClassFileDocument
         {
             FilePath = filePath,
@@ -301,7 +307,7 @@ internal static class ClassBlocksStore
             updated,
             document.ItemsList,
             document.DeletedItemsListOriginalIds);
-        if (!TryExtractAssignedTable(updated, AssignmentName, out _, out var classBlocksStart, out var classBlocksEnd))
+        if (!TryExtractAssignedTable(updated, AddonLuaNames.Assignment(updated, "ClassBlocks"), out _, out var classBlocksStart, out var classBlocksEnd))
         {
             throw new InvalidOperationException("保存前无法重新定位 ClassBlocks 表。");
         }
@@ -312,7 +318,7 @@ internal static class ClassBlocksStore
             + updated[classBlocksEnd..];
         AtomicFile.WriteAllText(document.FilePath, updated, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-        if (!TryExtractAssignedTable(updated, AssignmentName, out _, out var start, out var end))
+        if (!TryExtractAssignedTable(updated, AddonLuaNames.Assignment(updated, "ClassBlocks"), out _, out var start, out var end))
         {
             throw new InvalidOperationException("保存后无法重新定位 ClassBlocks 表。");
         }
@@ -350,6 +356,7 @@ internal static class ClassBlocksStore
         IReadOnlyList<SpellsListEntry> entries,
         IReadOnlySet<long> deletedOriginalIds)
     {
+        var spellsListAssignmentName = AddonLuaNames.Assignment(source, "spellsList");
         var newEntries = entries.Where(entry => entry.OriginalSpellId == 0).ToArray();
         var changedEntries = entries
             .Where(entry => entry.OriginalSpellId != 0
@@ -362,9 +369,9 @@ internal static class ClassBlocksStore
             return source;
         }
 
-        if (!TryExtractAssignedTable(source, SpellsListAssignmentName, out _, out var tableStart, out var tableEnd))
+        if (!TryExtractAssignedTable(source, spellsListAssignmentName, out _, out var tableStart, out var tableEnd))
         {
-            throw new InvalidOperationException($"当前文件中未找到 {SpellsListAssignmentName}，无法保存技能列表。");
+            throw new InvalidOperationException($"当前文件中未找到 {spellsListAssignmentName}，无法保存技能列表。");
         }
 
         var tableText = source[tableStart..tableEnd];
@@ -412,14 +419,14 @@ internal static class ClassBlocksStore
         if (missing.Length > 0)
         {
             throw new InvalidOperationException(
-                $"无法在 {SpellsListAssignmentName} 中定位法术 ID {string.Join(", ", missing)} 的原始条目。");
+                $"无法在 {spellsListAssignmentName} 中定位法术 ID {string.Join(", ", missing)} 的原始条目。");
         }
 
         var missingDeleted = deletedOriginalIds.Where(id => !deletedIdsFound.Contains(id)).ToArray();
         if (missingDeleted.Length > 0)
         {
             throw new InvalidOperationException(
-                $"无法在 {SpellsListAssignmentName} 中定位待删除的法术 ID {string.Join(", ", missingDeleted)}。");
+                $"无法在 {spellsListAssignmentName} 中定位待删除的法术 ID {string.Join(", ", missingDeleted)}。");
         }
 
         if (newEntries.Length > 0)
@@ -457,19 +464,21 @@ internal static class ClassBlocksStore
         IReadOnlyList<ItemsListEntry> entries,
         IReadOnlySet<long> deletedOriginalIds)
     {
+        var itemsListAssignmentName = AddonLuaNames.Assignment(source, "itemsList");
+        var spellsListAssignmentName = AddonLuaNames.Assignment(source, "spellsList");
         var newline = source.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-        if (!TryExtractAssignedTable(source, ItemsListAssignmentName, out _, out var tableStart, out var tableEnd))
+        if (!TryExtractAssignedTable(source, itemsListAssignmentName, out _, out var tableStart, out var tableEnd))
         {
-            if (!TryExtractAssignedTable(source, SpellsListAssignmentName, out _, out _, out var spellsEnd))
+            if (!TryExtractAssignedTable(source, spellsListAssignmentName, out _, out _, out var spellsEnd))
             {
                 throw new InvalidOperationException(
-                    $"当前文件中未找到 {SpellsListAssignmentName}，无法写入物品列表。");
+                    $"当前文件中未找到 {spellsListAssignmentName}，无法写入物品列表。");
             }
 
             return source[..spellsEnd]
                 + newline
                 + newline
-                + SerializeItemsListAssignment(entries, newline)
+                + SerializeItemsListAssignment(entries, newline, itemsListAssignmentName)
                 + source[spellsEnd..];
         }
 
@@ -495,8 +504,8 @@ internal static class ClassBlocksStore
             + source[tableEnd..];
     }
 
-    private static string SerializeItemsListAssignment(IReadOnlyList<ItemsListEntry> entries, string newline)
-        => ItemsListAssignmentName + " = " + SerializeItemsListTableLiteral(entries, newline);
+    private static string SerializeItemsListAssignment(IReadOnlyList<ItemsListEntry> entries, string newline, string assignmentName)
+        => assignmentName + " = " + SerializeItemsListTableLiteral(entries, newline);
 
     private static string SerializeItemsListTableLiteral(IReadOnlyList<ItemsListEntry> entries, string newline)
     {
@@ -591,7 +600,8 @@ internal static class ClassBlocksStore
         {
             var nested = auras.GetTable("player") is not null
                 || auras.GetTable("target") is not null
-                || auras.GetTable("focus") is not null;
+                || auras.GetTable("focus") is not null
+                || Enumerable.Range(1, 5).Any(index => auras.GetTable($"boss{index}") is not null);
             if (nested)
             {
                 AppendAuraList(auras.GetTable("player"), result.PlayerAuras);
@@ -605,6 +615,14 @@ internal static class ClassBlocksStore
                 {
                     AppendAuraList(focus.GetTable("harmful"), result.FocusHarmfulAuras);
                     AppendAuraList(focus.GetTable("helpful"), result.FocusHelpfulAuras);
+                }
+
+                for (var bossIndex = 1; bossIndex <= 5; bossIndex++)
+                {
+                    if (auras.GetTable($"boss{bossIndex}") is { } boss)
+                    {
+                        AppendAuraList(boss.GetTable("harmful"), GetBossHarmfulAuras(result, bossIndex));
+                    }
                 }
             }
             else
@@ -662,7 +680,8 @@ internal static class ClassBlocksStore
 
                     var entry = new GroupAuraEntry
                     {
-                        Name = auraInfo.GetString("name")?.Trim() ?? string.Empty
+                        Name = auraInfo.GetString("name")?.Trim() ?? string.Empty,
+                        MaxApps = auraInfo.GetNumber("maxApps") is { } maxApps ? (int)maxApps : null
                     };
                     if (auraInfo.GetNumber("spellId") is { } sid)
                     {
@@ -690,7 +709,7 @@ internal static class ClassBlocksStore
 
         if (spec.GetTable("nameplates") is { } nameplates)
         {
-            var blocks = new NameplateBlocks();
+            var blocks = new NameplateBlocks { ImprovedGarrote = nameplates.GetBool("improvedGarrote") };
             AppendAuraList(nameplates.GetTable("auras"), blocks.Auras);
             result.Nameplates = blocks;
         }
@@ -834,13 +853,18 @@ internal static class ClassBlocksStore
             || spec.TargetHarmfulAuras.Count > 0
             || spec.TargetHelpfulAuras.Count > 0
             || spec.FocusHarmfulAuras.Count > 0
-            || spec.FocusHelpfulAuras.Count > 0;
+            || spec.FocusHelpfulAuras.Count > 0
+            || Enumerable.Range(1, 5).Any(index => GetBossHarmfulAuras(spec, index).Count > 0);
         if (hasAuras)
         {
             sb.Append(indent).AppendLine("auras = {");
             WriteAuraUnit(sb, "player", null, spec.PlayerAuras, indent + "    ");
             WriteAuraSplitUnit(sb, "target", spec.TargetHarmfulAuras, spec.TargetHelpfulAuras, indent + "    ");
             WriteAuraSplitUnit(sb, "focus", spec.FocusHarmfulAuras, spec.FocusHelpfulAuras, indent + "    ");
+            for (var bossIndex = 1; bossIndex <= 5; bossIndex++)
+            {
+                WriteAuraSplitUnit(sb, $"boss{bossIndex}", GetBossHarmfulAuras(spec, bossIndex), [], indent + "    ");
+            }
             sb.Append(indent).AppendLine("},");
         }
 
@@ -911,7 +935,7 @@ internal static class ClassBlocksStore
         {
             sb.Append(indent).AppendLine("group = {");
             sb.Append(indent).Append("    state = {");
-            foreach (var field in group.State)
+            foreach (var field in GroupStateLayout.EnsureRequired(group.State))
             {
                 sb.Append(" \"").Append(Escape(field)).Append("\",");
             }
@@ -929,6 +953,10 @@ internal static class ClassBlocksStore
                     }
 
                     WriteSpellIdFields(sb, aura.SpellId, aura.SpellIds);
+                    if (aura.MaxApps is { } maxApps)
+                    {
+                        sb.Append(" maxApps = ").Append(maxApps).Append(',');
+                    }
                     sb.AppendLine(" },");
                 }
 
@@ -941,6 +969,11 @@ internal static class ClassBlocksStore
         if (spec.Nameplates is { } nameplates)
         {
             sb.Append(indent).AppendLine("nameplates = {");
+            if (nameplates.ImprovedGarrote is { } improvedGarrote)
+            {
+                sb.Append(indent).Append("    improvedGarrote = ")
+                    .Append(improvedGarrote ? "true" : "false").AppendLine(",");
+            }
             if (nameplates.Auras.Count > 0)
             {
                 sb.Append(indent).AppendLine("    auras = {");
@@ -1038,6 +1071,16 @@ internal static class ClassBlocksStore
             }
         }
     }
+
+    private static List<AuraEntry> GetBossHarmfulAuras(SpecBlocks spec, int bossIndex) => bossIndex switch
+    {
+        1 => spec.Boss1HarmfulAuras,
+        2 => spec.Boss2HarmfulAuras,
+        3 => spec.Boss3HarmfulAuras,
+        4 => spec.Boss4HarmfulAuras,
+        5 => spec.Boss5HarmfulAuras,
+        _ => throw new ArgumentOutOfRangeException(nameof(bossIndex))
+    };
 
     private static void WriteAuraUnit(StringBuilder sb, string unit, string? filter, List<AuraEntry> list, string indent)
     {

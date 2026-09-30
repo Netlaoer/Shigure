@@ -1,0 +1,54 @@
+local addon, ns = ...
+
+local EnumPowerType = Shingen.EnumPowerType
+local curveCache = {}
+Shingen.powerCurves = {}
+
+function Shingen:CreateColorCurve(point, b)
+    local curve = C_CurveUtil.CreateColorCurve()
+    curve:SetType(Enum.LuaCurveType.Linear)
+    curve:AddPoint(0, CreateColor(0, 0, 0, 1))
+    curve:AddPoint(point, CreateColor(0, 0, b / 255, 1))
+    return curve
+end
+
+function Shingen:CreateColorCurveScaling(b)
+    if curveCache[b] then
+        return curveCache[b]
+    end
+    local curve = C_CurveUtil.CreateColorCurve()
+    curve:SetType(Enum.LuaCurveType.Linear)
+    if b > 100 then
+        curve:AddPoint(0, CreateColor(0, 0, (b - 100) / 255, 1))
+        curve:AddPoint(1, CreateColor(0, 0, b / 255, 1))
+    else
+        local z = (100 - b) / 100
+        curve:AddPoint(0, CreateColor(0, 0, 0, 1))
+        curve:AddPoint(z, CreateColor(0, 0, 1 / 255, 1))
+        curve:AddPoint(1, CreateColor(0, 0, b / 255, 1))
+    end
+    curveCache[b] = curve
+    return curve
+end
+
+function Shingen:CreatePowerCurve(powerType)
+    if self.powerCurves[powerType] then return end
+    local powerMax = UnitPowerMax("player", EnumPowerType[powerType])
+    if powerMax >= 300 then
+        self.powerCurves[powerType] = self:CreateColorCurve(1, 100)
+    else
+        self.powerCurves[powerType] = self:CreateColorCurve(1, powerMax)
+    end
+end
+
+-- 队伍生命曲线必须在进入战斗前创建。战斗中只选择既有曲线，
+-- 避免首次施放对应治疗法术时临时调用 C_CurveUtil.CreateColorCurve。
+Shingen.curve100 = Shingen:CreateColorCurveScaling(100)
+Shingen.groupHealthCurves = {
+    default = Shingen.curve100,
+    incoming15 = Shingen:CreateColorCurveScaling(115),
+    incoming40 = Shingen:CreateColorCurveScaling(140),
+}
+Shingen.curve255 = Shingen:CreateColorCurve(255, 255)
+Shingen.castCurve = Shingen:CreateColorCurve(25.5, 255)
+Shingen.curveMs = Shingen:CreateColorCurve(2.55, 255)

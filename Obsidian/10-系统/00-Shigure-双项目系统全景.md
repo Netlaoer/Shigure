@@ -19,9 +19,9 @@ related:
   - "[[30-Shigure/00-Shigure-MOC|Shigure MOC]]"
   - "[[40-跨项目/00-Shigure-跨项目契约-MOC|跨项目契约 MOC]]"
 source_files:
-  - "Fuyutsui/Fuyutsui.toc"
-  - "Fuyutsui/core/core.lua"
-  - "Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/Fuyutsui.toc"
+  - "Retail/Fuyutsui/core/core.lua"
+  - "Retail/Fuyutsui/main.lua"
   - "App/Program.cs"
   - "Runtime/ShigureRuntime.cs"
   - "Runtime/PixelScanner.cs"
@@ -43,7 +43,7 @@ verified_at: "2026-08-10"
 
 ## AI 摘要
 
-系统主闭环是：WoW 事件和 API 驱动 Fuyutsui 状态，Fuyutsui 将状态绘制成屏幕像素；Shigure 截屏解码为 `GameState`，用模块规则和 keymap 得出热键，再把按键发回 WoW。仓库内 `Fuyutsui/` 已成为内置权威源：Shigure 直接编辑这里的 Lua、生成 `config/*.json` 与 `keymap/*.json`，再将插件单向部署到游戏目录。
+系统主闭环是：WoW 事件和 API 驱动 Fuyutsui 状态，Fuyutsui 将状态绘制成屏幕像素；Shigure 截屏解码为 `GameState`，用模块规则和 keymap 得出热键，再把按键发回 WoW。仓库内 `Retail/Fuyutsui/` 已成为内置权威源：Shigure 直接编辑这里的 Lua、生成 `config/*.json` 与 `keymap/*.json`，再将插件单向部署到游戏目录。
 
 因此存在三条必须同步维护的跨项目接口：
 
@@ -71,7 +71,7 @@ verified_at: "2026-08-10"
 - keymap 查找、触发模式、节流和 Windows 按键发送。
 - WinForms 界面、本地缓存、随机运行副本和会话协调。
 - Fuyutsui Lua 表的轻量解析、可视化编辑和生成数据同步。
-- 内置 `Fuyutsui/` 的构建分发，以及到目标游戏 `Interface/AddOns/Fuyutsui` 的 SHA-256 单向部署。
+- 内置 `Retail/Fuyutsui/` 的构建分发，以及到目标游戏 `Interface/AddOns/Fuyutsui` 的 SHA-256 单向部署。
 
 ### 共享但不应重复拥有
 
@@ -92,7 +92,7 @@ verified_at: "2026-08-10"
 | Shigure `StateBuilder` | 三组原始采样数据、当前 `config` | `GameState.Values/Auras/Spells/Group` |
 | Shigure `LogicRegistry` / module | `GameState`、模块选择、keymap | `LogicDecision` |
 | Shigure `KeySender` | 决策中的 hotkey | 发送结果和可记录的失败原因 |
-| Shigure Lua/部署子系统 | 内置 `Fuyutsui/class/*.lua`、`core/classmacros.lua` | 更新后的项目 Lua、`config/*.json`、`keymap/*.json`、游戏插件副本、运行时重启 |
+| Shigure Lua/部署子系统 | 内置 `Retail/Fuyutsui/class/*.lua`、`core/classmacros.lua` | 更新后的项目 Lua、`config/*.json`、`keymap/*.json`、游戏插件副本、运行时重启 |
 
 ## 运行链路
 
@@ -109,10 +109,11 @@ verified_at: "2026-08-10"
 
 ### 配置、宏与游戏副本部署
 
-1. 配置页和宏页始终从 `AppPaths.BaseDirectory/Fuyutsui` 读取项目源，不直接读取游戏插件副本。
+1. 配置页和宏页从当前版本的 `Retail/Fuyutsui` 或 `Forever/Shingen` 读取项目源，不直接读取游戏插件副本。
 2. `ClassBlocksStore` 读写 `class/*.lua`；`ClassMacrosStore` 读写 `core/classmacros.lua`，保存只替换对应表字面量。
 3. `FuyutsuiConfigConverter` 重新生成 `config`；`FuyutsuiKeymapConverter` 重新生成 `keymap`。
-4. `WowProcessLocator` 每次从 `wow_process.txt` 读取进程名，按 Windows Z 顺序选择最靠前的候选可见窗口；`WowAddonLocator` 从该进程路径推导 `Interface/AddOns`。
+
+4. `GameProfiles` 启动时读取 `game_profiles.json`；`WowProcessLocator` 按 Windows Z 顺序选择最靠前的候选可见窗口；`WowAddonLocator` 从该进程路径推导 `Interface/AddOns`。
 5. 保存时只部署当前 Lua；启动与“更新配置”递归检查整个内置插件。缺失或 SHA-256 不同的文件会复制，相同文件跳过，游戏目录额外文件保留。
 6. 主窗口串行等待生成/部署任务完成，刷新目录并按需重启运行会话；找不到游戏不会回滚项目源或阻止启动。
 
@@ -121,7 +122,7 @@ verified_at: "2026-08-10"
 - **加载顺序是行为的一部分。** 新 Lua 文件必须加入 `Fuyutsui.toc`，且位于依赖定义之后、消费者之前。
 - **屏幕协议没有独立协商通道。** 生产端改变颜色、索引、尺寸或标记时，消费端不会自动发现新版本。
 - **生成物不是上游真相源。** `config` 和 `keymap` 可以重新生成；长期修复应落在 Lua 源数据或转换器。
-- **游戏 AddOns 目录也不是上游真相源。** 只允许从内置 `Fuyutsui/` 单向部署；在游戏副本中手改的同名文件可能在下次同步被覆盖。
+- **游戏 AddOns 目录也不是上游真相源。** 只允许从内置 `Retail/Fuyutsui/` 单向部署；在游戏副本中手改的同名文件可能在下次同步被覆盖。
 - **专精切换会改变绝对索引。** Shigure 必须使用与当前职业/专精一致的生成配置，不能写死业务字段列号。
 - **module 决策只消费 `GameState` 和 keymap。** 它不应直接采样屏幕或解析 Fuyutsui Lua。
 - **运行时状态只由主循环串行修改。** 外部启停意图进入命令队列，会话启动、停止和重启由协调器串行化。
@@ -135,7 +136,7 @@ verified_at: "2026-08-10"
 | 职业专精正确但字段全错位 | `ClassBlocks` 顺序与生成 `config` 不一致，或使用了旧 config |
 | 普通状态正常而层数/治疗吸收缺失 | CountBars 标记或网格协议变化，主行扫描仍可成功 |
 | 模块命中但找不到热键 | ClassMacros/keymap 未同步、技能名或单位/宏条件不一致 |
-| 编辑器保存成功，运行结果未变化 | 转换/部署或运行时重启未完成，游戏未重载插件，或目标进程未被 `wow_process.txt` 选中 |
+| 编辑器保存成功，运行结果未变化 | 转换/部署或运行时重启未完成，游戏未重载插件，或目标进程未被 `game_profiles.json` 选中 |
 | 旧模块目标发生变化 | `UnitMappingVersion` 迁移缺失或把旧 `36/37` 继续当单位 |
 | 文档建议无法定位 | 使用了拆分前 `main.lua` 的历史行号或已删除文件 |
 
@@ -157,12 +158,12 @@ verified_at: "2026-08-10"
 
 ### Fuyutsui
 
-- `Fuyutsui/Fuyutsui.toc`：实际加载清单。
-- `Fuyutsui/core/core.lua`：初始化、事件帧、SavedVariables。
-- `Fuyutsui/core/events.lua`：事件处理与分频 `OnUpdate`。
-- `Fuyutsui/main.lua`：`LoadPlayerBlocks`、`LoadPlayerMacros`、初始刷新。
-- `Fuyutsui/core/block.lua`：三类屏幕输出与 AuraContainer。
-- `Fuyutsui/core/macro.lua`、`core/classmacros.lua`：宏生产和职业数据。
+- `Retail/Fuyutsui/Fuyutsui.toc`：实际加载清单。
+- `Retail/Fuyutsui/core/core.lua`：初始化、事件帧、SavedVariables。
+- `Retail/Fuyutsui/core/events.lua`：事件处理与分频 `OnUpdate`。
+- `Retail/Fuyutsui/main.lua`：`LoadPlayerBlocks`、`LoadPlayerMacros`、初始刷新。
+- `Retail/Fuyutsui/core/block.lua`：三类屏幕输出与 AuraContainer。
+- `Retail/Fuyutsui/core/macro.lua`、`core/classmacros.lua`：宏生产和职业数据。
 
 ### Shigure
 
@@ -181,8 +182,8 @@ verified_at: "2026-08-10"
 ```mermaid
 flowchart LR
   subgraph Files["Shigure 业务根 / 发布目录"]
-    ClassBlocks["Fuyutsui/class/*.lua 权威源"]
-    ClassMacros["Fuyutsui/core/classmacros.lua 权威源"]
+    ClassBlocks["Retail/Fuyutsui/class/*.lua 权威源"]
+    ClassMacros["Retail/Fuyutsui/core/classmacros.lua 权威源"]
     ConfigConverter["ConfigConverter"]
     KeyConverter["KeymapConverter"]
     Config["config/*.json"]

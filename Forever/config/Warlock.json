@@ -1,0 +1,202 @@
+﻿{
+  "keymap": "warlock.json",
+  "一键法术": {
+    "1": 687,
+    "2": 348,
+    "3": 686,
+    "4": 688,
+    "5": 172,
+    "6": 702,
+    "7": 1454,
+    "8": 980,
+    "9": 5782,
+    "10": 6201,
+    "11": 1120,
+    "12": 697,
+    "13": 755,
+    "14": 704,
+    "15": 689,
+    "16": 5697,
+    "17": 693,
+    "18": 5676,
+    "19": 706,
+    "20": 5740,
+    "21": 698,
+    "22": 712,
+    "23": 126,
+    "24": 5138,
+    "25": 5500,
+    "26": 1714,
+    "27": 132,
+    "28": 710,
+    "29": 6366,
+    "30": 1949,
+    "31": 1098,
+    "32": 691,
+    "33": 6229,
+    "34": 2362,
+    "35": 5484,
+    "36": 6789,
+    "37": 6353,
+    "38": 1122,
+    "39": 603,
+    "40": 18540,
+    "41": 18265,
+    "42": 18708,
+    "43": 19028,
+    "44": 17877,
+    "45": 17962,
+    "46": 18223
+  },
+  "一键物品": {},
+  "1": {
+    "有效性": {
+      "step": 4,
+      "type": "bool",
+      "category": "状态"
+    },
+    "移动": {
+      "step": 5,
+      "type": "bool",
+      "category": "状态"
+    },
+    "生命值": {
+      "step": 6,
+      "type": "int",
+      "category": "状态"
+    },
+    "队伍人数": {
+      "step": 7,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入法术": {
+      "step": 8,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入物品": {
+      "step": 9,
+      "type": "int",
+      "category": "状态"
+    },
+    "法力值": {
+      "step": 10,
+      "type": "int",
+      "category": "能量"
+    },
+    "目标类型": {
+      "step": 11,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标生命值": {
+      "step": 12,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标距离": {
+      "step": 13,
+      "type": "int",
+      "category": "目标"
+    },
+    "焦点生命值": {
+      "step": 14,
+      "type": "int",
+      "category": "焦点"
+    },
+    "spells": {
+      "710.cooldown": {
+        "step": 15,
+        "type": "int",
+        "displayName": "放逐术",
+        "spellId": 710,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "6229.cooldown": {
+        "step": 16,
+        "type": "int",
+        "displayName": "防护暗影结界",
+        "spellId": 6229,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "5484.cooldown": {
+        "step": 17,
+        "type": "int",
+        "displayName": "恐惧嚎叫",
+        "spellId": 5484,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "6789.cooldown": {
+        "step": 18,
+        "type": "int",
+        "displayName": "死亡缠绕",
+        "spellId": 6789,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "18265.cooldown": {
+        "step": 19,
+        "type": "int",
+        "displayName": "生命虹吸",
+        "spellId": 18265,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "18708.cooldown": {
+        "step": 20,
+        "type": "int",
+        "displayName": "恶魔支配",
+        "spellId": 18708,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19028.cooldown": {
+        "step": 21,
+        "type": "int",
+        "displayName": "灵魂链接",
+        "spellId": 19028,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "17877.cooldown": {
+        "step": 22,
+        "type": "int",
+        "displayName": "暗影灼烧",
+        "spellId": 17877,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "17962.cooldown": {
+        "step": 23,
+        "type": "int",
+        "displayName": "燃烧",
+        "spellId": 17962,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "18223.cooldown": {
+        "step": 24,
+        "type": "int",
+        "displayName": "疲劳诅咒",
+        "spellId": 18223,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      }
+    },
+    "group": {
+      "start": 25,
+      "生命值": {
+        "step": 1,
+        "type": "int"
+      },
+      "职责": {
+        "step": 2,
+        "type": "int"
+      }
+    }
+  }
+}

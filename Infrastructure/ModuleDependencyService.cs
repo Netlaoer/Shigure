@@ -30,11 +30,12 @@ internal sealed class ModuleDependencyService
 
     private readonly string _classDirectory;
     private readonly string _classMacrosPath;
+    private readonly bool _classOnly;
     private readonly object _gate = new();
 
-    public ModuleDependencyService(string baseDirectory)
+    public ModuleDependencyService(string addonRoot)
     {
-        var addonRoot = Path.Combine(baseDirectory, "Fuyutsui");
+        _classOnly = string.Equals(Path.GetFileName(addonRoot), "Shingen", StringComparison.OrdinalIgnoreCase);
         _classDirectory = Path.Combine(addonRoot, "class");
         _classMacrosPath = Path.Combine(addonRoot, "core", "classmacros.lua");
     }
@@ -50,11 +51,13 @@ internal sealed class ModuleDependencyService
     private string? CaptureCore(ModuleDefinition module)
     {
         var classId = module.Match.ClassId;
-        var specId = module.Match.SpecId;
+        var specId = _classOnly ? 1 : module.Match.SpecId;
         if (classId is null || specId is null)
         {
             module.Dependencies = null;
-            return "模块未同时指定职业和专精，已保存模块逻辑，但未携带配置和宏。";
+            return _classOnly
+                ? "模块未指定职业，已保存模块逻辑，但未携带配置和宏。"
+                : "模块未同时指定职业和专精，已保存模块逻辑，但未携带配置和宏。";
         }
 
         var classPath = ResolveClassPath(classId.Value);
@@ -204,7 +207,7 @@ internal sealed class ModuleDependencyService
         }
     }
 
-    private static void ValidateSnapshot(ModuleDefinition module, ModuleDependencySnapshot snapshot)
+    private void ValidateSnapshot(ModuleDefinition module, ModuleDependencySnapshot snapshot)
     {
         if (snapshot.SchemaVersion is < 1 or > ModuleDependencySnapshot.CurrentSchemaVersion)
         {
@@ -213,9 +216,12 @@ internal sealed class ModuleDependencyService
 
         UpgradeLegacyItems(snapshot);
 
-        if (module.Match.ClassId != snapshot.ClassId || module.Match.SpecId != snapshot.SpecId)
+        if (module.Match.ClassId != snapshot.ClassId
+            || (_classOnly ? 1 : module.Match.SpecId) != snapshot.SpecId)
         {
-            throw new InvalidDataException("依赖快照的职业/专精与模块匹配条件不一致。");
+            throw new InvalidDataException(_classOnly
+                ? "依赖快照的职业与模块匹配条件不一致。"
+                : "依赖快照的职业/专精与模块匹配条件不一致。");
         }
 
         var unknownCategory = snapshot.Config.Spec.CategorizedStates.Keys
@@ -232,6 +238,11 @@ internal sealed class ModuleDependencyService
             snapshot.Config.Spec.TargetHelpfulAuras,
             snapshot.Config.Spec.FocusHarmfulAuras,
             snapshot.Config.Spec.FocusHelpfulAuras,
+            snapshot.Config.Spec.Boss1HarmfulAuras,
+            snapshot.Config.Spec.Boss2HarmfulAuras,
+            snapshot.Config.Spec.Boss3HarmfulAuras,
+            snapshot.Config.Spec.Boss4HarmfulAuras,
+            snapshot.Config.Spec.Boss5HarmfulAuras,
             snapshot.Config.Spec.Nameplates?.Auras ?? []
         };
         if (auraGroups.SelectMany(entries => entries ?? [])
@@ -405,6 +416,11 @@ internal sealed class ModuleDependencyService
         TargetHelpfulAuras = spec.TargetHelpfulAuras.Select(CaptureAura).ToList(),
         FocusHarmfulAuras = spec.FocusHarmfulAuras.Select(CaptureAura).ToList(),
         FocusHelpfulAuras = spec.FocusHelpfulAuras.Select(CaptureAura).ToList(),
+        Boss1HarmfulAuras = spec.Boss1HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss2HarmfulAuras = spec.Boss2HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss3HarmfulAuras = spec.Boss3HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss4HarmfulAuras = spec.Boss4HarmfulAuras.Select(CaptureAura).ToList(),
+        Boss5HarmfulAuras = spec.Boss5HarmfulAuras.Select(CaptureAura).ToList(),
         Spells = spec.Spells.Select(entry => new ModuleSpellSnapshot
         {
             Name = entry.Name,
@@ -427,6 +443,7 @@ internal sealed class ModuleDependencyService
         },
         Nameplates = spec.Nameplates is null ? null : new ModuleNameplateSnapshot
         {
+            ImprovedGarrote = spec.Nameplates.ImprovedGarrote,
             Auras = spec.Nameplates.Auras.Select(CaptureAura).ToList()
         }
     };
@@ -507,6 +524,11 @@ internal sealed class ModuleDependencyService
         MergeAuras(local.TargetHelpfulAuras, incoming.TargetHelpfulAuras, "目标增益", counters);
         MergeAuras(local.FocusHarmfulAuras, incoming.FocusHarmfulAuras, "焦点减益", counters);
         MergeAuras(local.FocusHelpfulAuras, incoming.FocusHelpfulAuras, "焦点增益", counters);
+        MergeAuras(local.Boss1HarmfulAuras, incoming.Boss1HarmfulAuras ?? [], "首领1减益", counters);
+        MergeAuras(local.Boss2HarmfulAuras, incoming.Boss2HarmfulAuras ?? [], "首领2减益", counters);
+        MergeAuras(local.Boss3HarmfulAuras, incoming.Boss3HarmfulAuras ?? [], "首领3减益", counters);
+        MergeAuras(local.Boss4HarmfulAuras, incoming.Boss4HarmfulAuras ?? [], "首领4减益", counters);
+        MergeAuras(local.Boss5HarmfulAuras, incoming.Boss5HarmfulAuras ?? [], "首领5减益", counters);
         MergeNameplates(local, incoming.Nameplates, counters);
         MergeSpells(local.Spells, incoming.Spells, counters);
         // 队伍配置属于本地扫描布局；模块快照只为文件兼容保留，导入时不得比较或修改。
@@ -524,7 +546,10 @@ internal sealed class ModuleDependencyService
 
         if (local.Nameplates is null)
         {
-            local.Nameplates = new ClassBlocksStore.NameplateBlocks();
+            local.Nameplates = new ClassBlocksStore.NameplateBlocks
+            {
+                ImprovedGarrote = incoming.ImprovedGarrote
+            };
             counters.ConfigAdded++;
         }
 

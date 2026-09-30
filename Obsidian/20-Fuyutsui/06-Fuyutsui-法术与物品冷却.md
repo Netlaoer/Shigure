@@ -19,13 +19,13 @@ related:
   - "[[20-Fuyutsui/09-Fuyutsui-动作条键位扫描]]"
   - "[[40-跨项目/02-Shigure-ClassBlocks到config同步契约]]"
 source_files:
-  - Fuyutsui/core/spells.lua
-  - Fuyutsui/core/block.lua
-  - Fuyutsui/core/stateblocks.lua
-  - Fuyutsui/core/events.lua
-  - Fuyutsui/class/Evoker.lua
-  - Fuyutsui/class/Rogue.lua
-  - Fuyutsui/class/DemonHunter.lua
+  - Retail/Fuyutsui/core/spells.lua
+  - Retail/Fuyutsui/core/block.lua
+  - Retail/Fuyutsui/core/stateblocks.lua
+  - Retail/Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/class/Evoker.lua
+  - Retail/Fuyutsui/class/Rogue.lua
+  - Retail/Fuyutsui/class/DemonHunter.lua
 source_symbols:
   - Fuyutsui:UpdateSpellKnown
   - Fuyutsui:UpdateSpellCooldown
@@ -166,13 +166,13 @@ ItemID 是版本敏感数据；新增同类物品必须更新聚合列表和相�
 
 ## 源码索引
 
-- `Fuyutsui/main.lua:128-169`：冷却槽、充能槽和横向条定义收集。
-- `Fuyutsui/core/spells.lua:27-98`：`spellsList` 辅助、插入法术状态。
-- `Fuyutsui/core/spells.lua:99-216`：已知法术与驱散能力。
-- `Fuyutsui/core/spells.lua:218-280`：冷却、充能和物品更新。
-- `Fuyutsui/core/block.lua:134-248`：横向 CountBars。
-- `Fuyutsui/core/events.lua:191-201,425-435`：冷却事件与 0.2 秒轮询。
-- `Fuyutsui/class/Evoker.lua:153-154`、`Rogue.lua:59-60`、`DemonHunter.lua:121-125`：当前重复定义实例。
+- `Retail/Fuyutsui/main.lua:128-169`：冷却槽、充能槽和横向条定义收集。
+- `Retail/Fuyutsui/core/spells.lua:27-98`：`spellsList` 辅助、插入法术状态。
+- `Retail/Fuyutsui/core/spells.lua:99-216`：已知法术与驱散能力。
+- `Retail/Fuyutsui/core/spells.lua:218-280`：冷却、充能和物品更新。
+- `Retail/Fuyutsui/core/block.lua:134-248`：横向 CountBars。
+- `Retail/Fuyutsui/core/events.lua:191-201,425-435`：冷却事件与 0.2 秒轮询。
+- `Retail/Fuyutsui/class/Evoker.lua:153-154`、`Rogue.lua:59-60`、`DemonHunter.lua:121-125`：当前重复定义实例。
 
 ## 知识图谱
 

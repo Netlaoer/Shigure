@@ -78,7 +78,7 @@ internal static class UiDropDownPopup
         var listWidth = Math.Max(1, popupWidth - 2);
         var listHeight = visibleItems * itemHeight + 2;
 
-        var listBox = new ListBox
+        var listBox = new UiThemedListBox
         {
             BackColor = UiTheme.Surface,
             ForeColor = UiTheme.Text,

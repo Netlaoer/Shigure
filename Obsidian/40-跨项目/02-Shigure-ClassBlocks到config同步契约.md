@@ -20,8 +20,8 @@ related:
   - "[[30-Shigure/03-Shigure-配置合并与GameState构建|Shigure GameState 构建]]"
   - "[[30-Shigure/09-Shigure-Fuyutsui配置宏编辑与同步|Shigure Fuyutsui 编辑与同步]]"
 source_files:
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/class/Priest.lua"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/class/Priest.lua"
   - "Infrastructure/LuaLiteParser.cs"
   - "Infrastructure/ClassBlocksStore.cs"
   - "Infrastructure/FuyutsuiConfigConverter.cs"
@@ -43,7 +43,7 @@ verified_at: "2026-08-10"
 
 `ClassBlocks` 同时驱动两条必须一致的链路：Fuyutsui 的 `LoadPlayerBlocks` 用它决定真实屏幕索引；Shigure 的 `FuyutsuiConfigConverter` 用它生成相同字段的 `step`、类型和条段映射。若两边对分类顺序、占位数量或队伍偏移的理解不同，截图仍可能成功，但 `GameState` 会把一个字段的字节解释成另一个字段。
 
-当前两条链路都以仓库/发布目录中的 `Fuyutsui/class/*.lua` 为权威源。游戏 `Interface/AddOns/Fuyutsui` 只是由 Shigure 部署的运行副本；在游戏目录手改 ClassBlocks 不会生成 config，并可能在下一次同步被覆盖。
+当前两条链路都以仓库/发布目录中的 `Retail/Fuyutsui/class/*.lua` 为权威源。游戏 `Interface/AddOns/Fuyutsui` 只是由 Shigure 部署的运行副本；在游戏目录手改 ClassBlocks 不会生成 config，并可能在下一次同步被覆盖。
 
 当前主色块分配总顺序是：
 
@@ -144,7 +144,7 @@ states → auras → spells → items → group
 | charge 一端按一格、另一端按两格 | 从该技能开始的 spells/group 全部错位 |
 | group `step` 被当绝对索引 | 只有首位或所有成员字段读取错误 |
 | LuaLiteParser 遇到不支持的动态 Lua 表达式 | 编辑器无法可靠 round-trip，保存可能被拒绝 |
-| `wow_process.txt` 选错实例或目标不可写 | UI 编辑和本地生成成功，但实际运行 AddOn 未变化 |
+| `game_profiles.json` 选错实例或目标不可写 | UI 编辑和本地生成成功，但实际运行 AddOn 未变化 |
 | 手改游戏副本 ClassBlocks | config 不会重生成，且下次部署可能覆盖改动 |
 | 只写生成 JSON | 下一次“更新配置”恢复旧错误 |
 
@@ -168,10 +168,10 @@ states → auras → spells → items → group
 
 | 职责 | 源码 |
 |---|---|
-| 当前职业声明 | `Fuyutsui/class/*.lua` |
-| 主色块与 bar 分配 | `Fuyutsui/main.lua:LoadPlayerBlocks` |
-| 状态名到写入 getter | `Fuyutsui/core/stateblocks.lua` |
-| Aura、CountBars、group Aura | `Fuyutsui/core/block.lua` |
+| 当前职业声明 | `Retail/Fuyutsui/class/*.lua` |
+| 主色块与 bar 分配 | `Retail/Fuyutsui/main.lua:LoadPlayerBlocks` |
+| 状态名到写入 getter | `Retail/Fuyutsui/core/stateblocks.lua` |
+| Aura、CountBars、group Aura | `Retail/Fuyutsui/core/block.lua` |
 | Lua 子集解析 | `Infrastructure/LuaLiteParser.cs` |
 | 可视化配置 round-trip | `Infrastructure/ClassBlocksStore.cs` |
 | Lua 到 JSON 转换 | `Infrastructure/FuyutsuiConfigConverter.cs` |

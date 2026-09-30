@@ -19,12 +19,12 @@ related:
   - "[[40-跨项目/03-Shigure-ClassMacros到keymap与按键契约]]"
   - "[[30-Shigure/08-Shigure-Keymap解析与按键发送]]"
 source_files:
-  - Fuyutsui/core/keybinds.lua
-  - Fuyutsui/core/config.lua
-  - Fuyutsui/core/macro.lua
-  - Fuyutsui/core/classmacros.lua
-  - Fuyutsui/main.lua
-  - Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/core/keybinds.lua
+  - Retail/Fuyutsui/core/config.lua
+  - Retail/Fuyutsui/core/macro.lua
+  - Retail/Fuyutsui/core/classmacros.lua
+  - Retail/Fuyutsui/main.lua
+  - Retail/Fuyutsui/core/events.lua
 source_symbols:
   - ProcessActionSlot
   - Fuyutsui:ReadKeybindings
@@ -140,12 +140,12 @@ OnEnable / UPDATE_BINDINGS / SPELLS_CHANGED / ACTIONBAR_*GRID
 
 ## 源码索引
 
-- `Fuyutsui/core/config.lua:228-345`：动作条范围与 keycode 表。
-- `Fuyutsui/core/keybinds.lua:1-53`：1..180 扫描和本地缓存。
-- `Fuyutsui/core/events.lua:314-328`：重新扫描触发事件。
-- `Fuyutsui/core/macro.lua`：1170 键池、安全按钮和三段展开顺序。
-- `Fuyutsui/core/classmacros.lua:1-7`：命名宏体。
-- `Fuyutsui/main.lua:197-236`：当前职业 dynamic 数组与宏创建入口。
+- `Retail/Fuyutsui/core/config.lua:228-345`：动作条范围与 keycode 表。
+- `Retail/Fuyutsui/core/keybinds.lua:1-53`：1..180 扫描和本地缓存。
+- `Retail/Fuyutsui/core/events.lua:314-328`：重新扫描触发事件。
+- `Retail/Fuyutsui/core/macro.lua`：1170 键池、安全按钮和三段展开顺序。
+- `Retail/Fuyutsui/core/classmacros.lua:1-7`：命名宏体。
+- `Retail/Fuyutsui/main.lua:197-236`：当前职业 dynamic 数组与宏创建入口。
 
 ## 知识图谱
 

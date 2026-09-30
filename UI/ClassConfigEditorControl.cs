@@ -18,7 +18,6 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Func<string, int, Task<ClassConfigPostSaveResult>> _updateConfigAsync;
 
     private readonly ClassSpecTreeSidebar _classTree = new();
-    private readonly Panel _sidebarSplitter = new();
     private readonly List<ClassListItem> _classItems = new();
     private readonly List<SpecOption> _specItems = new();
     private readonly Label _pathLabel = new();
@@ -26,25 +25,20 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly ToolTip _toolTip = new();
     private readonly Button _reloadButton = null!;
     private readonly Button _saveButton = null!;
-    private TableLayoutPanel? _bodyLayout;
-    private bool _autoCollapsedTree;
-    private bool _splitterDragging;
-    private int _splitterDragStartX;
-    private int _splitterDragStartWidth;
     private const int ConfigFooterBarHeight = 64;
 
-    private readonly DataGridView _statesGrid = new();
+    private readonly DataGridView _statesGrid = new UiThemedDataGridView();
     private readonly DataGridViewComboBoxColumn _stateNameColumn = new();
     private ToolStripDropDown? _stateComboDropDown;
-    private readonly DataGridView _aurasGrid = new();
-    private readonly DataGridView _spellsGrid = new();
-    private readonly TextBox _spellsSearchBox = new();
-    private readonly DataGridView _itemsGrid = new();
-    private readonly TextBox _itemsSearchBox = new();
-    private readonly DataGridView _itemsListGrid = new();
-    private readonly TextBox _itemsListSearchBox = new();
-    private readonly DataGridView _itemDatabaseGrid = new();
-    private readonly TextBox _itemDatabaseFilterBox = new();
+    private readonly DataGridView _aurasGrid = new UiThemedDataGridView();
+    private readonly DataGridView _spellsGrid = new UiThemedDataGridView();
+    private readonly TextBox _spellsSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _itemsGrid = new UiThemedDataGridView();
+    private readonly TextBox _itemsSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _itemsListGrid = new UiThemedDataGridView();
+    private readonly TextBox _itemsListSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _itemDatabaseGrid = new UiThemedDataGridView();
+    private readonly TextBox _itemDatabaseFilterBox = new UiThemedTextBox();
     private readonly Label _itemDatabaseStatusLabel = new();
     private readonly System.Windows.Forms.Timer _itemDatabaseFilterTimer = new() { Interval = 150 };
     private const int ItemDatabasePageSize = 20;
@@ -53,10 +47,10 @@ public sealed class ClassConfigEditorControl : UserControl
     private bool _expandingItemDatabaseRows;
     private CancellationTokenSource? _itemDatabaseFilterCancellation;
     private int _itemDatabaseFilterVersion;
-    private readonly DataGridView _spellsListGrid = new();
-    private readonly TextBox _spellsListSearchBox = new();
-    private readonly DataGridView _spellDatabaseGrid = new();
-    private readonly TextBox _spellDatabaseFilterBox = new();
+    private readonly DataGridView _spellsListGrid = new UiThemedDataGridView();
+    private readonly TextBox _spellsListSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _spellDatabaseGrid = new UiThemedDataGridView();
+    private readonly TextBox _spellDatabaseFilterBox = new UiThemedTextBox();
     private readonly Label _spellDatabaseStatusLabel = new();
     private readonly System.Windows.Forms.Timer _spellDatabaseFilterTimer = new() { Interval = 150 };
     private const int SpellDatabasePageSize = 20;
@@ -70,11 +64,13 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly CheckBox _groupHasHealthBox = new();
     private readonly CheckBox _groupHasRoleBox = new();
     private readonly CheckBox _groupHasDispelBox = new();
-    private readonly DataGridView _groupAurasGrid = new();
+    private readonly CheckBox _groupHasClassBox = new();
+    private readonly DataGridView _groupAurasGrid = new UiThemedDataGridView();
     private readonly Label _nameplatePixelSummary = new() { AutoSize = true };
-    private readonly Label _nameplateFixedFieldSummary = new() { AutoSize = true };
     private readonly CheckBox _nameplateEnabledBox = new();
-    private readonly DataGridView _nameplateAurasGrid = new();
+    private readonly CheckBox _nameplateImprovedGarroteBox = new();
+    private Control _nameplateImprovedGarroteCard = null!;
+    private readonly DataGridView _nameplateAurasGrid = new UiThemedDataGridView();
 
     private string? _classDirectory;
     private readonly Dictionary<int, ClassBlocksStore.ClassFileDocument> _documents = new();
@@ -100,7 +96,12 @@ public sealed class ClassConfigEditorControl : UserControl
         ("target.harmful", "目标·敌对"),
         ("target.helpful", "目标·友善"),
         ("focus.harmful", "焦点·敌对"),
-        ("focus.helpful", "焦点·友善")
+        ("focus.helpful", "焦点·友善"),
+        ("boss1.harmful", "首领1·敌对"),
+        ("boss2.harmful", "首领2·敌对"),
+        ("boss3.harmful", "首领3·敌对"),
+        ("boss4.harmful", "首领4·敌对"),
+        ("boss5.harmful", "首领5·敌对")
     ];
 
     public ClassConfigEditorControl(
@@ -140,19 +141,6 @@ public sealed class ClassConfigEditorControl : UserControl
         ForeColor = UiTheme.Text;
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
-        var cache = UiCacheStore.Load();
-        if (cache.ConfigSidebarWidth is { } cachedWidth
-            && cachedWidth >= UiTheme.ConfigSidebarMinWidth
-            && cachedWidth <= UiTheme.ConfigSidebarMaxWidth)
-        {
-            _classTree.SetExpandedWidth(cachedWidth);
-        }
-
-        if (cache.ConfigSidebarCollapsed == true)
-        {
-            _classTree.SetCollapsed(true);
-        }
-
         _classTree.Dock = DockStyle.Fill;
         _classTree.Margin = new Padding(0);
         _classTree.SelectionChanged += (_, _) =>
@@ -164,26 +152,6 @@ public sealed class ClassConfigEditorControl : UserControl
 
             SelectFromTree();
         };
-        _classTree.CollapseChanged += (_, _) =>
-        {
-            _autoCollapsedTree = false;
-            SyncSidebarColumnWidth();
-            UpdateSplitterEnabled();
-            var state = UiCacheStore.Load();
-            state.ConfigSidebarCollapsed = _classTree.Collapsed;
-            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
-            UiCacheStore.Save(state);
-        };
-        _classTree.ExpandedWidthChanged += (_, _) =>
-        {
-            SyncSidebarColumnWidth();
-            var state = UiCacheStore.Load();
-            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
-            UiCacheStore.Save(state);
-        };
-
-        ConfigureSidebarSplitter();
-
         var sidebarCard = WrapInEditorCard(_classTree);
         var editorCard = WrapInEditorCard(BuildEditor());
 
@@ -191,42 +159,18 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = 5,
+            ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0)
         };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,
-            _classTree.PreferredWidth + sidebarCard.Padding.Horizontal));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitterThickness));
-        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.ConfigSidebarSplitGap));
+            UiTheme.ConfigSidebarWidth + sidebarCard.Padding.Horizontal));
+        body.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, UiTheme.PageGap));
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         body.Controls.Add(sidebarCard, 0, 0);
         body.Controls.Add(CreateSplitGap(), 1, 0);
-        body.Controls.Add(_sidebarSplitter, 2, 0);
-        body.Controls.Add(CreateSplitGap(), 3, 0);
-        body.Controls.Add(editorCard, 4, 0);
-        _bodyLayout = body;
-        UpdateSplitterEnabled();
-        body.Resize += (_, _) =>
-        {
-            var width = body.ClientSize.Width;
-            if (width > 0 && width < UiTheme.Scale(this, 870) && !_classTree.Collapsed)
-            {
-                _autoCollapsedTree = true;
-                _classTree.SetCollapsed(true);
-                SyncSidebarColumnWidth();
-                UpdateSplitterEnabled();
-            }
-            else if (width >= UiTheme.Scale(this, 940) && _autoCollapsedTree)
-            {
-                _autoCollapsedTree = false;
-                _classTree.SetCollapsed(false);
-                SyncSidebarColumnWidth();
-                UpdateSplitterEnabled();
-            }
-        };
+        body.Controls.Add(editorCard, 2, 0);
 
         var page = new TableLayoutPanel
         {
@@ -267,93 +211,6 @@ public sealed class ClassConfigEditorControl : UserControl
         content.Margin = Padding.Empty;
         card.Controls.Add(content, 0, 0);
         return card;
-    }
-
-    private void ConfigureSidebarSplitter()
-    {
-        _sidebarSplitter.Dock = DockStyle.Fill;
-        _sidebarSplitter.Margin = new Padding(0);
-        _sidebarSplitter.BackColor = UiTheme.Border;
-        _sidebarSplitter.Cursor = Cursors.VSplit;
-        _sidebarSplitter.TabStop = false;
-        _toolTip.SetToolTip(_sidebarSplitter, "拖动调整侧栏宽度");
-        _sidebarSplitter.MouseEnter += (_, _) =>
-        {
-            if (_sidebarSplitter.Enabled)
-            {
-                _sidebarSplitter.BackColor = UiTheme.Accent;
-            }
-        };
-        _sidebarSplitter.MouseLeave += (_, _) =>
-        {
-            if (!_splitterDragging)
-            {
-                _sidebarSplitter.BackColor = UiTheme.Border;
-            }
-        };
-        _sidebarSplitter.MouseDown += (_, e) =>
-        {
-            if (e.Button != MouseButtons.Left || _classTree.Collapsed)
-            {
-                return;
-            }
-
-            _splitterDragging = true;
-            _splitterDragStartX = Cursor.Position.X;
-            _splitterDragStartWidth = _classTree.ExpandedContentWidth;
-            _sidebarSplitter.Capture = true;
-            _sidebarSplitter.BackColor = UiTheme.Accent;
-        };
-        _sidebarSplitter.MouseMove += (_, _) =>
-        {
-            if (!_splitterDragging)
-            {
-                return;
-            }
-
-            var delta = Cursor.Position.X - _splitterDragStartX;
-            _classTree.SetExpandedWidth(_splitterDragStartWidth + delta);
-            SyncSidebarColumnWidth();
-        };
-        _sidebarSplitter.MouseUp += (_, e) =>
-        {
-            if (!_splitterDragging || e.Button != MouseButtons.Left)
-            {
-                return;
-            }
-
-            _splitterDragging = false;
-            _sidebarSplitter.Capture = false;
-            _sidebarSplitter.BackColor = _sidebarSplitter.ClientRectangle.Contains(
-                _sidebarSplitter.PointToClient(Cursor.Position))
-                ? UiTheme.Accent
-                : UiTheme.Border;
-            var state = UiCacheStore.Load();
-            state.ConfigSidebarWidth = _classTree.ExpandedContentWidth;
-            state.ConfigSidebarCollapsed = _classTree.Collapsed;
-            UiCacheStore.Save(state);
-        };
-    }
-
-    private void UpdateSplitterEnabled()
-    {
-        var enabled = !_classTree.Collapsed;
-        _sidebarSplitter.Enabled = enabled;
-        _sidebarSplitter.Cursor = enabled ? Cursors.VSplit : Cursors.Default;
-        _sidebarSplitter.BackColor = enabled ? UiTheme.Border : UiTheme.SurfaceRaised;
-        _toolTip.SetToolTip(_sidebarSplitter, enabled ? "拖动调整侧栏宽度" : "展开侧栏后可拖动调整宽度");
-    }
-
-    private void SyncSidebarColumnWidth()
-    {
-        if (_bodyLayout is null || _bodyLayout.ColumnStyles.Count == 0)
-        {
-            return;
-        }
-
-        _bodyLayout.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute,
-            _classTree.PreferredWidth + UiTheme.EditorShellPadding * 2);
-        _bodyLayout.PerformLayout();
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -427,7 +284,7 @@ public sealed class ClassConfigEditorControl : UserControl
         _saveButton.Margin = new Padding(0);
         _reloadButton.Click += (_, _) => ReloadFromAddon();
         _saveButton.Click += async (_, _) => await SaveAndUpdateAsync();
-        _toolTip.SetToolTip(_reloadButton, "从项目 Fuyutsui 重新加载配置 (F5)");
+        _toolTip.SetToolTip(_reloadButton, "从当前项目插件重新加载配置 (F5)");
         _toolTip.SetToolTip(_saveButton, "保存配置并同步游戏 (Ctrl+S)");
         actions.Controls.Add(_reloadButton);
         actions.Controls.Add(_saveButton);
@@ -453,7 +310,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
         info.Controls.Add(CreateFieldCaption("状态"), 0, 0);
         ConfigureInfoLabel(_statusLabel, UiTheme.Muted);
-        _statusLabel.Text = "点击刷新以加载项目 Fuyutsui\\class";
+        _statusLabel.Text = "点击刷新以加载项目插件的 class 目录";
         _statusLabel.TextChanged += (_, _) => _toolTip.SetToolTip(_statusLabel, _statusLabel.Text);
         _toolTip.SetToolTip(_statusLabel, _statusLabel.Text);
         info.Controls.Add(_statusLabel, 1, 0);
@@ -743,7 +600,7 @@ public sealed class ClassConfigEditorControl : UserControl
         currentListTitle.Dock = DockStyle.None;
         currentListTitle.Anchor = AnchorStyles.Left;
         currentListHeader.Controls.Add(currentListTitle, 0, 0);
-        var hint = CreateFieldCaption("来自当前职业 Lua 的 Fuyutsui.itemsList。");
+        var hint = CreateFieldCaption("来自当前职业 Lua 的 itemsList。");
         hint.TextAlign = ContentAlignment.MiddleRight;
         currentListHeader.Controls.Add(hint, 1, 0);
         currentListCard.Controls.Add(currentListHeader, 0, 0);
@@ -966,7 +823,7 @@ public sealed class ClassConfigEditorControl : UserControl
             BackColor = UiTheme.SurfaceRaised,
             FillColor = UiTheme.Surface
         };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
@@ -1013,15 +870,17 @@ public sealed class ClassConfigEditorControl : UserControl
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
-            ColumnCount = AuraBuckets.Length,
-            RowCount = 1,
+            ColumnCount = 5,
+            RowCount = 2,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
-        foreach (var _ in AuraBuckets)
+        for (var i = 0; i < 5; i++)
         {
-            tabBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F / AuraBuckets.Length));
+            tabBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
         }
+        tabBar.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+        tabBar.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
 
         var tabs = new UiPillTab[AuraBuckets.Length];
         void ApplySelection()
@@ -1060,7 +919,7 @@ public sealed class ClassConfigEditorControl : UserControl
             var tab = new UiPillTab(bucket.Text);
             tab.Click += (_, _) => SelectBucket(bucket.Key);
             tabs[i] = tab;
-            tabBar.Controls.Add(tab, i, 0);
+            tabBar.Controls.Add(tab, i % 5, i / 5);
         }
 
         ApplySelection();
@@ -1569,7 +1428,7 @@ public sealed class ClassConfigEditorControl : UserControl
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
-        var fields = new FlowLayoutPanel
+        var fields = new UiThemedFlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
@@ -1590,33 +1449,56 @@ public sealed class ClassConfigEditorControl : UserControl
                 UpdateGroupEditorsEnabled();
             }
         };
-        foreach (var box in new[] { _groupHasHealthBox, _groupHasRoleBox, _groupHasDispelBox })
+        foreach (var box in new[] { _groupHasHealthBox, _groupHasRoleBox, _groupHasDispelBox, _groupHasClassBox })
         {
             box.Text = "启用";
             box.AutoSize = true;
             box.ForeColor = UiTheme.Text;
             box.CheckedChanged += (_, _) => { MarkDirty(); UpdateGroupPixelSummary(); };
         }
+        _groupHasHealthBox.Text = "必选";
+        _groupHasRoleBox.Text = "必选";
+        _groupPixelSummary.AutoSize = false;
+        _groupPixelSummary.Dock = DockStyle.Fill;
         _groupPixelSummary.ForeColor = UiTheme.Text;
+        _groupPixelSummary.BackColor = UiTheme.Surface;
+        _groupPixelSummary.TextAlign = ContentAlignment.MiddleRight;
+        _groupPixelSummary.Margin = Padding.Empty;
+        _groupPixelSummary.Padding = new Padding(0, 0, 8, 0);
         var groupCards = new Control[]
         {
             CreateGroupCard("GROUP", _groupEnabledBox),
             CreateGroupCard("生命值", _groupHasHealthBox),
             CreateGroupCard("职责", _groupHasRoleBox),
             CreateGroupCard("驱散", _groupHasDispelBox),
-            CreateGroupCard("自动分配", _groupPixelSummary)
+            CreateGroupCard("职业", _groupHasClassBox)
         };
         foreach (var card in groupCards)
         {
             fields.Controls.Add(card);
         }
 
-        panel.Controls.Add(fields, 0, 0);
+        var groupHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        groupHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        groupHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, GroupCardWidth + 8));
+        groupHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        groupHeader.Controls.Add(fields, 0, 0);
+        groupHeader.Controls.Add(_groupPixelSummary, 1, 0);
+        panel.Controls.Add(groupHeader, 0, 0);
 
         ConfigureGrid(_groupAurasGrid, "class-config-group-auras");
         _groupAurasGrid.Columns.Add(CreateSpellIconColumn());
         _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name", HeaderText = "名称", Width = 160 });
         _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "SpellId", HeaderText = "spellId", Width = 110 });
+        _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "MaxApps", HeaderText = "maxApps", Width = 85 });
         _groupAurasGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "SpellIds",
@@ -1656,7 +1538,7 @@ public sealed class ClassConfigEditorControl : UserControl
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
-        var fields = new FlowLayoutPanel
+        var fields = new UiThemedFlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
@@ -1678,22 +1560,54 @@ public sealed class ClassConfigEditorControl : UserControl
                 UpdateNameplateEditorsEnabled();
             }
         };
+        _nameplatePixelSummary.AutoSize = true;
+        _nameplatePixelSummary.Dock = DockStyle.Fill;
         _nameplatePixelSummary.ForeColor = UiTheme.Text;
-        _nameplateFixedFieldSummary.ForeColor = UiTheme.Muted;
-        _nameplateFixedFieldSummary.Text =
-            $"映射 {NameplateStateLayout.MappingFieldCount} + 生命值/距离/战斗（固定 {NameplateStateLayout.FixedFieldCount} 格/槽）";
+        _nameplatePixelSummary.BackColor = UiTheme.Surface;
+        _nameplatePixelSummary.TextAlign = ContentAlignment.MiddleRight;
+        _nameplatePixelSummary.Margin = Padding.Empty;
+        _nameplatePixelSummary.Padding = new Padding(0, 0, 8, 0);
 
-        // 姓名板卡片加宽，避免映射与固定字段摘要被截断。
-        const int cardWidth = GroupCardWidth * 3 / 2 * 8 / 5;
-        fields.Controls.Add(CreateGroupCard("NAMEPLATES", _nameplateEnabledBox, cardWidth));
-        fields.Controls.Add(CreateGroupCard("固定字段", _nameplateFixedFieldSummary, cardWidth));
-        fields.Controls.Add(CreateGroupCard("主像素（队伍后）", _nameplatePixelSummary, cardWidth));
-        panel.Controls.Add(fields, 0, 0);
+        _nameplateImprovedGarroteBox.Text = "启用";
+        _nameplateImprovedGarroteBox.AutoSize = true;
+        _nameplateImprovedGarroteBox.ForeColor = UiTheme.Text;
+        _nameplateImprovedGarroteBox.CheckedChanged += (_, _) =>
+        {
+            if (!_suppressUi)
+            {
+                MarkDirty();
+                UpdateNameplatePixelSummary();
+            }
+        };
+        const string garroteHint = "0 无锁喉 / 1 强化 / 2 普通\n仅追踪自己施放的锁喉";
+        _toolTip.SetToolTip(_nameplateImprovedGarroteBox, garroteHint);
+        fields.Controls.Add(CreateGroupCard("NAMEPLATES", _nameplateEnabledBox));
+        _nameplateImprovedGarroteCard = CreateGroupCard("强化锁喉", _nameplateImprovedGarroteBox);
+        _toolTip.SetToolTip(_nameplateImprovedGarroteCard, garroteHint);
+        fields.Controls.Add(_nameplateImprovedGarroteCard);
+
+        // 与队伍页共用固定尺寸卡片；统计文字独立占据右侧，不随可见卡片数量拉伸。
+        var nameplateHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        nameplateHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        nameplateHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        nameplateHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        nameplateHeader.Controls.Add(fields, 0, 0);
+        nameplateHeader.Controls.Add(_nameplatePixelSummary, 1, 0);
+        panel.Controls.Add(nameplateHeader, 0, 0);
 
         ConfigureGrid(_nameplateAurasGrid, "class-config-nameplates");
         _nameplateAurasGrid.Columns.Add(CreateSpellIconColumn());
         _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name", HeaderText = "名称", Width = 220 });
         _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "SpellId", HeaderText = "spellId", Width = 120 });
+        _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn { Name = "MaxApps", HeaderText = "maxApps", Width = 85 });
         _nameplateAurasGrid.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "SpellIds",
@@ -1729,6 +1643,9 @@ public sealed class ClassConfigEditorControl : UserControl
     private void FillNameplateEditors()
     {
         _nameplateAurasGrid.Rows.Clear();
+        _nameplateImprovedGarroteCard.Visible = SupportsNameplateImprovedGarrote;
+        _nameplateImprovedGarroteBox.Checked = SupportsNameplateImprovedGarrote
+            && _currentSpec?.Nameplates?.ImprovedGarrote != false;
         if (_currentSpec?.Nameplates is { } nameplates)
         {
             _nameplateEnabledBox.Checked = true;
@@ -1739,6 +1656,7 @@ public sealed class ClassConfigEditorControl : UserControl
                     icon!,
                     aura.Name,
                     aura.SpellId?.ToString(CultureInfo.InvariantCulture) ?? "",
+                    aura.MaxApps?.ToString(CultureInfo.InvariantCulture) ?? "",
                     string.Join(", ", aura.SpellIds),
                     aura.IsPlayer,
                     "×");
@@ -1757,6 +1675,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var enabled = _nameplateEnabledBox.Checked;
         _nameplateAurasGrid.Enabled = enabled;
         _nameplateAurasGrid.ReadOnly = !enabled;
+        _nameplateImprovedGarroteBox.Enabled = enabled && SupportsNameplateImprovedGarrote;
         UpdateNameplatePixelSummary();
     }
 
@@ -1770,17 +1689,25 @@ public sealed class ClassConfigEditorControl : UserControl
                     || ParseIdList(row.Cells["SpellIds"].Value?.ToString() ?? string.Empty).Any()))
             {
                 fields++;
+                if (int.TryParse(row.Cells["MaxApps"].Value?.ToString(), out var maxApps) && maxApps > 0)
+                {
+                    fields++;
+                }
             }
         }
 
+        if (SupportsNameplateImprovedGarrote && _nameplateImprovedGarroteBox.Checked) fields++;
         var total = NameplateStateLayout.TotalPixelCount(fields);
         _nameplatePixelSummary.Text = _nameplateEnabledBox.Checked
-            ? $"映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount} × {fields} = {total} 格"
+            ? $"主像素（队伍后）\n映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount} × {fields} = {total} 格\n固定 {NameplateStateLayout.FixedFieldCount} 格/槽：生命值/距离/战斗"
             : "未启用";
     }
 
 
     private const int GroupCardWidth = UiTheme.GroupCardFixedWidth;
+
+    private bool SupportsNameplateImprovedGarrote
+        => NameplateStateLayout.SupportsImprovedGarrote(_classDirectory, _currentClassId, _currentSpecId);
 
     private Control CreateGroupCard(string title, Control content, int width = GroupCardWidth)
     {
@@ -2009,8 +1936,8 @@ public sealed class ClassConfigEditorControl : UserControl
             if (string.IsNullOrWhiteSpace(_classDirectory) || !Directory.Exists(_classDirectory))
             {
                 _classTree.SetClasses([]);
-                _pathLabel.Text = "未找到 Fuyutsui\\class";
-                _statusLabel.Text = "请确认程序目录中包含 Fuyutsui\\class 后点击刷新。";
+                _pathLabel.Text = "未找到插件 class 目录";
+                _statusLabel.Text = "请确认程序目录中包含当前插件的 class 目录后点击刷新。";
                 return;
             }
 
@@ -2069,7 +1996,12 @@ public sealed class ClassConfigEditorControl : UserControl
                 spec.TargetHarmfulAuras,
                 spec.TargetHelpfulAuras,
                 spec.FocusHarmfulAuras,
-                spec.FocusHelpfulAuras
+                spec.FocusHelpfulAuras,
+                spec.Boss1HarmfulAuras,
+                spec.Boss2HarmfulAuras,
+                spec.Boss3HarmfulAuras,
+                spec.Boss4HarmfulAuras,
+                spec.Boss5HarmfulAuras
             };
             foreach (var auras in auraLists)
             {
@@ -2223,7 +2155,13 @@ public sealed class ClassConfigEditorControl : UserControl
         try
         {
             var options = new List<SpecOption>();
-            foreach (var spec in ClassNames.GetSpecs(item.ClassId))
+            var isForever = string.Equals(
+                    Path.GetFileName(Path.GetDirectoryName(_currentDocument.FilePath)),
+                    "class", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(
+                    Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(_currentDocument.FilePath))),
+                    "Shingen", StringComparison.OrdinalIgnoreCase);
+            foreach (var spec in isForever ? [] : ClassNames.GetSpecs(item.ClassId))
             {
                 if (_currentDocument.Specs.ContainsKey(spec.Id))
                 {
@@ -2239,7 +2177,8 @@ public sealed class ClassConfigEditorControl : UserControl
                     continue;
                 }
 
-                options.Add(new SpecOption(item.ClassId, specId, $"专精{specId}"));
+                options.Add(new SpecOption(item.ClassId, specId,
+                    isForever && specId == 1 ? "职业技能" : $"专精{specId}"));
             }
 
             RebuildSpecList(options);
@@ -3564,9 +3503,10 @@ public sealed class ClassConfigEditorControl : UserControl
         if (_currentSpec?.Group is { } group)
         {
             _groupEnabledBox.Checked = true;
-            _groupHasHealthBox.Checked = group.State.Contains("healthPercent");
-            _groupHasRoleBox.Checked = group.State.Contains("role");
+            _groupHasHealthBox.Checked = true;
+            _groupHasRoleBox.Checked = true;
             _groupHasDispelBox.Checked = group.State.Contains("dispel");
+            _groupHasClassBox.Checked = group.State.Contains("class");
             foreach (var aura in group.Auras)
             {
                 var icon = GetAuraIcon(aura.SpellId, aura.SpellIds, aura.Name);
@@ -3574,6 +3514,7 @@ public sealed class ClassConfigEditorControl : UserControl
                     icon!,
                     aura.Name,
                     aura.SpellId?.ToString(CultureInfo.InvariantCulture) ?? "",
+                    aura.MaxApps?.ToString(CultureInfo.InvariantCulture) ?? "",
                     string.Join(", ", aura.SpellIds),
                     "×");
             }
@@ -3584,6 +3525,7 @@ public sealed class ClassConfigEditorControl : UserControl
             _groupHasHealthBox.Checked = false;
             _groupHasRoleBox.Checked = false;
             _groupHasDispelBox.Checked = false;
+            _groupHasClassBox.Checked = false;
         }
 
         UpdateGroupEditorsEnabled();
@@ -3592,9 +3534,12 @@ public sealed class ClassConfigEditorControl : UserControl
     private void UpdateGroupEditorsEnabled()
     {
         var enabled = _groupEnabledBox.Checked;
-        _groupHasHealthBox.Enabled = enabled;
-        _groupHasRoleBox.Enabled = enabled;
+        _groupHasHealthBox.Checked = enabled;
+        _groupHasRoleBox.Checked = enabled;
+        _groupHasHealthBox.Enabled = false;
+        _groupHasRoleBox.Enabled = false;
         _groupHasDispelBox.Enabled = enabled;
+        _groupHasClassBox.Enabled = enabled;
         _groupAurasGrid.Enabled = enabled;
         _groupAurasGrid.ReadOnly = !enabled;
         UpdateGroupPixelSummary();
@@ -3603,7 +3548,7 @@ public sealed class ClassConfigEditorControl : UserControl
     private void UpdateGroupPixelSummary()
     {
         var fields = (_groupHasHealthBox.Checked ? 1 : 0) + (_groupHasRoleBox.Checked ? 1 : 0)
-            + (_groupHasDispelBox.Checked ? 1 : 0);
+            + (_groupHasDispelBox.Checked ? 1 : 0) + (_groupHasClassBox.Checked ? 1 : 0);
         foreach (DataGridViewRow row in _groupAurasGrid.Rows)
         {
             if (!row.IsNewRow
@@ -3611,11 +3556,15 @@ public sealed class ClassConfigEditorControl : UserControl
                     || ParseIdList(row.Cells["SpellIds"].Value?.ToString() ?? string.Empty).Any()))
             {
                 fields++;
+                if (int.TryParse(row.Cells["MaxApps"].Value?.ToString(), out var maxApps) && maxApps > 0)
+                {
+                    fields++;
+                }
             }
         }
-        _groupPixelSummary.Text = _groupEnabledBox.Checked
-            ? $"每人 {fields} 格，{GroupStateLayout.SlotCount} 人共 {GroupStateLayout.SlotCount * fields} 格"
-            : "未启用";
+        _groupPixelSummary.Text = $"自动分配{Environment.NewLine}"
+            + $"每人 {fields} 格{Environment.NewLine}"
+            + $"{GroupStateLayout.SlotCount} 人共 {GroupStateLayout.SlotCount * fields} 格";
     }
 
     private List<ClassBlocksStore.AuraEntry> GetCurrentAuraList()
@@ -3634,6 +3583,11 @@ public sealed class ClassConfigEditorControl : UserControl
             "target.helpful" => _currentSpec.TargetHelpfulAuras,
             "focus.harmful" => _currentSpec.FocusHarmfulAuras,
             "focus.helpful" => _currentSpec.FocusHelpfulAuras,
+            "boss1.harmful" => _currentSpec.Boss1HarmfulAuras,
+            "boss2.harmful" => _currentSpec.Boss2HarmfulAuras,
+            "boss3.harmful" => _currentSpec.Boss3HarmfulAuras,
+            "boss4.harmful" => _currentSpec.Boss4HarmfulAuras,
+            "boss5.harmful" => _currentSpec.Boss5HarmfulAuras,
             _ => _currentSpec.PlayerAuras
         };
     }
@@ -3647,6 +3601,7 @@ public sealed class ClassConfigEditorControl : UserControl
 
         _itemsGrid.EndEdit();
         _spellsGrid.EndEdit();
+        _aurasGrid.EndEdit();
         NormalizeFixedStateNames(_currentSpec);
         WriteBackStatesCategory(_lastStateCategory);
 
@@ -4255,9 +4210,10 @@ public sealed class ClassConfigEditorControl : UserControl
         var group = new ClassBlocksStore.GroupBlocks();
         var enabledFields = new Dictionary<string, bool>
         {
-            ["healthPercent"] = _groupHasHealthBox.Checked,
-            ["role"] = _groupHasRoleBox.Checked,
-            ["dispel"] = _groupHasDispelBox.Checked
+            ["healthPercent"] = true,
+            ["role"] = true,
+            ["dispel"] = _groupHasDispelBox.Checked,
+            ["class"] = _groupHasClassBox.Checked
         };
         // 保留配置中的 state 顺序；新启用的字段追加到末尾。
         foreach (var field in (_currentSpec.Group?.State ?? []).Concat(GroupStateLayout.SupportedFields).Distinct())
@@ -4274,7 +4230,9 @@ public sealed class ClassConfigEditorControl : UserControl
 
             var entry = new ClassBlocksStore.GroupAuraEntry
             {
-                Name = row.Cells["Name"].Value?.ToString()?.Trim() ?? ""
+                Name = row.Cells["Name"].Value?.ToString()?.Trim() ?? "",
+                MaxApps = int.TryParse(row.Cells["MaxApps"].Value?.ToString(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var maxApps) ? maxApps : null
             };
             var spellIdsText = row.Cells["SpellIds"].Value?.ToString()?.Trim() ?? "";
             foreach (var id in ParseIdList(spellIdsText))
@@ -4309,8 +4267,13 @@ public sealed class ClassConfigEditorControl : UserControl
             return;
         }
 
-        // 生命值/距离是固定像素，这里只写回光环列表。
-        var nameplates = new ClassBlocksStore.NameplateBlocks();
+        // 保留其他专精的原配置，奇袭按独立卡片写回类型开关。
+        var nameplates = new ClassBlocksStore.NameplateBlocks
+        {
+            ImprovedGarrote = SupportsNameplateImprovedGarrote
+                ? _nameplateImprovedGarroteBox.Checked
+                : _currentSpec.Nameplates?.ImprovedGarrote
+        };
         foreach (DataGridViewRow row in _nameplateAurasGrid.Rows)
         {
             if (row.IsNewRow)
@@ -4323,7 +4286,9 @@ public sealed class ClassConfigEditorControl : UserControl
             var entry = new ClassBlocksStore.AuraEntry
             {
                 Name = name,
-                IsPlayer = row.Cells["IsPlayer"].Value is true
+                IsPlayer = row.Cells["IsPlayer"].Value is true,
+                MaxApps = int.TryParse(row.Cells["MaxApps"].Value?.ToString(), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var maxApps) ? maxApps : null
             };
             foreach (var id in ParseIdList(spellIdsText))
             {

@@ -1,0 +1,240 @@
+﻿{
+  "keymap": "paladin.json",
+  "一键法术": {
+    "1": 465,
+    "2": 635,
+    "3": 20154,
+    "4": 19740,
+    "5": 20271,
+    "6": 498,
+    "7": 21082,
+    "8": 853,
+    "9": 1152,
+    "10": 1022,
+    "11": 633,
+    "12": 7328,
+    "13": 19742,
+    "14": 7294,
+    "15": 1044,
+    "16": 879,
+    "17": 19750,
+    "18": 5502,
+    "19": 19746,
+    "20": 20164,
+    "21": 2878,
+    "22": 1038,
+    "23": 19876,
+    "24": 19752,
+    "25": 20165,
+    "26": 19888,
+    "27": 642,
+    "28": 19891,
+    "29": 20166,
+    "30": 19977,
+    "31": 4987,
+    "32": 24275,
+    "33": 6940,
+    "34": 2812,
+    "35": 25782,
+    "36": 25894,
+    "37": 25898,
+    "38": 25890,
+    "39": 25895,
+    "40": 20473,
+    "41": 20375,
+    "42": 20066,
+    "43": 20217,
+    "44": 20925
+  },
+  "一键物品": {},
+  "1": {
+    "有效性": {
+      "step": 4,
+      "type": "bool",
+      "category": "状态"
+    },
+    "移动": {
+      "step": 5,
+      "type": "bool",
+      "category": "状态"
+    },
+    "生命值": {
+      "step": 6,
+      "type": "int",
+      "category": "状态"
+    },
+    "队伍人数": {
+      "step": 7,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入法术": {
+      "step": 8,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入物品": {
+      "step": 9,
+      "type": "int",
+      "category": "状态"
+    },
+    "法力值": {
+      "step": 10,
+      "type": "int",
+      "category": "能量"
+    },
+    "目标类型": {
+      "step": 11,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标生命值": {
+      "step": 12,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标距离": {
+      "step": 13,
+      "type": "int",
+      "category": "目标"
+    },
+    "焦点生命值": {
+      "step": 14,
+      "type": "int",
+      "category": "焦点"
+    },
+    "spells": {
+      "20271.cooldown": {
+        "step": 15,
+        "type": "int",
+        "displayName": "审判",
+        "spellId": 20271,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "498.cooldown": {
+        "step": 16,
+        "type": "int",
+        "displayName": "圣佑术",
+        "spellId": 498,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "853.cooldown": {
+        "step": 17,
+        "type": "int",
+        "displayName": "制裁之锤",
+        "spellId": 853,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "1022.cooldown": {
+        "step": 18,
+        "type": "int",
+        "displayName": "保护祝福",
+        "spellId": 1022,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "633.cooldown": {
+        "step": 19,
+        "type": "int",
+        "displayName": "圣疗术",
+        "spellId": 633,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "1044.cooldown": {
+        "step": 20,
+        "type": "int",
+        "displayName": "自由祝福",
+        "spellId": 1044,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19752.cooldown": {
+        "step": 21,
+        "type": "int",
+        "displayName": "神圣干涉",
+        "spellId": 19752,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "642.cooldown": {
+        "step": 22,
+        "type": "int",
+        "displayName": "圣盾术",
+        "spellId": 642,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "4987.cooldown": {
+        "step": 23,
+        "type": "int",
+        "displayName": "清洁术",
+        "spellId": 4987,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "24275.cooldown": {
+        "step": 24,
+        "type": "int",
+        "displayName": "愤怒之锤",
+        "spellId": 24275,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "20473.cooldown": {
+        "step": 25,
+        "type": "int",
+        "displayName": "神圣震击",
+        "spellId": 20473,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "20375.cooldown": {
+        "step": 26,
+        "type": "int",
+        "displayName": "命令圣印",
+        "spellId": 20375,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "20066.cooldown": {
+        "step": 27,
+        "type": "int",
+        "displayName": "忏悔",
+        "spellId": 20066,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "20217.cooldown": {
+        "step": 28,
+        "type": "int",
+        "displayName": "王者祝福",
+        "spellId": 20217,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "20925.cooldown": {
+        "step": 29,
+        "type": "int",
+        "displayName": "神圣之盾",
+        "spellId": 20925,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      }
+    },
+    "group": {
+      "start": 30,
+      "生命值": {
+        "step": 1,
+        "type": "int"
+      },
+      "职责": {
+        "step": 2,
+        "type": "int"
+      }
+    }
+  }
+}

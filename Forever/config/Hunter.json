@@ -1,0 +1,272 @@
+﻿{
+  "keymap": "hunter.json",
+  "一键法术": {
+    "1": 75,
+    "2": 2973,
+    "3": 1494,
+    "4": 13163,
+    "5": 1978,
+    "6": 3044,
+    "7": 1130,
+    "8": 5116,
+    "9": 13165,
+    "10": 5149,
+    "11": 883,
+    "12": 2641,
+    "13": 6991,
+    "14": 982,
+    "15": 19883,
+    "16": 20736,
+    "17": 136,
+    "18": 2974,
+    "19": 6197,
+    "20": 1002,
+    "21": 1513,
+    "22": 13795,
+    "23": 1495,
+    "24": 2643,
+    "25": 19884,
+    "26": 5118,
+    "27": 781,
+    "28": 1499,
+    "29": 3043,
+    "30": 1462,
+    "31": 19885,
+    "32": 3045,
+    "33": 19880,
+    "34": 13809,
+    "35": 13161,
+    "36": 5384,
+    "37": 1543,
+    "38": 19878,
+    "39": 13813,
+    "40": 3034,
+    "41": 13159,
+    "42": 19882,
+    "43": 1510,
+    "44": 20043,
+    "45": 19879,
+    "46": 19434,
+    "47": 19574,
+    "48": 19577,
+    "49": 19503,
+    "50": 19506,
+    "51": 19306,
+    "52": 19263
+  },
+  "一键物品": {},
+  "1": {
+    "有效性": {
+      "step": 4,
+      "type": "bool",
+      "category": "状态"
+    },
+    "移动": {
+      "step": 5,
+      "type": "bool",
+      "category": "状态"
+    },
+    "生命值": {
+      "step": 6,
+      "type": "int",
+      "category": "状态"
+    },
+    "队伍人数": {
+      "step": 7,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入法术": {
+      "step": 8,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入物品": {
+      "step": 9,
+      "type": "int",
+      "category": "状态"
+    },
+    "法力值": {
+      "step": 10,
+      "type": "int",
+      "category": "能量"
+    },
+    "目标类型": {
+      "step": 11,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标生命值": {
+      "step": 12,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标距离": {
+      "step": 13,
+      "type": "int",
+      "category": "目标"
+    },
+    "焦点生命值": {
+      "step": 14,
+      "type": "int",
+      "category": "焦点"
+    },
+    "spells": {
+      "5116.cooldown": {
+        "step": 15,
+        "type": "int",
+        "displayName": "震荡射击",
+        "spellId": 5116,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "13795.cooldown": {
+        "step": 16,
+        "type": "int",
+        "displayName": "献祭陷阱",
+        "spellId": 13795,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "2643.cooldown": {
+        "step": 17,
+        "type": "int",
+        "displayName": "多重射击",
+        "spellId": 2643,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "781.cooldown": {
+        "step": 18,
+        "type": "int",
+        "displayName": "逃脱",
+        "spellId": 781,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "1499.cooldown": {
+        "step": 19,
+        "type": "int",
+        "displayName": "冰冻陷阱",
+        "spellId": 1499,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "3045.cooldown": {
+        "step": 20,
+        "type": "int",
+        "displayName": "急速射击",
+        "spellId": 3045,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "13809.cooldown": {
+        "step": 21,
+        "type": "int",
+        "displayName": "冰霜陷阱",
+        "spellId": 13809,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "5384.cooldown": {
+        "step": 22,
+        "type": "int",
+        "displayName": "假死",
+        "spellId": 5384,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "1543.cooldown": {
+        "step": 23,
+        "type": "int",
+        "displayName": "照明弹",
+        "spellId": 1543,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "13813.cooldown": {
+        "step": 24,
+        "type": "int",
+        "displayName": "爆炸陷阱",
+        "spellId": 13813,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "1510.cooldown": {
+        "step": 25,
+        "type": "int",
+        "displayName": "乱射",
+        "spellId": 1510,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19434.cooldown": {
+        "step": 26,
+        "type": "int",
+        "displayName": "瞄准射击",
+        "spellId": 19434,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19574.cooldown": {
+        "step": 27,
+        "type": "int",
+        "displayName": "狂野怒火",
+        "spellId": 19574,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19577.cooldown": {
+        "step": 28,
+        "type": "int",
+        "displayName": "胁迫",
+        "spellId": 19577,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19503.cooldown": {
+        "step": 29,
+        "type": "int",
+        "displayName": "驱散射击",
+        "spellId": 19503,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19506.cooldown": {
+        "step": 30,
+        "type": "int",
+        "displayName": "强击光环",
+        "spellId": 19506,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19306.cooldown": {
+        "step": 31,
+        "type": "int",
+        "displayName": "反击",
+        "spellId": 19306,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "19263.cooldown": {
+        "step": 32,
+        "type": "int",
+        "displayName": "威慑",
+        "spellId": 19263,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      }
+    },
+    "group": {
+      "start": 33,
+      "生命值": {
+        "step": 1,
+        "type": "int"
+      },
+      "职责": {
+        "step": 2,
+        "type": "int"
+      }
+    }
+  }
+}

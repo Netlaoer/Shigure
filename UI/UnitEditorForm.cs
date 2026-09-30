@@ -41,7 +41,9 @@ public sealed class UnitEditorForm : Form
     private static readonly SelectionModeItem[] AuraSelectionModes =
     [
         new("最长", UnitSelectionMode.Longest),
-        new("最短", UnitSelectionMode.Shortest)
+        new("最短", UnitSelectionMode.Shortest),
+        new("正序", UnitSelectionMode.Ascending),
+        new("倒序", UnitSelectionMode.Descending)
     ];
 
     private static readonly AverageTargetItem[] AverageTargetOptions =
@@ -56,8 +58,8 @@ public sealed class UnitEditorForm : Form
     private readonly CountFilterEditorControl _countFilterEditor;
 
     private readonly Label _valueNameLabel = new();
-    private readonly TextBox _nameBox = new();
-    private readonly TextBox _valueNameBox = new();
+    private readonly TextBox _nameBox = new UiThemedTextBox();
+    private readonly TextBox _valueNameBox = new UiThemedTextBox();
     private readonly UiDropDown _categoryBox = new();
     private readonly UiDropDown _selectorBox = new();
     private readonly UiDropDown _targetFieldBox = new();
@@ -91,7 +93,8 @@ public sealed class UnitEditorForm : Form
         ModuleUnit? existingUnit,
         ModuleCountField? existingCount,
         ModuleEnemyCountField? existingEnemyCount,
-        ModuleAverageHealthField? existingAverageHealth = null)
+        ModuleAverageHealthField? existingAverageHealth = null,
+        bool hasNameplateImprovedGarrote = false)
     {
         _auraFields = auraFields;
         _nameplateAuraFields = nameplateAuraFields;
@@ -100,7 +103,8 @@ public sealed class UnitEditorForm : Form
             auraFields,
             nameplateAuraFields,
             thresholdFields,
-            formulaValueNames);
+            formulaValueNames,
+            hasNameplateImprovedGarrote);
         _countFilterEditor.Changed += (_, _) => UpdatePreview();
         InitializeComponent();
         Seed(existingUnit, existingCount, existingEnemyCount, existingAverageHealth);
@@ -877,7 +881,8 @@ public sealed class UnitEditorForm : Form
             UnitTargetFieldKind.Role or UnitTargetFieldKind.Dispel
                 => mode is UnitSelectionMode.Ascending or UnitSelectionMode.Descending,
             UnitTargetFieldKind.Aura
-                => mode is UnitSelectionMode.Longest or UnitSelectionMode.Shortest,
+                => mode is UnitSelectionMode.Longest or UnitSelectionMode.Shortest
+                    or UnitSelectionMode.Ascending or UnitSelectionMode.Descending,
             _ => false
         };
 

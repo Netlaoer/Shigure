@@ -4,7 +4,7 @@ namespace Shigure;
 
 public sealed class FormulaEditorForm : Form
 {
-    private readonly TextBox _formulaBox = new();
+    private readonly TextBox _formulaBox = new UiThemedTextBox();
 
     public string FormulaText { get; private set; } = string.Empty;
 

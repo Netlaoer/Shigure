@@ -22,23 +22,8 @@ internal static class UiTheme
     public const int EditorPageWidth = 1800;
     /// <summary>模块列表侧栏宽度，留出名称与职业图标的可读空间。</summary>
     public const int ModuleSidebarWidth = 320;
-    /// <summary>配置页职业/专精树侧栏默认展开宽。</summary>
+    /// <summary>配置页职业/专精树侧栏固定宽。</summary>
     public const int ConfigSidebarWidth = 240;
-    /// <summary>配置页职业/专精树侧栏缩窄宽（仅图标）。</summary>
-    public const int ConfigSidebarCollapsedWidth = 52;
-    /// <summary>配置侧栏拖动时最小展开宽。</summary>
-    public const int ConfigSidebarMinWidth = 160;
-    /// <summary>配置侧栏拖动时最大展开宽。</summary>
-    public const int ConfigSidebarMaxWidth = 480;
-    /// <summary>配置侧栏与右侧面板之间分隔条两侧留白。</summary>
-    public const int ConfigSidebarSplitGap = 8;
-    /// <summary>配置侧栏可拖动分隔条厚度。</summary>
-    public const int ConfigSidebarSplitterThickness = 4;
-    /// <summary>配置编辑区最小宽（EditorPageWidth - ConfigSidebarWidth - SplitGap×2 - Splitter）。</summary>
-    public const int ConfigEditorWidth = EditorPageWidth
-        - ConfigSidebarWidth
-        - ConfigSidebarSplitGap * 2
-        - ConfigSidebarSplitterThickness;
     /// <summary>编辑页左右分栏在最小宽下的半宽参考值。</summary>
     public const int EditorSplitHalfWidth = (EditorPageWidth - PageGap) / 2;
     /// <summary>队伍页分组卡片固定宽（不再随父宽均分）。</summary>
@@ -579,7 +564,7 @@ internal static class UiTheme
     {
         _ = contentWidth;
 
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
@@ -1790,14 +1775,14 @@ internal static class UiTheme
 
     public static ListView CreateListView(Font font, params ListColumn[] columns)
     {
-        var listView = new ListView();
+        var listView = new UiThemedListView();
         ConfigureListViewColumns(listView, font, null, columns);
         return listView;
     }
 
     public static ListView CreateListView(Font font, string cacheKey, params ListColumn[] columns)
     {
-        var listView = new ListView();
+        var listView = new UiThemedListView();
         ConfigureListViewColumns(listView, font, cacheKey, columns);
         return listView;
     }

@@ -20,10 +20,10 @@ related:
   - "[[20-Fuyutsui/06-Fuyutsui-法术与物品冷却]]"
   - "[[20-Fuyutsui/07-Fuyutsui-队伍与治疗吸收]]"
 source_files:
-  - Fuyutsui/core/block.lua
-  - Fuyutsui/main.lua
-  - Fuyutsui/core/events.lua
-  - Fuyutsui/Fuyutsui.toc
+  - Retail/Fuyutsui/core/block.lua
+  - Retail/Fuyutsui/main.lua
+  - Retail/Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/Fuyutsui.toc
 source_symbols:
   - EnsureAuraContainerLoaded
   - AddDurationAuraSlotPair
@@ -44,7 +44,7 @@ verified_at: 2026-08-19
 
 ## AI 快速摘要
 
-> 当前光环实现全部在 `Fuyutsui/core/block.lua:459-1201`。`Fuyutsui.toc` 不加载 `auracontainer.lua`，磁盘也不存在该文件；插件运行时只按需加载 Blizzard 的 `Blizzard_AuraContainer`。每个定义的顶部光环索引由“限时槽优先、永久槽后备”配对占用，玩家 `maxApps` 另追加 CountBars，队伍 aura/dispel 则写进成员块。
+> 当前光环实现全部在 `Retail/Fuyutsui/core/block.lua:459-1201`。`Fuyutsui.toc` 不加载 `auracontainer.lua`，磁盘也不存在该文件；插件运行时只按需加载 Blizzard 的 `Blizzard_AuraContainer`。每个定义的顶部光环索引由“限时槽优先、永久槽后备”配对占用，玩家 `maxApps` 另追加 CountBars，队伍 aura/dispel 则写进成员块。
 
 ## 范围与非范围
 
@@ -54,8 +54,8 @@ verified_at: 2026-08-19
 
 ## 当前文件边界
 
-- `Fuyutsui/Fuyutsui.toc:26-59` 的当前加载清单包含 `core/block.lua`，没有 `auracontainer.lua`。
-- 仓库中不存在 `Fuyutsui/auracontainer.lua` 或同名大小写变体。
+- `Retail/Fuyutsui/Fuyutsui.toc:26-59` 的当前加载清单包含 `core/block.lua`，没有 `auracontainer.lua`。
+- 仓库中不存在 `Retail/Fuyutsui/auracontainer.lua` 或同名大小写变体。
 - `EnsureAuraContainerLoaded()` 检查并调用 `C_AddOns.LoadAddOn("Blizzard_AuraContainer")`；这是 Blizzard 自带按需插件，不是本仓库文件。
 
 任何新增独立 `auracontainer.lua` 的方案都必须先改 `.toc`，否则不会执行；当前维护入口应直接定位 `core/block.lua:459-1201`。
@@ -181,13 +181,13 @@ WoW 在敌对单位上处理 `HELPFUL`、友方单位上处理 `HARMFUL` 时，S
 
 ## 源码索引
 
-- `Fuyutsui/Fuyutsui.toc:26-59`：当前真实加载清单。
-- `Fuyutsui/main.lua:87-126,183-195`：光环配置展开与容器重建触发。
-- `Fuyutsui/core/block.lua:75-79`：加载 Blizzard AuraContainer。
-- `Fuyutsui/core/block.lua:459-792`：候选集合、槽配对、过滤、持续时间和层数初始化。
-- `Fuyutsui/core/block.lua:807-940`：单位容器与玩家层数条。
-- `Fuyutsui/core/block.lua:946-1201`：队伍、驱散、其他牧师和全量重绑。
-- `Fuyutsui/core/events.lua:330-360,390-404`：单位切换与过场恢复入口。
+- `Retail/Fuyutsui/Fuyutsui.toc:26-59`：当前真实加载清单。
+- `Retail/Fuyutsui/main.lua:87-126,183-195`：光环配置展开与容器重建触发。
+- `Retail/Fuyutsui/core/block.lua:75-79`：加载 Blizzard AuraContainer。
+- `Retail/Fuyutsui/core/block.lua:459-792`：候选集合、槽配对、过滤、持续时间和层数初始化。
+- `Retail/Fuyutsui/core/block.lua:807-940`：单位容器与玩家层数条。
+- `Retail/Fuyutsui/core/block.lua:946-1201`：队伍、驱散、其他牧师和全量重绑。
+- `Retail/Fuyutsui/core/events.lua:330-360,390-404`：单位切换与过场恢复入口。
 
 ## 知识图谱
 

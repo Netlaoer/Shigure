@@ -19,10 +19,10 @@ related:
   - "[[40-跨项目/01-Shigure-像素生产消费契约]]"
   - "[[30-Shigure/02-Shigure-像素扫描与协议解码]]"
 source_files:
-  - Fuyutsui/main.lua
-  - Fuyutsui/core/block.lua
-  - Fuyutsui/core/stateblocks.lua
-  - Fuyutsui/core/curves.lua
+  - Retail/Fuyutsui/main.lua
+  - Retail/Fuyutsui/core/block.lua
+  - Retail/Fuyutsui/core/stateblocks.lua
+  - Retail/Fuyutsui/core/curves.lua
 source_symbols:
   - Fuyutsui:LoadPlayerBlocks
   - Fuyutsui:UpdatePlayerBlocks
@@ -165,12 +165,12 @@ Lua 传给 `SetColorTexture` 时再除以 255。因此第 255 槽是 `(0,255,B)`
 
 ## 源码索引
 
-- `Fuyutsui/main.lua:39-195`：`ClassBlocks` 展开顺序和 group 起点。
-- `Fuyutsui/core/block.lua:8-126`：510 主行、两段索引编码和纹理写入。
-- `Fuyutsui/core/block.lua:134-284`：CountBars 预留、绘制和清理。
-- `Fuyutsui/core/block.lua`：40 槽治疗吸收网格。
-- `Fuyutsui/core/stateblocks.lua:84-291`：状态键规则、getter 路由和写入入口。
-- `Fuyutsui/class/DeathKnight.lua:27-33`、`Fuyutsui/class/Evoker.lua:153-154`：当前重复键实例。
+- `Retail/Fuyutsui/main.lua:39-195`：`ClassBlocks` 展开顺序和 group 起点。
+- `Retail/Fuyutsui/core/block.lua:8-126`：510 主行、两段索引编码和纹理写入。
+- `Retail/Fuyutsui/core/block.lua:134-284`：CountBars 预留、绘制和清理。
+- `Retail/Fuyutsui/core/block.lua`：40 槽治疗吸收网格。
+- `Retail/Fuyutsui/core/stateblocks.lua:84-291`：状态键规则、getter 路由和写入入口。
+- `Retail/Fuyutsui/class/DeathKnight.lua:27-33`、`Retail/Fuyutsui/class/Evoker.lua:153-154`：当前重复键实例。
 
 ## 知识图谱
 

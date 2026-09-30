@@ -83,7 +83,8 @@ public static class UnitSelector
             UnitTargetFieldKind.Role or UnitTargetFieldKind.Dispel
                 => unit.SelectionMode is UnitSelectionMode.Ascending or UnitSelectionMode.Descending,
             UnitTargetFieldKind.Aura
-                => unit.SelectionMode is UnitSelectionMode.Longest or UnitSelectionMode.Shortest
+                => (unit.SelectionMode is UnitSelectionMode.Longest or UnitSelectionMode.Shortest
+                    or UnitSelectionMode.Ascending or UnitSelectionMode.Descending)
                     && unit.TargetAuraSpellId is > 0,
             _ => false
         };
@@ -112,10 +113,15 @@ public static class UnitSelector
                 => unit.SelectionMode == UnitSelectionMode.Descending
                     ? candidates[^1].Key
                     : candidates[0].Key,
-            UnitTargetFieldKind.Aura => SelectByAuraDuration(
-                candidates,
-                unit.TargetAuraSpellId!.Value,
-                shortest: unit.SelectionMode == UnitSelectionMode.Shortest),
+            UnitTargetFieldKind.Aura => unit.SelectionMode switch
+            {
+                UnitSelectionMode.Ascending => SelectByAuraSlot(candidates, unit.TargetAuraSpellId!.Value, descending: false),
+                UnitSelectionMode.Descending => SelectByAuraSlot(candidates, unit.TargetAuraSpellId!.Value, descending: true),
+                _ => SelectByAuraDuration(
+                    candidates,
+                    unit.TargetAuraSpellId!.Value,
+                    shortest: unit.SelectionMode == UnitSelectionMode.Shortest)
+            },
             _ => null
         };
     }
@@ -168,6 +174,35 @@ public static class UnitSelector
         }
 
         return bestKey;
+    }
+
+    private static string? SelectByAuraSlot(
+        IReadOnlyList<(string Key, IReadOnlyDictionary<string, object?> Data)> candidates,
+        long auraSpellId,
+        bool descending)
+    {
+        if (descending)
+        {
+            for (var i = candidates.Count - 1; i >= 0; i--)
+            {
+                if (GetAuraDuration(candidates[i].Data, auraSpellId) > 0)
+                {
+                    return candidates[i].Key;
+                }
+            }
+
+            return null;
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (GetAuraDuration(candidate.Data, auraSpellId) > 0)
+            {
+                return candidate.Key;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>解析数量字段为整数。</summary>
@@ -323,25 +358,35 @@ public static class UnitSelector
                 ? condition.Field is CountConditionFieldKind.Health
                     or CountConditionFieldKind.Range
                     or CountConditionFieldKind.Combat
+                    or CountConditionFieldKind.ImprovedGarrote
                     or CountConditionFieldKind.Aura
                 : condition.Field is CountConditionFieldKind.Health
                     or CountConditionFieldKind.HealingAbsorb
                     or CountConditionFieldKind.Role
                     or CountConditionFieldKind.Dispel
+                    or CountConditionFieldKind.Class
                     or CountConditionFieldKind.Aura;
             if (!allowed
                 || condition.Field == CountConditionFieldKind.Aura && condition.AuraSpellId is not > 0
                 || condition.Field != CountConditionFieldKind.Aura && condition.AuraSpellId is not null
                 || (condition.Field is CountConditionFieldKind.Role
                         or CountConditionFieldKind.Dispel
+                        or CountConditionFieldKind.Class
+                        or CountConditionFieldKind.ImprovedGarrote
                         or CountConditionFieldKind.Combat)
                     && condition.Comparison is not (CountConditionComparisonKind.Equal
                         or CountConditionComparisonKind.NotEqual)
                 || condition.ValueKind == CountConditionValueKind.StateField
                     && (condition.Field is CountConditionFieldKind.Role
                             or CountConditionFieldKind.Dispel
+                            or CountConditionFieldKind.Class
+                            or CountConditionFieldKind.ImprovedGarrote
                             or CountConditionFieldKind.Combat
                         || string.IsNullOrWhiteSpace(condition.ValueField)))
+            {
+                return false;
+            }
+            if (condition.Field == CountConditionFieldKind.ImprovedGarrote && condition.Value is < 0 or > 2)
             {
                 return false;
             }
@@ -460,7 +505,9 @@ public static class UnitSelector
             CountConditionFieldKind.HealingAbsorb => "治疗吸收",
             CountConditionFieldKind.Role => "职责",
             CountConditionFieldKind.Dispel => "驱散",
+            CountConditionFieldKind.Class => "职业",
             CountConditionFieldKind.Range => "距离",
+            CountConditionFieldKind.ImprovedGarrote => NameplateStateLayout.ImprovedGarroteField,
             _ => string.Empty
         };
         if (field.Length == 0)
@@ -471,7 +518,12 @@ public static class UnitSelector
 
         if (TryInt(GetField(data, field), out value))
         {
-            return true;
+            return condition.Field switch
+            {
+                CountConditionFieldKind.Class => value is >= 1 and <= 13,
+                CountConditionFieldKind.ImprovedGarrote => value is >= 0 and <= 2,
+                _ => true
+            };
         }
 
         // 未检测到驱散值时等价于 0，使“驱散 != 某类型”保持原有语义。

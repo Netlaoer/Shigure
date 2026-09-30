@@ -21,9 +21,9 @@ related:
   - "[[30-Shigure/02-Shigure-像素扫描与协议解码|Shigure 像素扫描与协议解码]]"
   - "[[30-Shigure/03-Shigure-配置合并与GameState构建|Shigure GameState 构建]]"
 source_files:
-  - "Fuyutsui/core/block.lua"
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/core/group.lua"
+  - "Retail/Fuyutsui/core/block.lua"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/group.lua"
   - "Runtime/PixelScanner.cs"
   - "Runtime/StateBuilder.cs"
 source_symbols:
@@ -164,9 +164,9 @@ Shigure 从客户区左边缘向下寻找红色标记字节 `(1,0,0)`，以该 y
 
 | 职责 | 源码 |
 |---|---|
-| 主色块、CountBars、吸收网格和 Aura 像素 | `Fuyutsui/core/block.lua` |
-| 当前专精索引分配 | `Fuyutsui/main.lua:LoadPlayerBlocks` |
-| 队伍列表与吸收刷新入口 | `Fuyutsui/core/group.lua`、`core/events.lua` |
+| 主色块、CountBars、吸收网格和 Aura 像素 | `Retail/Fuyutsui/core/block.lua` |
+| 当前专精索引分配 | `Retail/Fuyutsui/main.lua:LoadPlayerBlocks` |
+| 队伍列表与吸收刷新入口 | `Retail/Fuyutsui/core/group.lua`、`core/events.lua` |
 | 屏幕截图和三通道解码 | `Runtime/PixelScanner.cs` |
 | 原始值到业务状态 | `Runtime/StateBuilder.cs` |
 | config 合并 | `Infrastructure/ConfigService.cs` |

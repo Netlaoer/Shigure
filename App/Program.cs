@@ -10,27 +10,33 @@ internal static class Program
         if (args.Contains("--update-config", StringComparer.OrdinalIgnoreCase))
         {
             var baseDirectory = Directory.GetCurrentDirectory();
-            if (!Directory.Exists(Path.Combine(baseDirectory, "Fuyutsui", "class")))
+            if (!File.Exists(Path.Combine(baseDirectory, "game_profiles.json")))
             {
                 baseDirectory = AppPaths.BaseDirectory;
             }
-            FuyutsuiConfigConverter.UpdateFromClassDirectory(
-                Path.Combine(baseDirectory, "Fuyutsui", "class"),
-                Path.Combine(baseDirectory, ConfigService.ConfigDirectoryName));
+            foreach (var profile in GameProfiles.Load(baseDirectory).DistinctAddons)
+            {
+                FuyutsuiConfigConverter.UpdateFromClassDirectory(
+                    Path.Combine(profile.AddonRoot, "class"),
+                    Path.Combine(profile.RuntimeDirectory, ConfigService.ConfigDirectoryName));
+            }
             return;
         }
 
         if (args.Contains("--update-keymap", StringComparer.OrdinalIgnoreCase))
         {
             var baseDirectory = Directory.GetCurrentDirectory();
-            if (!Directory.Exists(Path.Combine(baseDirectory, "Fuyutsui", "core")))
+            if (!File.Exists(Path.Combine(baseDirectory, "game_profiles.json")))
             {
                 baseDirectory = AppPaths.BaseDirectory;
             }
 
-            FuyutsuiKeymapConverter.UpdateFromClassMacros(
-                Path.Combine(baseDirectory, "Fuyutsui", "core", "classmacros.lua"),
-                Path.Combine(baseDirectory, "keymap"));
+            foreach (var profile in GameProfiles.Load(baseDirectory).DistinctAddons)
+            {
+                FuyutsuiKeymapConverter.UpdateFromClassMacros(
+                    Path.Combine(profile.AddonRoot, "core", "classmacros.lua"),
+                    Path.Combine(profile.RuntimeDirectory, "keymap"));
+            }
             return;
         }
 
@@ -65,19 +71,30 @@ internal static class Program
         {
             var options = AppOptions.FromArgs(args);
             var baseDirectory = AppPaths.BaseDirectory;
-            var moduleStore = new ModuleStore(ModuleStore.ResolveModuleDirectory());
-            ShowModuleMigrationHint(baseDirectory, moduleStore);
+            var profiles = GameProfiles.Load(baseDirectory);
+            var processLocator = new WowProcessLocator(profiles);
+            var foregroundProfile = profiles.Find(processLocator.FindFrontmostProcessName());
+            var initialProfile = foregroundProfile ?? profiles.Default;
+            var activeProfile = new ActiveGameProfile(initialProfile);
+            var workspaces = profiles.DistinctAddons.ToDictionary(
+                profile => profile.AddonName,
+                profile => new GameWorkspace(profile),
+                StringComparer.OrdinalIgnoreCase);
+            ShowModuleMigrationHint(baseDirectory, workspaces[initialProfile.AddonName].Modules);
             var triggerKeyState = new WindowsTriggerKeyState();
-            var processLocator = new WowProcessLocator(baseDirectory);
-            var runtimeFactory = new ShigureRuntimeFactory(baseDirectory, moduleStore, triggerKeyState, processLocator);
+            var runtimeFactory = new ShigureRuntimeFactory(
+                profile => workspaces[profile.AddonName].Modules,
+                triggerKeyState, processLocator, activeProfile);
             var runtimeSession = new RuntimeSessionCoordinator(runtimeFactory);
 
             Application.Run(new MainForm(
                 options,
                 baseDirectory,
-                moduleStore,
+                workspaces,
                 triggerKeyState,
                 processLocator,
+                profiles,
+                activeProfile,
                 runtimeSession));
         }
         finally

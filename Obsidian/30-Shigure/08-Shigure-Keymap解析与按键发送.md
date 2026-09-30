@@ -95,7 +95,7 @@ ModuleRule(Unit / Spell / MacroCondition)
 
 ## Windows 消息输出边界
 
-1. 每次发送都通过 `WowProcessLocator` 重新选择 `wow_process.txt` 候选进程中最靠前的可见窗口。
+1. 每次发送都通过 `WowProcessLocator` 重新选择 `game_profiles.json` 候选进程中最靠前的可见窗口。
 2. 运行时传入本轮扫描得到的窗口句柄；若发送时目标已切换，放弃发送并等待重新扫描。
 3. 依次投递修饰键按下、主键按下、主键抬起、修饰键逆序抬起。
 4. 使用 `WM_KEYDOWN` / `WM_KEYUP`，不会主动激活或切到前台。
@@ -114,7 +114,7 @@ ModuleRule(Unit / Spell / MacroCondition)
 | 规则匹配但显示无键 | unit、spell、null/空/非空 macroCondition 是否完全一致 |
 | 顶层通用键在某专精失效 | 运行时选专精 map 后不合并顶层；重新用转换器生成完整专精 map |
 | UI 能看到某键但运行时不用 | `KeymapCatalog` 汇总范围大于当前 `KeymapService` 范围 |
-| 发送到错误窗口 | `wow_process.txt` 配置过宽，或多个候选实例的 Z 顺序不符合预期 |
+| 发送到错误窗口 | `game_profiles.json` 配置过宽，或多个候选实例的 Z 顺序不符合预期 |
 | 提示目标窗口已切换 | 扫描与发送之间前台候选发生变化；等待下一轮重新扫描 |
 | Win32 error 5 | Shigure 与目标进程完整性级别不同 |
 | ALT 不能作为触发 | UI 明确拒绝；ALT 仍可作为输出修饰键 |

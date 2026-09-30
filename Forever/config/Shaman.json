@@ -1,0 +1,193 @@
+﻿{
+  "keymap": "shaman.json",
+  "一键法术": {
+    "1": 331,
+    "2": 403,
+    "3": 8017,
+    "4": 8042,
+    "5": 8071,
+    "6": 2484,
+    "7": 324,
+    "8": 5730,
+    "9": 8050,
+    "10": 8024,
+    "11": 3599,
+    "12": 8075,
+    "13": 2008,
+    "14": 370,
+    "15": 526,
+    "16": 8143,
+    "17": 8056,
+    "18": 8033,
+    "19": 2645,
+    "20": 5394,
+    "21": 8004,
+    "22": 2870,
+    "23": 8166,
+    "24": 131,
+    "25": 8181,
+    "26": 6196,
+    "27": 8190,
+    "28": 5675,
+    "29": 8184,
+    "30": 8227,
+    "31": 546,
+    "32": 556,
+    "33": 8177,
+    "34": 10595,
+    "35": 8232,
+    "36": 421,
+    "37": 8512,
+    "38": 6495,
+    "39": 15107,
+    "40": 8170,
+    "41": 1064,
+    "42": 8835,
+    "43": 17364,
+    "44": 16190,
+    "45": 16188
+  },
+  "一键物品": {},
+  "1": {
+    "有效性": {
+      "step": 4,
+      "type": "bool",
+      "category": "状态"
+    },
+    "移动": {
+      "step": 5,
+      "type": "bool",
+      "category": "状态"
+    },
+    "生命值": {
+      "step": 6,
+      "type": "int",
+      "category": "状态"
+    },
+    "队伍人数": {
+      "step": 7,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入法术": {
+      "step": 8,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入物品": {
+      "step": 9,
+      "type": "int",
+      "category": "状态"
+    },
+    "法力值": {
+      "step": 10,
+      "type": "int",
+      "category": "能量"
+    },
+    "目标类型": {
+      "step": 11,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标生命值": {
+      "step": 12,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标距离": {
+      "step": 13,
+      "type": "int",
+      "category": "目标"
+    },
+    "焦点生命值": {
+      "step": 14,
+      "type": "int",
+      "category": "焦点"
+    },
+    "spells": {
+      "8042.cooldown": {
+        "step": 15,
+        "type": "int",
+        "displayName": "地震术",
+        "spellId": 8042,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "8050.cooldown": {
+        "step": 16,
+        "type": "int",
+        "displayName": "烈焰震击",
+        "spellId": 8050,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "370.cooldown": {
+        "step": 17,
+        "type": "int",
+        "displayName": "净化术",
+        "spellId": 370,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "8056.cooldown": {
+        "step": 18,
+        "type": "int",
+        "displayName": "冰霜震击",
+        "spellId": 8056,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "8177.cooldown": {
+        "step": 19,
+        "type": "int",
+        "displayName": "根基图腾",
+        "spellId": 8177,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "421.cooldown": {
+        "step": 20,
+        "type": "int",
+        "displayName": "闪电链",
+        "spellId": 421,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "17364.cooldown": {
+        "step": 21,
+        "type": "int",
+        "displayName": "风暴打击",
+        "spellId": 17364,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "16190.cooldown": {
+        "step": 22,
+        "type": "int",
+        "displayName": "法力之潮图腾",
+        "spellId": 16190,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "16188.cooldown": {
+        "step": 23,
+        "type": "int",
+        "displayName": "自然迅捷",
+        "spellId": 16188,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      }
+    },
+    "group": {
+      "start": 24,
+      "生命值": {
+        "step": 1,
+        "type": "int"
+      },
+      "职责": {
+        "step": 2,
+        "type": "int"
+      }
+    }
+  }
+}

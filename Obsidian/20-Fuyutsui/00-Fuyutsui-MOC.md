@@ -19,11 +19,11 @@ related:
   - "[[40-跨项目/00-Shigure-跨项目契约-MOC]]"
   - "[[30-Shigure/02-Shigure-像素扫描与协议解码]]"
 source_files:
-  - Fuyutsui/Fuyutsui.toc
-  - Fuyutsui/main.lua
-  - Fuyutsui/core/core.lua
-  - Fuyutsui/core/block.lua
-  - Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/Fuyutsui.toc
+  - Retail/Fuyutsui/main.lua
+  - Retail/Fuyutsui/core/core.lua
+  - Retail/Fuyutsui/core/block.lua
+  - Retail/Fuyutsui/core/events.lua
 source_symbols:
   - Fuyutsui
   - Fuyutsui:OnInitialize
@@ -42,15 +42,15 @@ verified_at: 2026-08-16
 > [!summary] AI 快速摘要
 > Fuyutsui 在 WoW 内采集状态，并通过屏幕像素把数据交给 Shigure。当前源码有三类输出：分档至 1020 格的顶部主色条、500 单元横向计数/层数条、最多 40 个单位的治疗吸收网格。顶部主色条每 255 格切换一次红通道方案；三个通道在屏幕上均是除以 255 后的颜色值。
 
-本仓库根目录的 `Fuyutsui/` 是插件权威源，并随 Shigure 构建/发布；游戏 `Interface/AddOns/Fuyutsui` 是由 Shigure 单向部署的运行副本。配置或宏修改应落在内置源，再生成 config/keymap 并部署，不应从游戏副本反向维护。
+本仓库 `Retail/Fuyutsui/` 是插件权威源，并随 Shigure 构建/发布；游戏 `Interface/AddOns/Fuyutsui` 是由 Shigure 单向部署的运行副本。配置或宏修改应落在内置源，再生成 config/keymap 并部署，不应从游戏副本反向维护。
 
 ## 权威边界
 
 本目录以 2026-08-09 的当前运行时源码为事实来源，优先级如下：
 
-1. `Fuyutsui/Fuyutsui.toc`：唯一加载顺序。
-2. `Fuyutsui/core/*.lua` 与 `Fuyutsui/main.lua`：运行时行为。
-3. `Fuyutsui/class/*.lua` 与 `core/classmacros.lua`：声明式职业数据。
+1. `Retail/Fuyutsui/Fuyutsui.toc`：唯一加载顺序。
+2. `Retail/Fuyutsui/core/*.lua` 与 `Retail/Fuyutsui/main.lua`：运行时行为。
+3. `Retail/Fuyutsui/class/*.lua` 与 `core/classmacros.lua`：声明式职业数据。
 4. 本目录功能页：对当前源码的结构化解释。
 5. 旧审计、优化建议和历史总览：用于理解背景，不能覆盖当前源码。
 

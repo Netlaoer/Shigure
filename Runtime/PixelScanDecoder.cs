@@ -13,6 +13,8 @@ internal static class PixelScanDecoder
     private const int TopRowStartSearchWidth = 510;
     private const int HealAbsorbMaxRows = 8;
     private const int HealAbsorbMaxUnits = GroupStateLayout.SlotCount;
+    private const int HealAbsorbBarUnits = 25;
+    private const int HealAbsorbPercentPerUnit = 100 / HealAbsorbBarUnits;
 
     public static Dictionary<int, int> DecodeTopRow(ReadOnlySpan<int> pixels)
     {
@@ -54,6 +56,27 @@ internal static class PixelScanDecoder
         return rowData;
     }
 
+    public static int? FindHealAbsorbGridY(ReadOnlySpan<int> pixels, int width, int height)
+    {
+        if (width <= 0 || height <= 1 || pixels.Length < width * height)
+        {
+            return null;
+        }
+
+        // 首槽始终为 player 或 raid1，其前锚点编码为 (0, 1, 0)。跳过顶部状态行。
+        for (var y = 1; y < height; y++)
+        {
+            var color = Color.FromArgb(pixels[y * width]);
+            if (color.R == 0 && color.G == 1 && color.B == 0)
+            {
+                return y;
+            }
+        }
+
+        return null;
+    }
+
+    // 兼容旧版插件的独立计数条定位格。
     public static int? FindCountBarsMarkerY(ReadOnlySpan<int> pixels, int width, int height)
     {
         if (width <= 0 || height <= 0 || pixels.Length < width * height)
@@ -128,7 +151,7 @@ internal static class PixelScanDecoder
         ReadOnlySpan<int> pixels,
         int width,
         int height,
-        int countBarsY)
+        int firstRowY)
     {
         var result = new Dictionary<int, int>();
         if (width <= 0 || height <= 0 || pixels.Length < width * height)
@@ -138,7 +161,7 @@ internal static class PixelScanDecoder
 
         for (var row = 0; row < HealAbsorbMaxRows; row++)
         {
-            var rowY = countBarsY + 1 + row;
+            var rowY = firstRowY + row;
             if (rowY >= height)
             {
                 break;
@@ -162,10 +185,13 @@ internal static class PixelScanDecoder
                     continue;
                 }
 
-                var (green, blue, nextX) = ConsumeHealAbsorbPixel(rowPixels, x + 1);
-                if (blue is >= 1 and <= HealAbsorbMaxUnits)
+                var (sample, nextX) = ConsumeHealAbsorbPixel(rowPixels, x + 1);
+                if (sample.R <= 1 &&
+                    sample.G is >= 1 and <= HealAbsorbBarUnits + 1 &&
+                    sample.B is >= 1 and <= HealAbsorbMaxUnits)
                 {
-                    result[blue] = Math.Max(0, green - 1);
+                    result[sample.B] = Math.Clamp(
+                        (sample.G - 1) * HealAbsorbPercentPerUnit, 0, 100);
                 }
 
                 x = nextX;
@@ -218,7 +244,7 @@ internal static class PixelScanDecoder
         return (0, row.Length);
     }
 
-    private static (int Green, int Blue, int NextX) ConsumeHealAbsorbPixel(
+    private static (Color Color, int NextX) ConsumeHealAbsorbPixel(
         ReadOnlySpan<int> row,
         int fromX)
     {
@@ -232,10 +258,10 @@ internal static class PixelScanDecoder
                 continue;
             }
 
-            return (color.G, color.B, sx + 1);
+            return (color, sx + 1);
         }
 
-        return (0, 0, row.Length);
+        return (Color.Empty, row.Length);
     }
 
     private static bool IsRedMarker(Color color) => color.R == 1 && color.G == 0 && color.B == 0;

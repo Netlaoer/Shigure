@@ -20,9 +20,9 @@ related:
   - "[[30-Shigure/08-Shigure-Keymap解析与按键发送|Shigure Keymap 与按键发送]]"
   - "[[30-Shigure/09-Shigure-Fuyutsui配置宏编辑与同步|Shigure Fuyutsui 编辑与同步]]"
 source_files:
-  - "Fuyutsui/core/classmacros.lua"
-  - "Fuyutsui/core/macro.lua"
-  - "Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/classmacros.lua"
+  - "Retail/Fuyutsui/core/macro.lua"
+  - "Retail/Fuyutsui/main.lua"
   - "Infrastructure/ClassMacrosStore.cs"
   - "Infrastructure/FuyutsuiKeymapConverter.cs"
   - "Input/KeymapService.cs"
@@ -46,7 +46,7 @@ verified_at: "2026-08-10"
 
 同一份 `Fuyutsui.ClassMacros[classFile]` 有两个消费者：Fuyutsui 把宏按固定顺序展开为 SecureActionButton 并绑定预设热键；Shigure 按同一顺序生成 keymap，让 module 能把“技能 + 单位 + 宏条件”反解为那个热键。如果槽位顺序、动态宏占位、单位编号或宏文本解析有任何漂移，Shigure 会发送一个合法但属于其他宏的按键。
 
-这份宏数据的权威位置是项目内置 `Fuyutsui/core/classmacros.lua`。宏编辑器保存后从这里重生成 keymap，并把该 Lua 单文件部署到游戏；游戏副本不是反向编辑源。
+这份宏数据的权威位置是项目内置 `Retail/Fuyutsui/core/classmacros.lua`。宏编辑器保存后从这里重生成 keymap，并把该 Lua 单文件部署到游戏；游戏副本不是反向编辑源。
 
 当前宏顺序是：
 
@@ -171,11 +171,11 @@ keymap 是生成物；宏 Lua 与两端一致的展开算法才是来源。
 
 修改宏数据格式、热键池或单位映射时，至少同步检查：
 
-- `Fuyutsui/core/classmacros.lua`、`core/macro.lua` 和 `main.lua:LoadPlayerMacros`。
+- `Retail/Fuyutsui/core/classmacros.lua`、`core/macro.lua` 和 `main.lua:LoadPlayerMacros`。
 - `ClassMacrosStore`、`FuyutsuiKeymapConverter`、`KeymapService` 和 `KeymapCatalog`。
 - module schema、宏快照迁移函数和职业级宏容量检查。
 - 宏编辑器的槽位提示、空槽保存与保存后同步。
-- [[50-参考资料/CLASSMACROS_AI_Reference_zh-CN|ClassMacros 规则参考]]、`Fuyutsui/core/keybinds.lua`（当前键池编码）和本契约。
+- [[50-参考资料/CLASSMACROS_AI_Reference_zh-CN|ClassMacros 规则参考]]、`Retail/Fuyutsui/core/keybinds.lua`（当前键池编码）和本契约。
 
 验证不能只比较生成 JSON 的条目数；应抽查 dynamic 首尾、static 首项、special 首项以及不同专精边界处的实际 hotkey。
 
@@ -183,9 +183,9 @@ keymap 是生成物；宏 Lua 与两端一致的展开算法才是来源。
 
 | 职责 | 源码 |
 |---|---|
-| 职业宏与命名宏体 | `Fuyutsui/core/classmacros.lua` |
-| 槽位展开、安全按钮、覆盖绑定 | `Fuyutsui/core/macro.lua` |
-| 当前职业/专精解析 | `Fuyutsui/main.lua:LoadPlayerMacros` |
+| 职业宏与命名宏体 | `Retail/Fuyutsui/core/classmacros.lua` |
+| 槽位展开、安全按钮、覆盖绑定 | `Retail/Fuyutsui/core/macro.lua` |
+| 当前职业/专精解析 | `Retail/Fuyutsui/main.lua:LoadPlayerMacros` |
 | Lua 宏 round-trip | `Infrastructure/ClassMacrosStore.cs` |
 | Lua 到 keymap | `Infrastructure/FuyutsuiKeymapConverter.cs` |
 | keymap 选择和查找 | `Input/KeymapService.cs`、`KeymapCatalog.cs` |

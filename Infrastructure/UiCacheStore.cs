@@ -121,6 +121,9 @@ internal sealed class UiCacheState
     public int MainBarSizeVersion { get; set; }
     public string? ToggleKey { get; set; }
     public string? SelectedModuleId { get; set; }
+    public string? SelectedAddonName { get; set; }
+    public string? RetailGameExecutablePath { get; set; }
+    public string? ForeverGameExecutablePath { get; set; }
     public string? CaptureMethod { get; set; }
     public int? ScanIntervalMs { get; set; }
     public int? LogicIntervalMs { get; set; }
