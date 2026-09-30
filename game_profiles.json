@@ -1,7 +1,19 @@
 {
   "profiles": [
-    { "process": "Wow", "version": "Retail", "addon": "Fuyutsui" },
-    { "process": "WowT", "version": "Retail", "addon": "Fuyutsui" },
-    { "process": "WowClassic", "version": "Forever", "addon": "Shingen" }
+    {
+      "process": "Wow",
+      "version": "Retail",
+      "addon": "Fuyutsui"
+    },
+    {
+      "process": "WowT",
+      "version": "Retail",
+      "addon": "Fuyutsui"
+    },
+    {
+      "process": "WowClassic",
+      "version": "Forever",
+      "addon": "Shingen"
+    }
   ]
 }
