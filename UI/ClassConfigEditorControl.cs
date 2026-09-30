@@ -67,8 +67,9 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly CheckBox _groupHasClassBox = new();
     private readonly DataGridView _groupAurasGrid = new();
     private readonly Label _nameplatePixelSummary = new() { AutoSize = true };
-    private readonly Label _nameplateFixedFieldSummary = new() { AutoSize = true };
     private readonly CheckBox _nameplateEnabledBox = new();
+    private readonly CheckBox _nameplateImprovedGarroteBox = new();
+    private Control _nameplateImprovedGarroteCard = null!;
     private readonly DataGridView _nameplateAurasGrid = new();
 
     private string? _classDirectory;
@@ -1559,17 +1560,48 @@ public sealed class ClassConfigEditorControl : UserControl
                 UpdateNameplateEditorsEnabled();
             }
         };
+        _nameplatePixelSummary.AutoSize = true;
+        _nameplatePixelSummary.Dock = DockStyle.Fill;
         _nameplatePixelSummary.ForeColor = UiTheme.Text;
-        _nameplateFixedFieldSummary.ForeColor = UiTheme.Muted;
-        _nameplateFixedFieldSummary.Text =
-            $"映射 {NameplateStateLayout.MappingFieldCount} + 生命值/距离/战斗（固定 {NameplateStateLayout.FixedFieldCount} 格/槽）";
+        _nameplatePixelSummary.BackColor = UiTheme.Surface;
+        _nameplatePixelSummary.TextAlign = ContentAlignment.MiddleRight;
+        _nameplatePixelSummary.Margin = Padding.Empty;
+        _nameplatePixelSummary.Padding = new Padding(0, 0, 8, 0);
 
-        // 姓名板卡片加宽，避免映射与固定字段摘要被截断。
-        const int cardWidth = GroupCardWidth * 3 / 2 * 8 / 5;
-        fields.Controls.Add(CreateGroupCard("NAMEPLATES", _nameplateEnabledBox, cardWidth));
-        fields.Controls.Add(CreateGroupCard("固定字段", _nameplateFixedFieldSummary, cardWidth));
-        fields.Controls.Add(CreateGroupCard("主像素（队伍后）", _nameplatePixelSummary, cardWidth));
-        panel.Controls.Add(fields, 0, 0);
+        _nameplateImprovedGarroteBox.Text = "启用";
+        _nameplateImprovedGarroteBox.AutoSize = true;
+        _nameplateImprovedGarroteBox.ForeColor = UiTheme.Text;
+        _nameplateImprovedGarroteBox.CheckedChanged += (_, _) =>
+        {
+            if (!_suppressUi)
+            {
+                MarkDirty();
+                UpdateNameplatePixelSummary();
+            }
+        };
+        const string garroteHint = "0 无锁喉 / 1 强化 / 2 普通\n仅追踪自己施放的锁喉";
+        _toolTip.SetToolTip(_nameplateImprovedGarroteBox, garroteHint);
+        fields.Controls.Add(CreateGroupCard("NAMEPLATES", _nameplateEnabledBox));
+        _nameplateImprovedGarroteCard = CreateGroupCard("强化锁喉", _nameplateImprovedGarroteBox);
+        _toolTip.SetToolTip(_nameplateImprovedGarroteCard, garroteHint);
+        fields.Controls.Add(_nameplateImprovedGarroteCard);
+
+        // 与队伍页共用固定尺寸卡片；统计文字独立占据右侧，不随可见卡片数量拉伸。
+        var nameplateHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = UiTheme.Surface,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        nameplateHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        nameplateHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        nameplateHeader.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        nameplateHeader.Controls.Add(fields, 0, 0);
+        nameplateHeader.Controls.Add(_nameplatePixelSummary, 1, 0);
+        panel.Controls.Add(nameplateHeader, 0, 0);
 
         ConfigureGrid(_nameplateAurasGrid, "class-config-nameplates");
         _nameplateAurasGrid.Columns.Add(CreateSpellIconColumn());
@@ -1611,6 +1643,9 @@ public sealed class ClassConfigEditorControl : UserControl
     private void FillNameplateEditors()
     {
         _nameplateAurasGrid.Rows.Clear();
+        _nameplateImprovedGarroteCard.Visible = SupportsNameplateImprovedGarrote;
+        _nameplateImprovedGarroteBox.Checked = SupportsNameplateImprovedGarrote
+            && _currentSpec?.Nameplates?.ImprovedGarrote != false;
         if (_currentSpec?.Nameplates is { } nameplates)
         {
             _nameplateEnabledBox.Checked = true;
@@ -1640,6 +1675,7 @@ public sealed class ClassConfigEditorControl : UserControl
         var enabled = _nameplateEnabledBox.Checked;
         _nameplateAurasGrid.Enabled = enabled;
         _nameplateAurasGrid.ReadOnly = !enabled;
+        _nameplateImprovedGarroteBox.Enabled = enabled && SupportsNameplateImprovedGarrote;
         UpdateNameplatePixelSummary();
     }
 
@@ -1660,14 +1696,18 @@ public sealed class ClassConfigEditorControl : UserControl
             }
         }
 
+        if (SupportsNameplateImprovedGarrote && _nameplateImprovedGarroteBox.Checked) fields++;
         var total = NameplateStateLayout.TotalPixelCount(fields);
         _nameplatePixelSummary.Text = _nameplateEnabledBox.Checked
-            ? $"映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount} × {fields} = {total} 格"
+            ? $"主像素（队伍后）\n映射 {NameplateStateLayout.MappingFieldCount} + {NameplateStateLayout.SlotCount} × {fields} = {total} 格\n固定 {NameplateStateLayout.FixedFieldCount} 格/槽：生命值/距离/战斗"
             : "未启用";
     }
 
 
     private const int GroupCardWidth = UiTheme.GroupCardFixedWidth;
+
+    private bool SupportsNameplateImprovedGarrote
+        => NameplateStateLayout.SupportsImprovedGarrote(_classDirectory, _currentClassId, _currentSpecId);
 
     private Control CreateGroupCard(string title, Control content, int width = GroupCardWidth)
     {
@@ -4227,8 +4267,13 @@ public sealed class ClassConfigEditorControl : UserControl
             return;
         }
 
-        // 生命值/距离是固定像素，这里只写回光环列表。
-        var nameplates = new ClassBlocksStore.NameplateBlocks();
+        // 保留其他专精的原配置，奇袭按独立卡片写回类型开关。
+        var nameplates = new ClassBlocksStore.NameplateBlocks
+        {
+            ImprovedGarrote = SupportsNameplateImprovedGarrote
+                ? _nameplateImprovedGarroteBox.Checked
+                : _currentSpec.Nameplates?.ImprovedGarrote
+        };
         foreach (DataGridViewRow row in _nameplateAurasGrid.Rows)
         {
             if (row.IsNewRow)

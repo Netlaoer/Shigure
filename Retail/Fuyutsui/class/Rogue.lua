@@ -155,6 +155,7 @@ Fuyutsui.ClassBlocks = {
             [273797] = { name = "破损的阿曼尼旗帜", isEquipped = true },
         },
         nameplates = {
+            improvedGarrote = true,
             auras = {
                 { name = "割裂", spellId = 1943, isPlayer = true, },
                 { name = "锁喉", spellId = 703, isPlayer = true, },

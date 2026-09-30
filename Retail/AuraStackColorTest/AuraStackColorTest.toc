@@ -1,6 +1,0 @@
-## Interface: 120100
-## Title: AuraStackColorTest
-## Notes-zhCN: 测试 390787 光环层数的颜色格式化
-## Version: 0.1.0
-
-AuraStackColorTest.lua

@@ -1,6 +1,6 @@
 local addon, ns = ...
 
--- 姓名板主像素：先 7 格单位映射（目标/焦点/首领1–5），再每单位 num 格（生命值、距离、战斗、光环）。
+-- 姓名板主像素：先 7 格单位映射（目标/焦点/首领1–5），再每单位 num 格（生命值、距离、战斗、光环及可选锁喉类型）。
 -- 槽位像素：index = start + mappingCount + (slot - 1) * num + offset - 1；沿用主像素 R/G 索引与 B 数值。
 -- 不存在的单位整段置黑（无索引），无需增加存在标记格。
 local NAMEPLATE_SLOT_COUNT = 40
@@ -47,7 +47,7 @@ local function ReleaseAuraContainer(slot)
 end
 
 local function CreateNameplateAuraContainer(slot, unit, config)
-    if #config.auras == 0 then return nil end
+    if #config.auras == 0 and not config.improvedGarroteOffset then return nil end
 
     if C_AddOns and not C_AddOns.IsAddOnLoaded("Blizzard_AuraContainer") then
         C_AddOns.LoadAddOn("Blizzard_AuraContainer")
@@ -74,12 +74,15 @@ local function CreateNameplateAuraContainer(slot, unit, config)
             container, "nameplate_" .. slot .. "_aura_" .. auraIndex, includeSpellIDs, index, aura.isPlayer, aura.maxApps
         )
     end
+    if config.improvedGarroteOffset then
+        Fuyutsui:AddNameplateGarroteIconSlot(container, PixelIndex(config, slot, config.improvedGarroteOffset))
+    end
     container:Show()
     return container
 end
 
 local function RefreshAuraContainer(slot, unit, config)
-    if #config.auras == 0 then
+    if #config.auras == 0 and not config.improvedGarroteOffset then
         ReleaseAuraContainer(slot)
         return
     end
@@ -115,6 +118,12 @@ end
 
 function Fuyutsui:ReleaseNameplateAuraContainers()
     for slot in pairs(auraContainers) do ReleaseAuraContainer(slot) end
+end
+
+-- 过场结束后原生候选过滤可能失效，重建姓名板容器恢复全部光环/图标槽。
+function Fuyutsui:RebindNameplateAuraFilters()
+    self:ReleaseNameplateAuraContainers()
+    self:RefreshNameplatePixels()
 end
 
 function Fuyutsui:RefreshNameplateUnitMappings()

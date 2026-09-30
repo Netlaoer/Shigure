@@ -111,7 +111,8 @@ internal static class FuyutsuiConfigConverter
                     continue;
                 }
 
-                var (specJson, specWarnings) = CompileSpec(specTable, $"{fileName}[{specId}]");
+                var (specJson, specWarnings) = CompileSpec(specTable, $"{fileName}[{specId}]",
+                    NameplateStateLayout.SupportsImprovedGarrote(classDirectory, classId, specId));
                 warnings.AddRange(specWarnings);
                 if (specJson.Count > 0)
                 {
@@ -304,7 +305,8 @@ internal static class FuyutsuiConfigConverter
         return result;
     }
 
-    private static (JsonObject Spec, List<string> Warnings) CompileSpec(TableValue spec, string label)
+    private static (JsonObject Spec, List<string> Warnings) CompileSpec(
+        TableValue spec, string label, bool supportsImprovedGarrote)
     {
         var warnings = new List<string>();
         var result = new JsonObject();
@@ -646,6 +648,10 @@ internal static class FuyutsuiConfigConverter
                 nameplateJson["auras"] = auraArray;
             }
 
+            if (supportsImprovedGarrote && nameplates.GetBool("improvedGarrote") != false)
+            {
+                nameplateJson["improvedGarroteOffset"] = ++fieldCount;
+            }
             nameplateJson["num"] = fieldCount;
             var totalPixels = NameplateStateLayout.TotalPixelCount(fieldCount);
             if (regionStart + totalPixels - 1 > MainPixelLayout.MaxCapacity)

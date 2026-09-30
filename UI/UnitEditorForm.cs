@@ -93,7 +93,8 @@ public sealed class UnitEditorForm : Form
         ModuleUnit? existingUnit,
         ModuleCountField? existingCount,
         ModuleEnemyCountField? existingEnemyCount,
-        ModuleAverageHealthField? existingAverageHealth = null)
+        ModuleAverageHealthField? existingAverageHealth = null,
+        bool hasNameplateImprovedGarrote = false)
     {
         _auraFields = auraFields;
         _nameplateAuraFields = nameplateAuraFields;
@@ -102,7 +103,8 @@ public sealed class UnitEditorForm : Form
             auraFields,
             nameplateAuraFields,
             thresholdFields,
-            formulaValueNames);
+            formulaValueNames,
+            hasNameplateImprovedGarrote);
         _countFilterEditor.Changed += (_, _) => UpdatePreview();
         InitializeComponent();
         Seed(existingUnit, existingCount, existingEnemyCount, existingAverageHealth);

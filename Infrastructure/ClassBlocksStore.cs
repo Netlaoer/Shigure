@@ -133,9 +133,11 @@ internal static class ClassBlocksStore
         public int? MaxApps { get; set; }
     }
 
-    // 生命值/距离是固定像素，配置里只剩光环列表。
+    // 生命值/距离/战斗是固定像素；配置保存光环列表及可选的锁喉类型开关。
     public sealed class NameplateBlocks
     {
+        // null 保留旧配置省略值；正式服奇袭的有效默认值为 true。
+        public bool? ImprovedGarrote { get; set; }
         public List<AuraEntry> Auras { get; } = new();
     }
 
@@ -707,7 +709,7 @@ internal static class ClassBlocksStore
 
         if (spec.GetTable("nameplates") is { } nameplates)
         {
-            var blocks = new NameplateBlocks();
+            var blocks = new NameplateBlocks { ImprovedGarrote = nameplates.GetBool("improvedGarrote") };
             AppendAuraList(nameplates.GetTable("auras"), blocks.Auras);
             result.Nameplates = blocks;
         }
@@ -967,6 +969,11 @@ internal static class ClassBlocksStore
         if (spec.Nameplates is { } nameplates)
         {
             sb.Append(indent).AppendLine("nameplates = {");
+            if (nameplates.ImprovedGarrote is { } improvedGarrote)
+            {
+                sb.Append(indent).Append("    improvedGarrote = ")
+                    .Append(improvedGarrote ? "true" : "false").AppendLine(",");
+            }
             if (nameplates.Auras.Count > 0)
             {
                 sb.Append(indent).AppendLine("    auras = {");

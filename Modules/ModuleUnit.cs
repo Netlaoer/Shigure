@@ -97,7 +97,8 @@ public enum CountConditionFieldKind
     Range,
     Combat,
     Aura,
-    Class
+    Class,
+    ImprovedGarrote
 }
 
 /// <summary>数量筛选的比较方式。</summary>

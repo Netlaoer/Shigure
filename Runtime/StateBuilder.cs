@@ -113,6 +113,12 @@ public sealed class StateBuilder : IRuntimeStateBuilder
                 ["战斗"] = ReadField(combatOffset) != 0
             };
 
+            if (JsonHelpers.GetInt(JsonHelpers.Get(config, "improvedGarroteOffset"))
+                is > 0 and var garroteOffset && garroteOffset <= fieldCount)
+            {
+                values[NameplateStateLayout.ImprovedGarroteField] = ReadField(garroteOffset);
+            }
+
             if (auraConfigs is not null)
             {
                 for (var auraIndex = 0; auraIndex < auraConfigs.Count; auraIndex++)

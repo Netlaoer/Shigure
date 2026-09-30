@@ -358,6 +358,7 @@ public static class UnitSelector
                 ? condition.Field is CountConditionFieldKind.Health
                     or CountConditionFieldKind.Range
                     or CountConditionFieldKind.Combat
+                    or CountConditionFieldKind.ImprovedGarrote
                     or CountConditionFieldKind.Aura
                 : condition.Field is CountConditionFieldKind.Health
                     or CountConditionFieldKind.HealingAbsorb
@@ -371,6 +372,7 @@ public static class UnitSelector
                 || (condition.Field is CountConditionFieldKind.Role
                         or CountConditionFieldKind.Dispel
                         or CountConditionFieldKind.Class
+                        or CountConditionFieldKind.ImprovedGarrote
                         or CountConditionFieldKind.Combat)
                     && condition.Comparison is not (CountConditionComparisonKind.Equal
                         or CountConditionComparisonKind.NotEqual)
@@ -378,8 +380,13 @@ public static class UnitSelector
                     && (condition.Field is CountConditionFieldKind.Role
                             or CountConditionFieldKind.Dispel
                             or CountConditionFieldKind.Class
+                            or CountConditionFieldKind.ImprovedGarrote
                             or CountConditionFieldKind.Combat
                         || string.IsNullOrWhiteSpace(condition.ValueField)))
+            {
+                return false;
+            }
+            if (condition.Field == CountConditionFieldKind.ImprovedGarrote && condition.Value is < 0 or > 2)
             {
                 return false;
             }
@@ -500,6 +507,7 @@ public static class UnitSelector
             CountConditionFieldKind.Dispel => "驱散",
             CountConditionFieldKind.Class => "职业",
             CountConditionFieldKind.Range => "距离",
+            CountConditionFieldKind.ImprovedGarrote => NameplateStateLayout.ImprovedGarroteField,
             _ => string.Empty
         };
         if (field.Length == 0)
@@ -510,7 +518,12 @@ public static class UnitSelector
 
         if (TryInt(GetField(data, field), out value))
         {
-            return condition.Field != CountConditionFieldKind.Class || value is >= 1 and <= 13;
+            return condition.Field switch
+            {
+                CountConditionFieldKind.Class => value is >= 1 and <= 13,
+                CountConditionFieldKind.ImprovedGarrote => value is >= 0 and <= 2,
+                _ => true
+            };
         }
 
         // 未检测到驱散值时等价于 0，使“驱散 != 某类型”保持原有语义。

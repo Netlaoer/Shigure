@@ -111,6 +111,7 @@ internal static class UnitSummary
             CountConditionFieldKind.Class => "职业",
             CountConditionFieldKind.Range => "距离",
             CountConditionFieldKind.Combat => "战斗",
+            CountConditionFieldKind.ImprovedGarrote => "强化锁喉",
             CountConditionFieldKind.Aura => $"[{FormatAura(condition.AuraSpellId.GetValueOrDefault(), resolveAuraName)}]",
             _ => "?"
         };
@@ -134,6 +135,13 @@ internal static class UnitSummary
             CountConditionFieldKind.Class => ClassNames.GetClassAndSpecName(condition.Value, null).ClassName
                 ?? condition.Value.ToString(),
             CountConditionFieldKind.Combat => condition.Value == 0 ? "不在战斗中" : "战斗中",
+            CountConditionFieldKind.ImprovedGarrote => condition.Value switch
+            {
+                0 => "无锁喉 (0)",
+                1 => "强化锁喉 (1)",
+                2 => "普通锁喉 (2)",
+                _ => condition.Value.ToString()
+            },
             _ => condition.Value.ToString()
         };
     }

@@ -710,7 +710,7 @@ local function MakeGarroteIconSlotInitializer(index)
         AnchorAuraPixelButton(button, index)
         local icon = button:CreateTexture(nil, "ARTWORK")
         icon:SetAllPoints(button)
-        -- 128×128 图标仅采样中央 2×2；远离横条边缘，避免缩小时混入外围颜色。
+        -- 128×128 图标仅采样中央 2×2，与 2 像素高的横条对齐。
         icon:SetTexCoord(63 / 128, 65 / 128, 63 / 128, 65 / 128)
         local r, g = EncodeBlockChannels(index)
         icon:SetVertexColor(r, g, 1, 1)
@@ -967,10 +967,10 @@ local function GetUnitGarroteStateIndex(unit)
     return unit == "target" and stateBlocks and stateBlocks["目标强化锁喉"] or nil
 end
 
-local function AddGarroteIconSlot(container, index)
+local function AddGarroteIconSlot(container, index, slotKey)
     if not index then return end
     local slot = {
-        key = "target_garrote_icon",
+        key = slotKey or "target_garrote_icon",
         filter = "HARMFUL|PLAYER",
         includeSpellIDs = { [703] = true },
     }
@@ -983,6 +983,13 @@ local function AddGarroteIconSlot(container, index)
     })
     container.fuyutsuiSpellIdSlots = container.fuyutsuiSpellIdSlots or {}
     tinsert(container.fuyutsuiSpellIdSlots, slot)
+end
+
+-- 姓名板容器只绑定敌对单位，因此可以直接启用同一原生图标槽。
+function Fuyutsui:AddNameplateGarroteIconSlot(container, index)
+    AddGarroteIconSlot(container, index, "nameplate_garrote_icon")
+    local slot = container.fuyutsuiSpellIdSlots[#container.fuyutsuiSpellIdSlots]
+    container:SetAuraSlotCandidateFilters(slot.key, AuraSlotFilters(slot.includeSpellIDs))
 end
 
 local function CreateUnitAuraDurationSlots(unit, spellSlots, dispelIndex, garroteIndex)
@@ -1295,5 +1302,7 @@ function Fuyutsui:RebindAuraSpellFilters()
         local container = groupRoleOverlayContainers[memberIndex]
         RebindContainerSpellFilters(container, container.fuyutsuiUnit)
     end
+
+    if self.RebindNameplateAuraFilters then self:RebindNameplateAuraFilters() end
 
 end

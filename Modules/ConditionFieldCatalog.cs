@@ -269,6 +269,11 @@ public sealed class ConditionFieldCatalog
                 AddField(fields, seen, prefix + "距离", $"姓名板{slot} / 距离", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
                 AddField(fields, seen, prefix + "战斗", $"姓名板{slot} / 战斗", ConditionFieldType.Bool, ConditionFieldCategory.State, "姓名板");
                 AddField(fields, seen, prefix + "TTD", $"姓名板{slot} / TTD", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
+                if (JsonHelpers.GetInt(JsonHelpers.Get(nameplates, "improvedGarroteOffset")) is > 0)
+                {
+                    AddField(fields, seen, prefix + NameplateStateLayout.ImprovedGarroteField,
+                        $"姓名板{slot} / 强化锁喉", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
+                }
                 for (var auraIndex = 1; auraIndex <= auraCount; auraIndex++)
                 {
                     var name = $"光环{auraIndex}";
@@ -372,8 +377,14 @@ public sealed class ConditionFieldCatalog
     }
 
     /// <summary>
-    /// 返回姓名板配置的光环，字段名统一为 auras.{spellId}.value，供敌人数量编辑器选择光环。
+    /// 姓名板是否配置了独立锁喉类型像素，供敌人筛选编辑器决定可用字段。
     /// </summary>
+    public bool HasNameplateImprovedGarrote(int? classId, int? specId)
+        => _config is not null
+            && JsonHelpers.Get(_config.BuildStateConfig(classId, specId), "nameplates") is JsonObject nameplates
+            && JsonHelpers.GetInt(JsonHelpers.Get(nameplates, "improvedGarroteOffset")) is > 0;
+
+    /// <summary>返回姓名板光环，字段名统一为 auras.{spellId}.value。</summary>
     public IReadOnlyList<ConditionField> GetNameplateAuraFields(int? classId, int? specId)
     {
         var fields = new List<ConditionField>();

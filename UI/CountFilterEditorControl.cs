@@ -46,6 +46,12 @@ internal sealed class CountFilterEditorControl : UserControl
         new("战斗中", 1),
         new("不在战斗中", 0)
     ];
+    private static readonly ValueOption[] ImprovedGarroteValues =
+    [
+        new("无锁喉 (0)", 0),
+        new("强化锁喉 (1)", 1),
+        new("普通锁喉 (2)", 2)
+    ];
 
     private readonly IReadOnlyList<ConditionField> _allyAuras;
     private readonly IReadOnlyList<ConditionField> _enemyAuras;
@@ -57,6 +63,8 @@ internal sealed class CountFilterEditorControl : UserControl
     private readonly List<GroupEditor> _groups = new();
     private bool _enemy;
     private bool _loading;
+    private readonly bool _hasNameplateImprovedGarrote;
+    private bool _retainedImprovedGarrote;
 
     public event EventHandler? Changed;
 
@@ -64,10 +72,12 @@ internal sealed class CountFilterEditorControl : UserControl
         IReadOnlyList<ConditionField> allyAuras,
         IReadOnlyList<ConditionField> enemyAuras,
         IReadOnlyList<string> thresholdFields,
-        IReadOnlyList<string> formulaValueNames)
+        IReadOnlyList<string> formulaValueNames,
+        bool hasNameplateImprovedGarrote = false)
     {
         _allyAuras = allyAuras;
         _enemyAuras = enemyAuras;
+        _hasNameplateImprovedGarrote = hasNameplateImprovedGarrote;
         _thresholdFields = new HashSet<string>(thresholdFields, StringComparer.Ordinal);
         _formulaValueNames = formulaValueNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -190,6 +200,9 @@ internal sealed class CountFilterEditorControl : UserControl
         _loading = true;
         try
         {
+            // 功能关闭后仍保留已保存的筛选，避免编辑时静默改成生命值条件。
+            _retainedImprovedGarrote = (groups ?? []).SelectMany(group => group.Conditions ?? [])
+                .Any(condition => condition.Field == CountConditionFieldKind.ImprovedGarrote);
             foreach (var editor in _groups)
             {
                 _groupsPanel.Controls.Remove(editor.Root);
@@ -299,6 +312,10 @@ internal sealed class CountFilterEditorControl : UserControl
                 new("驱散", CountConditionFieldKind.Dispel),
                 new("职业", CountConditionFieldKind.Class)
             };
+        if (_enemy && (_hasNameplateImprovedGarrote || _retainedImprovedGarrote))
+        {
+            options.Add(new FieldOption("强化锁喉", CountConditionFieldKind.ImprovedGarrote));
+        }
         foreach (var aura in (_enemy ? _enemyAuras : _allyAuras))
         {
             if (TryReadAuraSpellId(aura, out var spellId)
@@ -848,7 +865,8 @@ internal sealed class CountFilterEditorControl : UserControl
                 var restricted = option.Kind is CountConditionFieldKind.Role
                     or CountConditionFieldKind.Dispel
                     or CountConditionFieldKind.Class
-                    or CountConditionFieldKind.Combat;
+                    or CountConditionFieldKind.Combat
+                    or CountConditionFieldKind.ImprovedGarrote;
                 var previousComparison = seed?.Comparison
                     ?? ReadComparison(row.Cells[ComparisonColumn].Value)
                     ?? CountConditionComparisonKind.Equal;
@@ -878,6 +896,7 @@ internal sealed class CountFilterEditorControl : UserControl
                     CountConditionFieldKind.Dispel => CreateValueComboCell(DispelValues),
                     CountConditionFieldKind.Class => CreateValueComboCell(ClassValues),
                     CountConditionFieldKind.Combat => CreateValueComboCell(CombatValues),
+                    CountConditionFieldKind.ImprovedGarrote => CreateValueComboCell(ImprovedGarroteValues),
                     _ => new FormulaValueCell()
                 };
                 row.Cells[ValueColumn] = valueCell;
@@ -1167,6 +1186,7 @@ internal sealed class CountFilterEditorControl : UserControl
                 CountConditionFieldKind.Dispel => 1,
                 CountConditionFieldKind.Class => 1,
                 CountConditionFieldKind.Combat => 1,
+                CountConditionFieldKind.ImprovedGarrote => 1,
                 _ => "0"
             };
 
