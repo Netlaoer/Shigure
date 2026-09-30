@@ -704,14 +704,15 @@ local function MakeZeroSlotInitializer(index)
     end
 end
 
---- 图标中心编码：TGA 中央横条为 (255,255,1/2)，固定顶点颜色保留索引通道。
+--- 图标顶部编码：TGA 顶部 128×4 横条为 (255,255,1/2)，固定顶点颜色保留索引通道。
 local function MakeGarroteIconSlotInitializer(index)
     return function(button)
         AnchorAuraPixelButton(button, index)
         local icon = button:CreateTexture(nil, "ARTWORK")
-        icon:SetAllPoints(button)
-        -- 128×128 图标仅采样中央 2×2，与 2 像素高的横条对齐。
-        icon:SetTexCoord(63 / 128, 65 / 128, 63 / 128, 65 / 128)
+        icon:SetPoint("TOP", button, "TOP", 0, 0)
+        icon:SetSize(AURA_BLOCK_W, AURA_BLOCK_H)
+        -- 仅采样顶部横条内部的 2×2，避开图像边界及横条下缘。
+        icon:SetTexCoord(63 / 128, 65 / 128, 1 / 128, 3 / 128)
         local r, g = EncodeBlockChannels(index)
         icon:SetVertexColor(r, g, 1, 1)
         button:SetIcon(icon)
