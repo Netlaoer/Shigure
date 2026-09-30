@@ -180,11 +180,11 @@ public sealed class ConditionEditorForm : Form
     private readonly string _originalCondition;
     private readonly bool _allowSubConditions;
     private readonly bool _allowRuleSettings;
-    private readonly DataGridView _conditionsGrid = new();
+    private readonly DataGridView _conditionsGrid = new UiThemedDataGridView();
     private readonly Label _previewLabel = new();
     private readonly ToolTip _previewToolTip = new();
     private readonly List<string> _subConditions = new();
-    private readonly ListBox _subList = new();
+    private readonly ListBox _subList = new UiThemedListBox();
     private ToolStripDropDown? _conditionComboDropDown;
     private bool _updatingGrid;
     private string? _advancedConditionText;

@@ -595,7 +595,7 @@ public sealed class StatusForm : Form
         _unitInfoList = UiTheme.CreateListView(Font, "status-unit-info",
             new UiTheme.ListColumn("名称", 180, 320),
             new UiTheme.ListColumn("值", 320, 1400, FillRemaining: true));
-        _logTextBox = new TextBox
+        _logTextBox = new UiThemedTextBox
         {
             Dock = DockStyle.Fill,
             Multiline = true,
@@ -820,7 +820,7 @@ public sealed class StatusForm : Form
             BackColor = UiTheme.SettingsNavigation,
             Margin = Padding.Empty
         };
-        nav = new FlowLayoutPanel
+        nav = new UiThemedFlowLayoutPanel
         {
             Dock = DockStyle.None,
             FlowDirection = FlowDirection.TopDown,
@@ -828,7 +828,7 @@ public sealed class StatusForm : Form
             AutoScroll = true,
             BackColor = UiTheme.SettingsNavigation,
             Margin = Padding.Empty,
-            Padding = new Padding(12, 10, 12 + SystemInformation.VerticalScrollBarWidth, 14)
+            Padding = new Padding(12, 10, 12, 14)
         };
         _sidebarNav = nav;
         var navPanel = nav;
@@ -848,7 +848,7 @@ public sealed class StatusForm : Form
         viewport.Controls.Add(nav);
         viewport.Resize += (_, _) => navPanel.SetBounds(
             0, 0,
-            viewport.ClientSize.Width + SystemInformation.VerticalScrollBarWidth,
+            viewport.ClientSize.Width,
             viewport.ClientSize.Height);
         sidebar.Controls.Add(viewport);
 
@@ -908,29 +908,6 @@ public sealed class StatusForm : Form
         sidebar.Controls.Add(header);
         PositionSidebarToggle();
 
-        var scrollBar = new UiDarkScrollBar();
-        sidebar.Controls.Add(scrollBar);
-        scrollBar.BringToFront();
-        void PositionScrollBar() => scrollBar.SetBounds(
-            Math.Max(0, viewport.Right - SystemInformation.VerticalScrollBarWidth),
-            viewport.Top,
-            SystemInformation.VerticalScrollBarWidth,
-            viewport.Height);
-        void SyncScrollBar() => scrollBar.SetMetrics(
-            Math.Max(0, navPanel.DisplayRectangle.Height),
-            Math.Max(1, navPanel.ClientSize.Height),
-            navPanel.VerticalScroll.Value);
-        viewport.Resize += (_, _) => { PositionScrollBar(); SyncScrollBar(); };
-        navPanel.Resize += (_, _) => SyncScrollBar();
-        navPanel.Layout += (_, _) => SyncScrollBar();
-        navPanel.Scroll += (_, _) => SyncScrollBar();
-        scrollBar.ScrollRequested += value =>
-        {
-            navPanel.AutoScrollPosition = new Point(0, value);
-            SyncScrollBar();
-        };
-        PositionScrollBar();
-        SyncScrollBar();
         return cardHost;
     }
 
@@ -1018,8 +995,8 @@ public sealed class StatusForm : Form
         }
 
         _sidebarNav.Padding = collapsed
-            ? new Padding(8, 10, 8 + SystemInformation.VerticalScrollBarWidth, 14)
-            : new Padding(12, 10, 12 + SystemInformation.VerticalScrollBarWidth, 14);
+            ? new Padding(8, 10, 8, 14)
+            : new Padding(12, 10, 12, 14);
         foreach (var group in _sidebarGroups)
         {
             group.Visible = !collapsed;
@@ -1300,7 +1277,7 @@ public sealed class StatusForm : Form
         int? contentWidth = null)
     {
         var pageWidth = contentWidth ?? SettingsContentWidth;
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = false,
@@ -1329,7 +1306,7 @@ public sealed class StatusForm : Form
 
     private Control BuildLogPage()
     {
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
@@ -2091,7 +2068,7 @@ public sealed class StatusForm : Form
 
     private Control BuildAboutPanel()
     {
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,

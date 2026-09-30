@@ -68,6 +68,7 @@ end
 function Fuyutsui:RefreshZoneState()
     state.mapID = C_Map.GetBestMapForUnit("player") or 0
     state.mapInfo = C_Map.GetMapInfo(state.mapID)
+    self:RefreshPlayerMapState()
     state.subzone = GetSubZoneText()
     if GetBindLocation() == state.subzone then
         print("欢迎回家!")
@@ -82,8 +83,13 @@ function Fuyutsui:ZONE_CHANGED_INDOORS()
     self:RefreshZoneState()
 end
 
+function Fuyutsui:ZONE_CHANGED_NEW_AREA()
+    self:RefreshZoneState()
+end
+
 function Fuyutsui:PLAYER_ENTERING_WORLD()
     state.mapID = C_Map.GetBestMapForUnit("player") or 0
+    self:RefreshPlayerMapState()
     self:UpdateHolyArmaments(375576)
     self:UpdateVampiricStrike(206930)
     self:UpdateReaverGlaive(204157)

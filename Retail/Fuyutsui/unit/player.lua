@@ -66,6 +66,13 @@ function Fuyutsui:RebuildSpecializationState()
     self:UpdateStateBlock("特殊", "战斗计时(分)")
 end
 
+-- mapIndex 使用副本地图 ID，与 C_Map 的界面地图 ID 分开。
+function Fuyutsui:RefreshPlayerMapState()
+    local _, _, _, _, _, _, _, instanceID = GetInstanceInfo()
+    state.mapIndex = self.mapIndex[instanceID] or 0
+    self:UpdateStateBlock("状态", "地图")
+end
+
 function Fuyutsui:RefreshPlayerValidity()
     local valid = not state.isDead and not state.mounted and not state.isChatOpen and not state.drinkStatus and
         not state.mountCasting

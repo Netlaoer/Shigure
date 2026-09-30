@@ -1261,7 +1261,7 @@ public sealed class MainForm : Form, IMessageFilter
         var settingRows = new List<(TableLayoutPanel Row, Control Actions)>();
         var settingCards = new List<UiCardPanel>();
 
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,

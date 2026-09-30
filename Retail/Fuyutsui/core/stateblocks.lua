@@ -130,6 +130,7 @@ local stateBlockGetters = {
         ["职业"] = function(self) return self.state.classId / 255 end,
         ["专精"] = function(self) return self.state.specIndex / 255 end,
         ["有效性"] = function() return state.valid or 0 end,
+        ["地图"] = function() return (state.mapIndex or 0) / 255 end,
         ["战斗时间"] = function() return state.combatTime or 0 end,
         ["移动"] = function() return state.moving or 0 end,
         ["生命值"] = function() return GetHealthChannel(state) end,

@@ -5,7 +5,7 @@ namespace Shigure;
 /// <summary>直接编辑主条件表达式或逐行编辑整组子条件。</summary>
 internal sealed class ConditionTextEditorForm : Form
 {
-    private readonly TextBox _conditionBox = new();
+    private readonly TextBox _conditionBox = new UiThemedTextBox();
     private readonly bool _editSubConditions;
 
     public string ConditionText { get; private set; } = string.Empty;

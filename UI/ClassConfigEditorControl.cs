@@ -27,18 +27,18 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly Button _saveButton = null!;
     private const int ConfigFooterBarHeight = 64;
 
-    private readonly DataGridView _statesGrid = new();
+    private readonly DataGridView _statesGrid = new UiThemedDataGridView();
     private readonly DataGridViewComboBoxColumn _stateNameColumn = new();
     private ToolStripDropDown? _stateComboDropDown;
-    private readonly DataGridView _aurasGrid = new();
-    private readonly DataGridView _spellsGrid = new();
-    private readonly TextBox _spellsSearchBox = new();
-    private readonly DataGridView _itemsGrid = new();
-    private readonly TextBox _itemsSearchBox = new();
-    private readonly DataGridView _itemsListGrid = new();
-    private readonly TextBox _itemsListSearchBox = new();
-    private readonly DataGridView _itemDatabaseGrid = new();
-    private readonly TextBox _itemDatabaseFilterBox = new();
+    private readonly DataGridView _aurasGrid = new UiThemedDataGridView();
+    private readonly DataGridView _spellsGrid = new UiThemedDataGridView();
+    private readonly TextBox _spellsSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _itemsGrid = new UiThemedDataGridView();
+    private readonly TextBox _itemsSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _itemsListGrid = new UiThemedDataGridView();
+    private readonly TextBox _itemsListSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _itemDatabaseGrid = new UiThemedDataGridView();
+    private readonly TextBox _itemDatabaseFilterBox = new UiThemedTextBox();
     private readonly Label _itemDatabaseStatusLabel = new();
     private readonly System.Windows.Forms.Timer _itemDatabaseFilterTimer = new() { Interval = 150 };
     private const int ItemDatabasePageSize = 20;
@@ -47,10 +47,10 @@ public sealed class ClassConfigEditorControl : UserControl
     private bool _expandingItemDatabaseRows;
     private CancellationTokenSource? _itemDatabaseFilterCancellation;
     private int _itemDatabaseFilterVersion;
-    private readonly DataGridView _spellsListGrid = new();
-    private readonly TextBox _spellsListSearchBox = new();
-    private readonly DataGridView _spellDatabaseGrid = new();
-    private readonly TextBox _spellDatabaseFilterBox = new();
+    private readonly DataGridView _spellsListGrid = new UiThemedDataGridView();
+    private readonly TextBox _spellsListSearchBox = new UiThemedTextBox();
+    private readonly DataGridView _spellDatabaseGrid = new UiThemedDataGridView();
+    private readonly TextBox _spellDatabaseFilterBox = new UiThemedTextBox();
     private readonly Label _spellDatabaseStatusLabel = new();
     private readonly System.Windows.Forms.Timer _spellDatabaseFilterTimer = new() { Interval = 150 };
     private const int SpellDatabasePageSize = 20;
@@ -65,12 +65,12 @@ public sealed class ClassConfigEditorControl : UserControl
     private readonly CheckBox _groupHasRoleBox = new();
     private readonly CheckBox _groupHasDispelBox = new();
     private readonly CheckBox _groupHasClassBox = new();
-    private readonly DataGridView _groupAurasGrid = new();
+    private readonly DataGridView _groupAurasGrid = new UiThemedDataGridView();
     private readonly Label _nameplatePixelSummary = new() { AutoSize = true };
     private readonly CheckBox _nameplateEnabledBox = new();
     private readonly CheckBox _nameplateImprovedGarroteBox = new();
     private Control _nameplateImprovedGarroteCard = null!;
-    private readonly DataGridView _nameplateAurasGrid = new();
+    private readonly DataGridView _nameplateAurasGrid = new UiThemedDataGridView();
 
     private string? _classDirectory;
     private readonly Dictionary<int, ClassBlocksStore.ClassFileDocument> _documents = new();
@@ -1428,7 +1428,7 @@ public sealed class ClassConfigEditorControl : UserControl
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
-        var fields = new FlowLayoutPanel
+        var fields = new UiThemedFlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
@@ -1538,7 +1538,7 @@ public sealed class ClassConfigEditorControl : UserControl
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
-        var fields = new FlowLayoutPanel
+        var fields = new UiThemedFlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,

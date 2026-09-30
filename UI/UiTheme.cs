@@ -564,7 +564,7 @@ internal static class UiTheme
     {
         _ = contentWidth;
 
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
@@ -1775,14 +1775,14 @@ internal static class UiTheme
 
     public static ListView CreateListView(Font font, params ListColumn[] columns)
     {
-        var listView = new ListView();
+        var listView = new UiThemedListView();
         ConfigureListViewColumns(listView, font, null, columns);
         return listView;
     }
 
     public static ListView CreateListView(Font font, string cacheKey, params ListColumn[] columns)
     {
-        var listView = new ListView();
+        var listView = new UiThemedListView();
         ConfigureListViewColumns(listView, font, cacheKey, columns);
         return listView;
     }

@@ -14,7 +14,7 @@ internal sealed class ClassSpecTreeSidebar : Panel
     private const int SpecIndent = 22;
 
     private readonly ToolTip _toolTip = new();
-    private readonly ListBox _list = new();
+    private readonly ListBox _list = new UiThemedListBox();
     private readonly List<ClassNode> _classes = new();
     private readonly List<VisibleRow> _rows = new();
     private int? _expandedClassId;

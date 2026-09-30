@@ -58,7 +58,7 @@ internal sealed class CountFilterEditorControl : UserControl
     private readonly HashSet<string> _thresholdFields;
     private readonly IReadOnlyList<string> _formulaValueNames;
     private readonly HashSet<string> _formulaValueNameSet;
-    private readonly FlowLayoutPanel _groupsPanel = new();
+    private readonly FlowLayoutPanel _groupsPanel = new UiThemedFlowLayoutPanel();
     private readonly Label _emptyHint = new();
     private readonly List<GroupEditor> _groups = new();
     private bool _enemy;
@@ -366,7 +366,7 @@ internal sealed class CountFilterEditorControl : UserControl
         private readonly CountFilterEditorControl _owner;
         private readonly Label _title = new();
         private readonly UiDropDown _modeBox = new();
-        private readonly DataGridView _grid = new();
+        private readonly DataGridView _grid = new UiThemedDataGridView();
         private ToolStripDropDown? _valueDropDown;
         private ToolStripDropDown? _comboDropDown;
         private bool _openFormulaDropDown;

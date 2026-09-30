@@ -18,11 +18,10 @@ public sealed class ModuleEditorControl : UserControl
     private readonly Func<GameProfile> _resolveProfile;
     private ConditionFieldCatalog _fieldCatalog;
     private KeymapCatalog _keymapCatalog;
-    private readonly ScrollAwareListBox _moduleList = new();
-    private readonly UiDarkScrollBar _moduleScrollBar = new();
-    private readonly TextBox _nameBox = new();
-    private readonly TextBox _authorBox = new();
-    private readonly TextBox _recommendedTalentBox = new();
+    private readonly UiThemedListBox _moduleList = new();
+    private readonly TextBox _nameBox = new UiThemedTextBox();
+    private readonly TextBox _authorBox = new UiThemedTextBox();
+    private readonly TextBox _recommendedTalentBox = new UiThemedTextBox();
     private readonly UiDropDown _classBox = new();
     private readonly UiDropDown _specBox = new();
     private readonly UiDropDown _partyTypeBox = new();
@@ -30,10 +29,9 @@ public sealed class ModuleEditorControl : UserControl
     private TableLayoutPanel? _matchRow;
     private Label? _specLabel;
     private Label? _heroTalentLabel;
-    private readonly DataGridView _rulesGrid = new();
-    private readonly UiDarkScrollBar _rulesScrollBar = new();
-    private readonly DataGridView _adjustmentsGrid = new();
-    private readonly DataGridView _formulaAdjustmentsGrid = new();
+    private readonly DataGridView _rulesGrid = new UiThemedDataGridView();
+    private readonly DataGridView _adjustmentsGrid = new UiThemedDataGridView();
+    private readonly DataGridView _formulaAdjustmentsGrid = new UiThemedDataGridView();
     private readonly DataGridViewComboBoxColumn _spellColumn = new();
     private readonly DataGridViewComboBoxColumn _unitColumn = new();
     private readonly DataGridViewComboBoxColumn _macroConditionColumn = new();
@@ -41,7 +39,7 @@ public sealed class ModuleEditorControl : UserControl
     private ToolStripDropDown? _adjustmentComboDropDown;
     private readonly DataGridViewTextBoxColumn _adjustmentFieldColumn = new();
     private readonly DataGridViewComboBoxColumn _adjustmentTypeColumn = new();
-    private readonly ListView _unitsList = new();
+    private readonly ListView _unitsList = new UiThemedListView();
     private readonly Label _pathLabel = new();
     private readonly Label _unitsEmptyHint = new();
     private readonly Label _editorEmptyHint = new();
@@ -245,7 +243,7 @@ public sealed class ModuleEditorControl : UserControl
         var iconStack = UiTheme.CreateIconStripStack(_classFilterStrip);
         iconStack.Dock = DockStyle.None;
         iconStack.Margin = Padding.Empty;
-        var iconViewport = new Panel
+        var iconViewport = new UiThemedPanel
         {
             AutoScroll = true,
             Margin = Padding.Empty
@@ -526,32 +524,8 @@ public sealed class ModuleEditorControl : UserControl
                     : null);
         };
         _moduleList.MouseLeave += (_, _) => hoveredModuleIndex = -1;
-        var listHost = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = UiTheme.Surface };
-        listHost.Controls.Add(_moduleList);
-        AttachModuleScrollBar(listHost);
-        sidebar.Controls.Add(listHost, 0, 0);
+        sidebar.Controls.Add(_moduleList, 0, 0);
         return sidebar;
-    }
-
-    private void AttachModuleScrollBar(Panel host)
-    {
-        host.Controls.Add(_moduleScrollBar);
-        _moduleScrollBar.BringToFront();
-        void PositionBar() => _moduleScrollBar.SetBounds(
-            Math.Max(0, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth),
-            0,
-            SystemInformation.VerticalScrollBarWidth,
-            host.ClientSize.Height);
-        void SyncBar() => _moduleScrollBar.SetMetrics(
-            _moduleList.Items.Count,
-            Math.Max(1, _moduleList.ClientSize.Height / Math.Max(1, _moduleList.ItemHeight)),
-            _moduleList.TopIndex);
-
-        host.Resize += (_, _) => { PositionBar(); SyncBar(); };
-        _moduleList.ViewChanged += (_, _) => SyncBar();
-        _moduleScrollBar.ScrollRequested += value => _moduleList.TopIndex = value;
-        PositionBar();
-        SyncBar();
     }
 
     private Control BuildSidebarFooter()
@@ -787,99 +761,9 @@ public sealed class ModuleEditorControl : UserControl
         };
 
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var gridHost = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            Margin = Padding.Empty,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 2,
-            RowCount = 1
-        };
-        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SystemInformation.VerticalScrollBarWidth));
-        gridHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        gridHost.Controls.Add(BuildRulesGrid(), 0, 0);
-        _rulesGrid.ScrollBars = ScrollBars.Horizontal;
-        _rulesScrollBar.Dock = DockStyle.Fill;
-        _rulesScrollBar.Margin = Padding.Empty;
-        gridHost.Controls.Add(_rulesScrollBar, 1, 0);
-        AttachRulesScrollBar(gridHost);
-        panel.Controls.Add(gridHost, 0, 0);
+        panel.Controls.Add(BuildRulesGrid(), 0, 0);
+        _rulesGrid.ScrollBars = ScrollBars.Both;
         return panel;
-    }
-
-    private void AttachRulesScrollBar(Control host)
-    {
-        var syncQueued = false;
-
-        void SyncBar()
-        {
-            if (_rulesGrid.IsDisposed || !_rulesGrid.IsHandleCreated)
-            {
-                return;
-            }
-
-            var visibleRows = Math.Max(1, _rulesGrid.DisplayedRowCount(includePartialRow: true));
-            var firstRow = _rulesGrid.FirstDisplayedScrollingRowIndex;
-            _rulesScrollBar.SetMetrics(_rulesGrid.Rows.Count, visibleRows, Math.Max(0, firstRow));
-        }
-
-        void ScheduleSync()
-        {
-            if (syncQueued || !_rulesGrid.IsHandleCreated || _rulesGrid.IsDisposed)
-            {
-                return;
-            }
-
-            syncQueued = true;
-            _rulesGrid.BeginInvoke(() =>
-            {
-                syncQueued = false;
-                SyncBar();
-            });
-        }
-
-        host.Resize += (_, _) => ScheduleSync();
-        _rulesGrid.Resize += (_, _) => ScheduleSync();
-        _rulesGrid.Scroll += (_, e) =>
-        {
-            if (e.ScrollOrientation == ScrollOrientation.VerticalScroll)
-            {
-                SyncBar();
-            }
-        };
-        _rulesGrid.RowsAdded += (_, _) => ScheduleSync();
-        _rulesGrid.RowsRemoved += (_, _) => ScheduleSync();
-        _rulesGrid.RowHeightChanged += (_, _) => ScheduleSync();
-        _rulesGrid.HandleCreated += (_, _) => ScheduleSync();
-        void ScrollRulesTo(int value)
-        {
-            if (value < 0 || value >= _rulesGrid.Rows.Count)
-            {
-                return;
-            }
-
-            try
-            {
-                _rulesGrid.FirstDisplayedScrollingRowIndex = value;
-            }
-            catch (InvalidOperationException)
-            {
-                // 表格正在重建行或切换页签时，下一次布局会同步滚动位置。
-            }
-        }
-
-        _rulesScrollBar.ScrollRequested += ScrollRulesTo;
-        _rulesGrid.MouseWheel += (_, e) =>
-        {
-            if (e.Delta != 0 && _rulesGrid.Rows.Count > 0)
-            {
-                ScrollRulesTo(Math.Clamp(
-                    Math.Max(0, _rulesGrid.FirstDisplayedScrollingRowIndex) - Math.Sign(e.Delta) * 3,
-                    0,
-                    _rulesGrid.Rows.Count - 1));
-            }
-        };
     }
 
     private Control BuildUnitsPanel()
@@ -4451,11 +4335,6 @@ public sealed class ModuleEditorControl : UserControl
             _moduleList.EndUpdate();
         }
 
-        _moduleScrollBar.SetMetrics(
-            _moduleList.Items.Count,
-            Math.Max(1, _moduleList.ClientSize.Height / Math.Max(1, _moduleList.ItemHeight)),
-            _moduleList.TopIndex);
-
         if (_modules.Count == 0)
         {
             ClearEditor();
@@ -5447,17 +5326,4 @@ public sealed class ModuleEditorControl : UserControl
         }
     }
 
-    private sealed class ScrollAwareListBox : ListBox
-    {
-        public event EventHandler? ViewChanged;
-
-        protected override void WndProc(ref Message m)
-        {
-            base.WndProc(ref m);
-            if (m.Msg is 0x0115 or 0x020A or 0x0100 or 0x0101)
-            {
-                ViewChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
 }

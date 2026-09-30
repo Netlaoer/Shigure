@@ -21,9 +21,9 @@ public sealed class ClassMacrosEditorControl : UserControl
     private readonly Button _reloadButton;
     private readonly Button _saveButton;
 
-    private readonly DataGridView _dynamicGrid = new();
-    private readonly DataGridView _staticGrid = new();
-    private readonly DataGridView _specialGrid = new();
+    private readonly DataGridView _dynamicGrid = new UiThemedDataGridView();
+    private readonly DataGridView _staticGrid = new UiThemedDataGridView();
+    private readonly DataGridView _specialGrid = new UiThemedDataGridView();
 
     private IReadOnlyDictionary<string, string> _macroBodies =
         new Dictionary<string, string>(StringComparer.Ordinal);
@@ -81,7 +81,7 @@ public sealed class ClassMacrosEditorControl : UserControl
         var iconStack = UiTheme.CreateIconStripStack(_classStrip);
         iconStack.Dock = DockStyle.None;
         iconStack.Margin = Padding.Empty;
-        var iconViewport = new Panel
+        var iconViewport = new UiThemedPanel
         {
             AutoScroll = true,
             Margin = Padding.Empty

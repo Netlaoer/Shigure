@@ -34,3 +34,9 @@ outputs/
 # Local spell icon package sources, tools, and generated data
 /SpellIconPackage/
 /data/
+
+# 本地数字拆分工具
+/spell_id_bytes.py
+
+# 本地 WCL API 凭据
+/wcl_credentials.json

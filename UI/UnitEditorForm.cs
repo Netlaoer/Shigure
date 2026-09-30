@@ -58,8 +58,8 @@ public sealed class UnitEditorForm : Form
     private readonly CountFilterEditorControl _countFilterEditor;
 
     private readonly Label _valueNameLabel = new();
-    private readonly TextBox _nameBox = new();
-    private readonly TextBox _valueNameBox = new();
+    private readonly TextBox _nameBox = new UiThemedTextBox();
+    private readonly TextBox _valueNameBox = new UiThemedTextBox();
     private readonly UiDropDown _categoryBox = new();
     private readonly UiDropDown _selectorBox = new();
     private readonly UiDropDown _targetFieldBox = new();

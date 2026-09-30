@@ -7,7 +7,7 @@ namespace Shigure;
 /// </summary>
 internal sealed class RuleTextEditorForm : Form
 {
-    private readonly TextBox _commentBox = new();
+    private readonly TextBox _commentBox = new UiThemedTextBox();
 
     public string CommentText { get; private set; } = string.Empty;
 
