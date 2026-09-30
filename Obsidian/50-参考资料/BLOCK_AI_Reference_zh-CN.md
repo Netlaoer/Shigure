@@ -20,9 +20,9 @@ authority: "source-derived"
 up:
   - "[[50-参考资料/00-参考资料-MOC|参考资料 MOC]]"
 source_files:
-  - "Fuyutsui/core/block.lua"
-  - "Fuyutsui/core/group.lua"
-  - "Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/block.lua"
+  - "Retail/Fuyutsui/core/group.lua"
+  - "Retail/Fuyutsui/main.lua"
 source_symbols:
   - "EncodeBlockChannels"
   - "Fuyutsui:CreateTexture"

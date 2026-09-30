@@ -6,6 +6,7 @@ namespace Shigure;
 public sealed class KeymapService : IKeymapResolver
 {
     private readonly string _baseDirectory;
+    private readonly string _addonRoot;
     private readonly ConfigService _config;
     private readonly Dictionary<(int Unit, string Spell, string MacroCondition), string> _hotkeys = new();
     private readonly Dictionary<(int Unit, string Spell), string> _fallbackHotkeys = new();
@@ -15,9 +16,10 @@ public sealed class KeymapService : IKeymapResolver
     private readonly Dictionary<long, string> _itemNames = new();
     private int? _currentClassId;
 
-    public KeymapService(string baseDirectory, ConfigService config)
+    public KeymapService(string baseDirectory, ConfigService config, string? addonRoot = null)
     {
         _baseDirectory = baseDirectory;
+        _addonRoot = addonRoot ?? Path.Combine(baseDirectory, "Fuyutsui");
         _config = config;
     }
 
@@ -159,11 +161,7 @@ public sealed class KeymapService : IKeymapResolver
             return;
         }
 
-        var classPath = Path.Combine(
-            _baseDirectory,
-            "Fuyutsui",
-            "class",
-            $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+        var classPath = Path.Combine(_addonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
         try
         {
             var document = ClassBlocksStore.Load(classPath);

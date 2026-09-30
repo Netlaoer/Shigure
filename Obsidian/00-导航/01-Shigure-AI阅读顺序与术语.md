@@ -20,8 +20,8 @@ related:
   - "[[30-Shigure/00-Shigure-MOC|Shigure MOC]]"
   - "[[40-跨项目/04-Shigure-兼容性变更检查清单|兼容性变更检查清单]]"
 source_files:
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/core/block.lua"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/block.lua"
   - "Runtime/GameState.cs"
   - "Modules/ModuleStore.cs"
   - "Modules/ReservedUnit.cs"
@@ -144,8 +144,8 @@ AI 在修改前应执行以下逻辑：
 
 | 概念 | 当前源码 |
 |---|---|
-| `ClassBlocks → blocks` | `Fuyutsui/main.lua` 的 `LoadPlayerBlocks` |
-| RGB 与条布局 | `Fuyutsui/core/block.lua` |
+| `ClassBlocks → blocks` | `Retail/Fuyutsui/main.lua` 的 `LoadPlayerBlocks` |
+| RGB 与条布局 | `Retail/Fuyutsui/core/block.lua` |
 | 原始像素采集 | `Runtime/PixelScanner.cs` |
 | `config → GameState` | `Runtime/StateBuilder.cs`、`GameState.cs` |
 | 模块版本与迁移 | `Modules/ModuleStore.cs` |

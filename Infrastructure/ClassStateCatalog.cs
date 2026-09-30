@@ -53,7 +53,7 @@ internal static class ClassStateCatalog
     [
         (CategoryState,
         [
-            "职业", "专精", "有效性", "战斗时间", "移动",
+            "职业", "专精", "有效性", "地图", "战斗时间", "移动",
             "生命值", "一键辅助", "插入法术", "插入物品", "队伍类型", "队伍人数",
             "首领战", "难度", "英雄天赋", "施法目标", "施法技能",
             "敌人数量", "敌人数-无仇恨", "敌人数-有仇恨",
@@ -67,7 +67,7 @@ internal static class ClassStateCatalog
             "EX小怪技能类型", "EX小怪技能事件", "EX小怪技能倒计时",
             "BigWigs首领技能类型", "BigWigs首领技能事件", "BigWigs首领技能倒计时",
             "酒池", "符文", "姿态", "神圣军备", "自律", "天启骑士数量",
-            "英勇打击", "吸血鬼打击", "收割者战刃", "沸点",
+            "英勇打击", "吸血鬼打击", "收割者战刃", "沸点", "强化锁喉", "目标强化锁喉",
             "风暴涌流图腾", "风暴涌流图腾数量", "治疗之泉图腾", "治疗之泉图腾数量",
         ]),
         (CategoryConfig,
@@ -164,6 +164,12 @@ internal static class ClassStateCatalog
             return CategoryState;
         }
 
+        // 特殊字段可带“目标”等前缀，已登记的完整名称优先于单位前缀。
+        if (FindCategory(name) is { } knownCategory)
+        {
+            return knownCategory;
+        }
+
         foreach (var category in TopCategories)
         {
             if (IsUnitPrefixCategory(category) && name.StartsWith(category, StringComparison.Ordinal))
@@ -172,7 +178,7 @@ internal static class ClassStateCatalog
             }
         }
 
-        return FindCategory(name) ?? CategoryState;
+        return CategoryState;
     }
 
     public static bool IsUnitPrefixCategory(string category)

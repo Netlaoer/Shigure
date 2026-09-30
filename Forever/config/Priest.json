@@ -1,0 +1,191 @@
+﻿{
+  "keymap": "priest.json",
+  "一键法术": {
+    "1": 2050,
+    "2": 1243,
+    "3": 585,
+    "4": 589,
+    "5": 17,
+    "6": 586,
+    "7": 139,
+    "8": 8092,
+    "9": 2006,
+    "10": 588,
+    "11": 528,
+    "12": 8122,
+    "13": 2054,
+    "14": 527,
+    "15": 2061,
+    "16": 14914,
+    "17": 453,
+    "18": 9484,
+    "19": 2096,
+    "20": 8129,
+    "21": 605,
+    "22": 596,
+    "23": 976,
+    "24": 552,
+    "25": 1706,
+    "26": 2060,
+    "27": 21562,
+    "28": 27683,
+    "29": 27681,
+    "30": 10060,
+    "31": 14752,
+    "32": 15237,
+    "33": 15286,
+    "34": 15473,
+    "35": 15487
+  },
+  "一键物品": {},
+  "1": {
+    "有效性": {
+      "step": 4,
+      "type": "bool",
+      "category": "状态"
+    },
+    "移动": {
+      "step": 5,
+      "type": "bool",
+      "category": "状态"
+    },
+    "生命值": {
+      "step": 6,
+      "type": "int",
+      "category": "状态"
+    },
+    "队伍人数": {
+      "step": 7,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入法术": {
+      "step": 8,
+      "type": "int",
+      "category": "状态"
+    },
+    "插入物品": {
+      "step": 9,
+      "type": "int",
+      "category": "状态"
+    },
+    "法力值": {
+      "step": 10,
+      "type": "int",
+      "category": "能量"
+    },
+    "目标类型": {
+      "step": 11,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标生命值": {
+      "step": 12,
+      "type": "int",
+      "category": "目标"
+    },
+    "目标距离": {
+      "step": 13,
+      "type": "int",
+      "category": "目标"
+    },
+    "焦点生命值": {
+      "step": 14,
+      "type": "int",
+      "category": "焦点"
+    },
+    "spells": {
+      "17.cooldown": {
+        "step": 15,
+        "type": "int",
+        "displayName": "真言术：盾",
+        "spellId": 17,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "586.cooldown": {
+        "step": 16,
+        "type": "int",
+        "displayName": "渐隐术",
+        "spellId": 586,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "8092.cooldown": {
+        "step": 17,
+        "type": "int",
+        "displayName": "心灵震爆",
+        "spellId": 8092,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "8122.cooldown": {
+        "step": 18,
+        "type": "int",
+        "displayName": "心灵尖啸",
+        "spellId": 8122,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "10060.cooldown": {
+        "step": 19,
+        "type": "int",
+        "displayName": "能量灌注",
+        "spellId": 10060,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "14752.cooldown": {
+        "step": 20,
+        "type": "int",
+        "displayName": "神圣之灵",
+        "spellId": 14752,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "15237.cooldown": {
+        "step": 21,
+        "type": "int",
+        "displayName": "神圣新星",
+        "spellId": 15237,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "15286.cooldown": {
+        "step": 22,
+        "type": "int",
+        "displayName": "吸血鬼的拥抱",
+        "spellId": 15286,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "15473.cooldown": {
+        "step": 23,
+        "type": "int",
+        "displayName": "暗影形态",
+        "spellId": 15473,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      },
+      "15487.cooldown": {
+        "step": 24,
+        "type": "int",
+        "displayName": "沉默",
+        "spellId": 15487,
+        "metric": "cooldown",
+        "displayType": "冷却"
+      }
+    },
+    "group": {
+      "start": 25,
+      "生命值": {
+        "step": 1,
+        "type": "int"
+      },
+      "职责": {
+        "step": 2,
+        "type": "int"
+      }
+    }
+  }
+}

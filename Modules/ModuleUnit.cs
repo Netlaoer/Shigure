@@ -15,7 +15,7 @@ public enum UnitTargetFieldKind
     /// <summary>驱散：正序 / 倒序（按队伍槽位）。</summary>
     Dispel,
 
-    /// <summary>光环剩余时间：最长 / 最短。</summary>
+    /// <summary>光环剩余时间：最长 / 最短；或按队伍槽位正序 / 倒序。</summary>
     Aura
 }
 
@@ -28,10 +28,10 @@ public enum UnitSelectionMode
     /// <summary>数值最高（生命值 / 治疗吸收）。</summary>
     Highest,
 
-    /// <summary>正序：取最小队伍槽位（职责 / 驱散）。</summary>
+    /// <summary>正序：取最小队伍槽位（职责 / 驱散 / 光环）。</summary>
     Ascending,
 
-    /// <summary>倒序：取最大队伍槽位（职责 / 驱散）。</summary>
+    /// <summary>倒序：取最大队伍槽位（职责 / 驱散 / 光环）。</summary>
     Descending,
 
     /// <summary>目标光环剩余时间最长。</summary>
@@ -96,7 +96,9 @@ public enum CountConditionFieldKind
     Dispel,
     Range,
     Combat,
-    Aura
+    Aura,
+    Class,
+    ImprovedGarrote
 }
 
 /// <summary>数量筛选的比较方式。</summary>

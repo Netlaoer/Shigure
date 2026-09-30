@@ -9,11 +9,14 @@ public sealed class ConfigService
     public const string CommonConfigFileName = "common.json";
     public const string LegacyConfigFileName = "config.json";
     private static readonly string[] FixedStateNames = ["锚点", "职业", "专精"];
+    private readonly bool _classOnly;
 
     public JsonObject Root { get; }
 
     public ConfigService(string configPath)
     {
+        _classOnly = Directory.Exists(Path.Combine(
+            Path.GetDirectoryName(configPath) ?? string.Empty, "Shingen", "class"));
         Root = LoadRoot(configPath);
     }
 
@@ -55,6 +58,8 @@ public sealed class ConfigService
         }
 
         var root = ReadObject(commonPath);
+        var isForever = Directory.Exists(Path.Combine(
+            Path.GetDirectoryName(configDirectory) ?? string.Empty, "Shingen", "class"));
         foreach (var (classId, _) in ClassNames.GetClasses())
         {
             var classPath = Path.Combine(configDirectory, $"{ClassNames.GetConfigFileName(classId)}.json");
@@ -65,6 +70,10 @@ public sealed class ConfigService
 
             if (!File.Exists(classPath))
             {
+                if (isForever)
+                {
+                    continue;
+                }
                 throw new FileNotFoundException("找不到职业 config 配置", classPath);
             }
 
@@ -118,9 +127,10 @@ public sealed class ConfigService
             CopyInto(merged, state);
         }
 
-        if (classId is not null && specId is not null)
+        var resolvedSpecId = _classOnly && classId is not null ? 1 : specId;
+        if (classId is not null && resolvedSpecId is not null)
         {
-            var spec = GetObject(classId.Value.ToString(), specId.Value.ToString());
+            var spec = GetObject(classId.Value.ToString(), resolvedSpecId.Value.ToString());
             if (spec is not null)
             {
                 CopyInto(merged, spec);

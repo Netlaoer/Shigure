@@ -57,8 +57,8 @@ verified_at: 2026-08-10
 | 通用设置 | 触发键、模式、模块选择、配置生成与插件部署 | `AppOptions`、模块目录、项目 Fuyutsui | 缓存/设置、会话重启、同步队列 |
 | `StatusForm` | 十个状态/诊断页 | `RenderSnapshot`、日志 | 不拥有运行状态 |
 | 模块编辑器 | 匹配、规则、动态单位、数量、调整/公式、排序 | 模块快照 | `{MyDocuments}/Shigure/module` |
-| ClassBlocks 编辑器 | 职业/专精状态块编辑 | `Fuyutsui/class/*.lua` 项目源 | ClassBlocks table、config、当前 Lua 游戏部署 |
-| ClassMacros 编辑器 | 职业动态/static/special 宏编辑 | `Fuyutsui/core/classmacros.lua` 项目源 | ClassMacros table、keymap、当前 Lua 游戏部署 |
+| ClassBlocks 编辑器 | 职业/专精状态块编辑 | `Retail/Fuyutsui/class/*.lua` 项目源 | ClassBlocks table、config、当前 Lua 游戏部署 |
+| ClassMacros 编辑器 | 职业动态/static/special 宏编辑 | `Retail/Fuyutsui/core/classmacros.lua` 项目源 | ClassMacros table、keymap、当前 Lua 游戏部署 |
 | 条件/单位对话框 | 构造受限条件和动态定义 | 当前草稿 | 返回编辑器内存模型 |
 
 `UiTheme` 集中定义主题和控件样式；素材由项目资源嵌入，不是运行时业务数据。
@@ -89,7 +89,7 @@ verified_at: 2026-08-10
 | 当前/候选模块 | `ModuleStore` | 克隆快照 | 编辑器编辑副本后保存 |
 | session 生命周期 | `RuntimeSessionCoordinator` | 带 session ID 的事件 | 只能请求 start/restart/stop |
 | 配置/Keymap 同步次序 | `MainForm._configUpdateTail` | UI 任务链 | 由排队 API 串行追加 |
-| Lua 文件 | 项目 `Fuyutsui/` | Store 解析 | Store 替换 table 后直接写回，再由部署服务复制到游戏 |
+| Lua 文件 | 项目 `Retail/Fuyutsui/` | Store 解析 | Store 替换 table 后直接写回，再由部署服务复制到游戏 |
 | config/keymap JSON | 转换器 | 刷新 catalog/新运行会话 | 不应由状态页直接修改 |
 
 ## 编辑器的重要限制
@@ -116,7 +116,7 @@ verified_at: 2026-08-10
 | 模块手工 Hotkey 消失 | UI 保存明确清空 `Hotkey`/`Step` |
 | “禁用模块”仍匹配 | 根级 `Enabled` 未被运行时消费 |
 | 保存 Lua 后大量格式变化 | table 内 canonical round-trip 是当前设计 |
-| 保存成功但游戏插件未更新 | 检查 `wow_process.txt`、游戏目录权限、日志中的单文件部署结果和 WoW 重载 |
+| 保存成功但游戏插件未更新 | 检查 `game_profiles.json`、游戏目录权限、日志中的单文件部署结果和 WoW 重载 |
 | 模块下拉选择“自动跳回” | 当前状态不匹配，但手动 ID 仍缓存等待以后匹配 |
 | 日志历史不完整 | StatusForm 主动截断内存文本 |
 

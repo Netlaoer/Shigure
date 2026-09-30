@@ -180,11 +180,11 @@ public sealed class ConditionEditorForm : Form
     private readonly string _originalCondition;
     private readonly bool _allowSubConditions;
     private readonly bool _allowRuleSettings;
-    private readonly DataGridView _conditionsGrid = new();
+    private readonly DataGridView _conditionsGrid = new UiThemedDataGridView();
     private readonly Label _previewLabel = new();
     private readonly ToolTip _previewToolTip = new();
     private readonly List<string> _subConditions = new();
-    private readonly ListBox _subList = new();
+    private readonly ListBox _subList = new UiThemedListBox();
     private ToolStripDropDown? _conditionComboDropDown;
     private bool _updatingGrid;
     private string? _advancedConditionText;
@@ -363,7 +363,7 @@ public sealed class ConditionEditorForm : Form
 
         if (_allowSubConditions)
         {
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 244));
             root.Controls.Add(BuildSubConditionsPanel(), 0, rowIndex++);
         }
 
@@ -407,7 +407,7 @@ public sealed class ConditionEditorForm : Form
         return card;
     }
 
-    // 子条件区: 标题 + 暗色列表 + 添加/编辑/删除。每条子条件本身也是一条完整条件,
+    // 子条件区: 标题 + 暗色列表 + 添加/编辑/高级编辑/删除。每条子条件本身也是一条完整条件,
     // 通过嵌套的(无子条件区的)条件编辑弹窗来编辑。
     private Control BuildSubConditionsPanel()
     {
@@ -453,6 +453,7 @@ public sealed class ConditionEditorForm : Form
         };
         buttons.Controls.Add(CreateSubButton("添加子条件", UiTheme.Text, AddSubCondition));
         buttons.Controls.Add(CreateSubButton("编辑", UiTheme.Text, EditSelectedSubCondition));
+        buttons.Controls.Add(CreateSubButton("高级编辑", UiTheme.Text, EditAllSubConditions));
         buttons.Controls.Add(CreateSubButton("删除", UiTheme.Danger, DeleteSelectedSubCondition));
         panel.Controls.Add(buttons, 1, 1);
 
@@ -509,6 +510,20 @@ public sealed class ConditionEditorForm : Form
             _subConditions[index] = text.Trim();
         }
 
+        RefreshSubList();
+        UpdatePreview();
+    }
+
+    private void EditAllSubConditions()
+    {
+        using var editor = new ConditionTextEditorForm(_subConditions);
+        if (editor.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        _subConditions.Clear();
+        _subConditions.AddRange(editor.SubConditions);
         RefreshSubList();
         UpdatePreview();
     }

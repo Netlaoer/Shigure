@@ -37,6 +37,7 @@ internal sealed record StatusListIcon(long Id, bool IsItem);
 
 public sealed class StatusForm : Form
 {
+    private readonly Func<GameProfile> _resolveProfile;
     private const string AboutLogoResourcePath = "Assets.arasaka-icon-transparent.png";
     private const int SettingsContentWidth = 1200;
     private const int AboutLogoSize = 220;
@@ -335,6 +336,8 @@ public sealed class StatusForm : Form
     private Panel _macrosHost = null!;
     private Panel _moduleHost = null!;
     private Panel _aboutHost = null!;
+    private Label _aboutModulePathLabel = null!;
+    private Label _aboutConfigPathLabel = null!;
     private Button _maximizeButton = null!;
     private bool _usesDwmRoundedCorners;
     private readonly System.Windows.Forms.Timer _roundedCornerResizeTimer;
@@ -345,8 +348,9 @@ public sealed class StatusForm : Form
     internal bool SidebarCollapsed => _sidebarCollapsed;
     internal event EventHandler? SidebarLayoutChanged;
 
-    public StatusForm()
+    internal StatusForm(Func<GameProfile> resolveProfile)
     {
+        _resolveProfile = resolveProfile;
         _roundedCornerResizeTimer = new System.Windows.Forms.Timer
         {
             Interval = 50
@@ -591,7 +595,7 @@ public sealed class StatusForm : Form
         _unitInfoList = UiTheme.CreateListView(Font, "status-unit-info",
             new UiTheme.ListColumn("名称", 180, 320),
             new UiTheme.ListColumn("值", 320, 1400, FillRemaining: true));
-        _logTextBox = new TextBox
+        _logTextBox = new UiThemedTextBox
         {
             Dock = DockStyle.Fill,
             Multiline = true,
@@ -816,7 +820,7 @@ public sealed class StatusForm : Form
             BackColor = UiTheme.SettingsNavigation,
             Margin = Padding.Empty
         };
-        nav = new FlowLayoutPanel
+        nav = new UiThemedFlowLayoutPanel
         {
             Dock = DockStyle.None,
             FlowDirection = FlowDirection.TopDown,
@@ -824,7 +828,7 @@ public sealed class StatusForm : Form
             AutoScroll = true,
             BackColor = UiTheme.SettingsNavigation,
             Margin = Padding.Empty,
-            Padding = new Padding(12, 10, 12 + SystemInformation.VerticalScrollBarWidth, 14)
+            Padding = new Padding(12, 10, 12, 14)
         };
         _sidebarNav = nav;
         var navPanel = nav;
@@ -844,7 +848,7 @@ public sealed class StatusForm : Form
         viewport.Controls.Add(nav);
         viewport.Resize += (_, _) => navPanel.SetBounds(
             0, 0,
-            viewport.ClientSize.Width + SystemInformation.VerticalScrollBarWidth,
+            viewport.ClientSize.Width,
             viewport.ClientSize.Height);
         sidebar.Controls.Add(viewport);
 
@@ -904,29 +908,6 @@ public sealed class StatusForm : Form
         sidebar.Controls.Add(header);
         PositionSidebarToggle();
 
-        var scrollBar = new UiDarkScrollBar();
-        sidebar.Controls.Add(scrollBar);
-        scrollBar.BringToFront();
-        void PositionScrollBar() => scrollBar.SetBounds(
-            Math.Max(0, viewport.Right - SystemInformation.VerticalScrollBarWidth),
-            viewport.Top,
-            SystemInformation.VerticalScrollBarWidth,
-            viewport.Height);
-        void SyncScrollBar() => scrollBar.SetMetrics(
-            Math.Max(0, navPanel.DisplayRectangle.Height),
-            Math.Max(1, navPanel.ClientSize.Height),
-            navPanel.VerticalScroll.Value);
-        viewport.Resize += (_, _) => { PositionScrollBar(); SyncScrollBar(); };
-        navPanel.Resize += (_, _) => SyncScrollBar();
-        navPanel.Layout += (_, _) => SyncScrollBar();
-        navPanel.Scroll += (_, _) => SyncScrollBar();
-        scrollBar.ScrollRequested += value =>
-        {
-            navPanel.AutoScrollPosition = new Point(0, value);
-            SyncScrollBar();
-        };
-        PositionScrollBar();
-        SyncScrollBar();
         return cardHost;
     }
 
@@ -1014,8 +995,8 @@ public sealed class StatusForm : Form
         }
 
         _sidebarNav.Padding = collapsed
-            ? new Padding(8, 10, 8 + SystemInformation.VerticalScrollBarWidth, 14)
-            : new Padding(12, 10, 12 + SystemInformation.VerticalScrollBarWidth, 14);
+            ? new Padding(8, 10, 8, 14)
+            : new Padding(12, 10, 12, 14);
         foreach (var group in _sidebarGroups)
         {
             group.Visible = !collapsed;
@@ -1296,7 +1277,7 @@ public sealed class StatusForm : Form
         int? contentWidth = null)
     {
         var pageWidth = contentWidth ?? SettingsContentWidth;
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = false,
@@ -1325,7 +1306,7 @@ public sealed class StatusForm : Form
 
     private Control BuildLogPage()
     {
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
@@ -1545,6 +1526,13 @@ public sealed class StatusForm : Form
     private void SelectView(SettingsPage page)
     {
         _selectedPage = page;
+        if (page == SettingsPage.About)
+        {
+            var profile = _resolveProfile();
+            UpdateAboutPath(_aboutModulePathLabel, profile.ModuleDirectory);
+            UpdateAboutPath(_aboutConfigPathLabel,
+                ConfigService.ResolveConfigPath(profile.RuntimeDirectory));
+        }
         foreach (var (button, view, itemPage) in _navItems)
         {
             var selected = itemPage == page;
@@ -2080,7 +2068,7 @@ public sealed class StatusForm : Form
 
     private Control BuildAboutPanel()
     {
-        var scrollHost = new Panel
+        var scrollHost = new UiThemedPanel
         {
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
@@ -2177,10 +2165,11 @@ public sealed class StatusForm : Form
         AddAboutRow(details, "类型", "冲锋枪");
         AddAboutRow(details, "介绍", "它一分钟打出去的子弹比荒坂偷的税还要多。");
         AddAboutRow(details, "用途", "有时人们只想把子弹全打出去，在硝烟过后品味眼前的一片狼藉。");
-        var modulePath = ModuleStore.ResolveModuleDirectory();
-        var configPath = ConfigService.ResolveConfigPath(AppPaths.BaseDirectory);
-        AddAboutRow(details, "模块目录", FormatAboutPath(modulePath), modulePath);
-        AddAboutRow(details, "配置目录", FormatAboutPath(configPath), configPath);
+        var profile = _resolveProfile();
+        var modulePath = profile.ModuleDirectory;
+        var configPath = ConfigService.ResolveConfigPath(profile.RuntimeDirectory);
+        _aboutModulePathLabel = AddAboutRow(details, "模块目录", FormatAboutPath(modulePath), modulePath);
+        _aboutConfigPathLabel = AddAboutRow(details, "配置目录", FormatAboutPath(configPath), configPath);
         infoCard.Controls.Add(details, 0, 1);
         var logo = new AboutLogoBox(GetEmbeddedResourceName(AboutLogoResourcePath), AboutLogoSize, AboutLogoOpacity)
         {
@@ -2549,7 +2538,13 @@ public sealed class StatusForm : Form
         }
     }
 
-    private void AddAboutRow(TableLayoutPanel panel, string name, string value, string? tooltip = null)
+    private void UpdateAboutPath(Label label, string path)
+    {
+        label.Text = FormatAboutPath(path);
+        _toolTip.SetToolTip(label, path);
+    }
+
+    private Label AddAboutRow(TableLayoutPanel panel, string name, string value, string? tooltip = null)
     {
         var row = panel.RowCount++;
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -2578,6 +2573,7 @@ public sealed class StatusForm : Form
         };
         _toolTip.SetToolTip(valueLabel, tooltip ?? value);
         panel.Controls.Add(valueLabel, 1, row);
+        return valueLabel;
     }
 
     private sealed class AboutScaleIcon : Control
@@ -3028,7 +3024,7 @@ public sealed class StatusForm : Form
                 }
 
                 var summary = string.Join("  ", unitData.Select(kv =>
-                    $"{DisplayPartyFieldName(kv.Key)}: {UiTheme.FormatValue(kv.Value)}"));
+                    $"{DisplayPartyFieldName(kv.Key)}: {DisplayPartyFieldValue(kv.Key, kv.Value)}"));
                 items.Add(new ListViewItem(new[] { $"Unit {unitKey}", summary }));
             }
         }
@@ -3055,7 +3051,7 @@ public sealed class StatusForm : Form
                 continue;
             }
 
-            // 同一光环会以 光环N / 名称 / auras.{id}.value 三种键暴露给条件求值, 页面只展示名称那份。
+            // 同一光环的时间和层数都有序号、名称与结构化键，页面只展示名称那份。
             var summary = string.Join("  ", data
                 .Where(pair => pair.Key is not "存在"
                     && !pair.Key.StartsWith("光环", StringComparison.Ordinal)
@@ -3070,12 +3066,24 @@ public sealed class StatusForm : Form
 
     private static string DisplayPartyFieldName(string key)
     {
-        if (!SpellFieldKey.TryParseAuraMember(key, out var spellId, out _))
+        if (!SpellFieldKey.TryParseAuraMember(key, out var spellId, out var metric))
         {
             return key;
         }
 
-        return SpellIconCatalog.ResolveSuggestionName(spellId, null) ?? key;
+        var name = SpellIconCatalog.ResolveSuggestionName(spellId, null) ?? key;
+        return metric == SpellFieldKey.AuraApplications ? name + "层数" : name;
+    }
+
+    private static string DisplayPartyFieldValue(string key, object? value)
+    {
+        if (key == "职业" && value is int classId && classId > 0)
+        {
+            var name = ClassNames.GetClassAndSpecName(classId, null).ClassName;
+            return name is null ? classId.ToString() : $"{name} ({classId})";
+        }
+
+        return UiTheme.FormatValue(value);
     }
 
     private void UpdateUnitInfoList(RenderSnapshot snapshot)

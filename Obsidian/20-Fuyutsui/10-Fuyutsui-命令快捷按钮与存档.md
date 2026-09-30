@@ -19,11 +19,11 @@ related:
   - "[[40-跨项目/03-Shigure-ClassMacros到keymap与按键契约]]"
   - "[[30-Shigure/09-Shigure-Fuyutsui配置宏编辑与同步]]"
 source_files:
-  - Fuyutsui/core/core.lua
-  - Fuyutsui/core/commands.lua
-  - Fuyutsui/core/quickbutton.lua
-  - Fuyutsui/core/spells.lua
-  - Fuyutsui/Fuyutsui.toc
+  - Retail/Fuyutsui/core/core.lua
+  - Retail/Fuyutsui/core/commands.lua
+  - Retail/Fuyutsui/core/quickbutton.lua
+  - Retail/Fuyutsui/core/spells.lua
+  - Retail/Fuyutsui/Fuyutsui.toc
 source_symbols:
   - InitDB
   - Fuyutsui:SlashCommand
@@ -167,13 +167,13 @@ timer 是会话运行时对象；SavedVariables 可能在退出时留下 `delay=
 
 ## 源码索引
 
-- `Fuyutsui/core/core.lua:21-84`：默认复制、AceDB 兼容初始化与 slash 注册。
-- `Fuyutsui/core/core.lua:168-183`：默认存档 schema。
-- `Fuyutsui/core/commands.lua:5-80`：配置规范化、开关同步和 delay 写出。
-- `Fuyutsui/core/commands.lua:82-183`：插入法术解析与校验。
-- `Fuyutsui/core/commands.lua:185-297`：完整 slash 命令路由。
-- `Fuyutsui/core/spells.lua:60-97`：插入法术 1.5 秒状态机。
-- `Fuyutsui/core/quickbutton.lua:5-180`：可见性、外观、拖动和点击。
+- `Retail/Fuyutsui/core/core.lua:21-84`：默认复制、AceDB 兼容初始化与 slash 注册。
+- `Retail/Fuyutsui/core/core.lua:168-183`：默认存档 schema。
+- `Retail/Fuyutsui/core/commands.lua:5-80`：配置规范化、开关同步和 delay 写出。
+- `Retail/Fuyutsui/core/commands.lua:82-183`：插入法术解析与校验。
+- `Retail/Fuyutsui/core/commands.lua:185-297`：完整 slash 命令路由。
+- `Retail/Fuyutsui/core/spells.lua:60-97`：插入法术 1.5 秒状态机。
+- `Retail/Fuyutsui/core/quickbutton.lua:5-180`：可见性、外观、拖动和点击。
 
 ## 知识图谱
 

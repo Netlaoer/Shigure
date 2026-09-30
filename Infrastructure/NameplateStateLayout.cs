@@ -1,7 +1,7 @@
 namespace Shigure;
 
 /// <summary>
-/// 姓名板像素布局固定：先 7 个单位映射格，再按槽位排列生命值/距离/战斗/光环。
+/// 姓名板像素布局：先 7 个单位映射格，再按槽位排列生命值/距离/战斗/光环；层数紧跟光环，锁喉类型可选地追加在末尾。
 /// 插件 (Fuyutsui/main.lua、nameplates.lua)、config 转换与运行时状态构建共用这套常量。
 /// </summary>
 internal static class NameplateStateLayout
@@ -17,6 +17,14 @@ internal static class NameplateStateLayout
 
     /// <summary>固定字段（生命值/距离/战斗）占用的像素格数。</summary>
     public const int FixedFieldCount = AuraStartOffset - 1;
+
+    public const string ImprovedGarroteField = "强化锁喉";
+
+    // 专精配置使用职业内的一基序号，奇袭为潜行者的第 1 专精。
+    public static bool SupportsImprovedGarrote(string? classDirectory, int? classId, int? specIndex)
+        => classId == 4 && specIndex == 1
+            && string.Equals(Path.GetFileName(Path.GetDirectoryName(classDirectory)),
+                "Fuyutsui", StringComparison.OrdinalIgnoreCase);
 
     public const string MappingClassification = "姓名板";
 

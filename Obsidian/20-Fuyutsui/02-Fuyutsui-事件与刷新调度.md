@@ -18,9 +18,9 @@ related:
   - "[[20-Fuyutsui/01-Fuyutsui-加载与生命周期]]"
   - "[[20-Fuyutsui/04-Fuyutsui-玩家状态]]"
 source_files:
-  - Fuyutsui/core/core.lua
-  - Fuyutsui/core/events.lua
-  - Fuyutsui/main.lua
+  - Retail/Fuyutsui/core/core.lua
+  - Retail/Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/main.lua
 source_symbols:
   - Fuyutsui:RegisterEvent
   - Fuyutsui:StartFrameUpdates
@@ -152,13 +152,13 @@ WoW event
 
 ## 源码索引
 
-- `Fuyutsui/core/core.lua:6-19`：事件注册包装。
-- `Fuyutsui/core/core.lua:86-147`：注册清单。
-- `Fuyutsui/core/core.lua:188-220`：启动事件与统一分发。
-- `Fuyutsui/core/events.lua:9-405`：领域事件处理。
-- `Fuyutsui/core/events.lua:406-443`：OnUpdate 转发与分频。
-- `Fuyutsui/core/block.lua:147-247`：横向条自有事件。
-- `Fuyutsui/core/block.lua:449-457`：治疗吸收自有事件。
+- `Retail/Fuyutsui/core/core.lua:6-19`：事件注册包装。
+- `Retail/Fuyutsui/core/core.lua:86-147`：注册清单。
+- `Retail/Fuyutsui/core/core.lua:188-220`：启动事件与统一分发。
+- `Retail/Fuyutsui/core/events.lua:9-405`：领域事件处理。
+- `Retail/Fuyutsui/core/events.lua:406-443`：OnUpdate 转发与分频。
+- `Retail/Fuyutsui/core/block.lua:147-247`：横向条自有事件。
+- `Retail/Fuyutsui/core/block.lua:449-457`：治疗吸收自有事件。
 
 ## 知识图谱
 

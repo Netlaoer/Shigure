@@ -1,26 +1,37 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 
 namespace Shigure;
 
 /// <summary>
-/// 按 wow_process.txt 中的进程名，从 Windows Z 顺序顶部查找第一个可见顶层窗口。
-/// 每次查询都会重新读取配置与窗口顺序，以便运行期间直接切换游戏窗口或修改进程名。
+/// 按 game_profiles.json 中的进程名，从 Windows Z 顺序顶部查找第一个可见顶层窗口。
+/// 每次查询都会重新检查窗口顺序，以便运行期间切换游戏窗口。
 /// </summary>
 internal sealed class WowProcessLocator
 {
-    private const string ProcessFileName = "wow_process.txt";
-    private readonly string _processFilePath;
+    private readonly GameProfiles _profiles;
+    private readonly string? _boundProcessName;
 
-    public WowProcessLocator(string baseDirectory)
+    public WowProcessLocator(GameProfiles profiles, string? boundProcessName = null)
     {
-        _processFilePath = Path.Combine(baseDirectory, ProcessFileName);
+        _profiles = profiles;
+        _boundProcessName = boundProcessName;
     }
 
-    public string ProcessFilePath => _processFilePath;
+    public WowProcessLocator ForProcess(string processName)
+        => new(_profiles, processName);
 
     public nint FindFrontmostWindow()
     {
+        if (_boundProcessName is not null)
+        {
+            var frontmost = new WowProcessLocator(_profiles);
+            var hwnd = frontmost.FindFrontmostWindow();
+            return string.Equals(GetProcessName(hwnd), _boundProcessName, StringComparison.OrdinalIgnoreCase)
+                ? hwnd
+                : 0;
+        }
         var processIds = GetCandidateProcessIds();
         if (processIds.Count == 0)
         {
@@ -58,6 +69,77 @@ internal sealed class WowProcessLocator
 
         _ = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
         return processId == 0 ? null : TryGetProcessPath(processId);
+    }
+
+    public string? FindFrontmostProcessName()
+    {
+        return GetProcessName(FindFrontmostWindow());
+    }
+
+    /// <summary>部署插件时查找指定进程的所有安装位置，不受前台窗口限制。</summary>
+    public IReadOnlyList<string> FindRunningProcessPaths(string processName)
+    {
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Process[] processes;
+        try
+        {
+            processes = Process.GetProcessesByName(processName);
+        }
+        catch (InvalidOperationException)
+        {
+            return [];
+        }
+        catch (Win32Exception)
+        {
+            return [];
+        }
+
+        foreach (var process in processes)
+        {
+            using (process)
+            {
+                try
+                {
+                    var path = TryGetProcessPath(unchecked((uint)process.Id));
+                    if (!string.IsNullOrWhiteSpace(path)) paths.Add(path);
+                }
+                catch (InvalidOperationException)
+                {
+                    // 进程可能刚退出。
+                }
+                catch (Win32Exception)
+                {
+                    // 无权读取单个进程时继续尝试其它安装位置。
+                }
+            }
+        }
+        return paths.ToArray();
+    }
+
+    private static string? GetProcessName(nint hwnd)
+    {
+        if (hwnd == 0)
+        {
+            return null;
+        }
+        _ = NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
+        if (processId == 0)
+        {
+            return null;
+        }
+        try
+        {
+            using var process = Process.GetProcessById(checked((int)processId));
+            return process.ProcessName;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     public string DescribeConfiguredProcesses()
@@ -102,36 +184,11 @@ internal sealed class WowProcessLocator
 
     private IReadOnlyList<string> ReadProcessNames()
     {
-        try
+        if (_boundProcessName is not null)
         {
-            return File.ReadLines(_processFilePath)
-                .Select(NormalizeProcessName)
-                .Where(name => name is not null)
-                .Select(name => name!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+            return [_boundProcessName];
         }
-        catch (IOException)
-        {
-            return [];
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return [];
-        }
-    }
-
-    private static string? NormalizeProcessName(string line)
-    {
-        var name = line.Trim();
-        if (name.Length == 0 || name.StartsWith('#') || name.StartsWith(';'))
-        {
-            return null;
-        }
-
-        return name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-            ? name[..^4].Trim()
-            : name;
+        return _profiles.ProcessNames;
     }
 
     private static string? TryGetProcessPath(uint processId)

@@ -18,7 +18,7 @@ dotnet run --project .\Shigure.csproj -- --toggle XBUTTON2 --mode switch --logic
 
 - 目标框架 `net10.0-windows`，`WinExe`，`Nullable`/`ImplicitUsings` 均 enable。
 - **没有测试项目**：验证 = 能编译 + 实际运行点开「设置」走查。`dotnet build` 干净通过（0 警告 0 错误）是基线要求。
-- 启动参数见 [README.md](README.md#运行)（`--toggle/--mode/--logic-ms/--render-ms`），解析在 [App/AppOptions.cs](App/AppOptions.cs)。目标进程名来自 `wow_process.txt`。
+- 启动参数见 [README.md](README.md#运行)（`--toggle/--mode/--logic-ms/--render-ms`），解析在 [App/AppOptions.cs](App/AppOptions.cs)。目标进程名来自 `game_profiles.json`。
 
 程序直接从当前 EXE 所在目录运行；`AppPaths.BaseDirectory` 即 `AppContext.BaseDirectory`，配置、按键映射和插件源码均从该目录读取；模块与 UI 缓存位于 `AppPaths.UserDataDirectory`（`{MyDocuments}/{程序名}`）下。
 
@@ -52,11 +52,12 @@ Modules/        模块模型/存储/匹配/规则执行、条件求值(FormulaEv
 Input/          keymap 读取、按键发送、Win32 API
 Infrastructure/ 配置读取(ConfigService)、JSON 辅助、UI 缓存、路径、Fuyutsui 插件文件读写
 UI/             WinForms 界面、编辑器、主题
-Fuyutsui/       内置插件权威源；构建/发布时完整复制，运行时部署到游戏 AddOns
-config/ keymap/   运行时 JSON 数据(构建时复制到输出, 见 .csproj 的 None+CopyToOutputDirectory)
+Retail/        正式服插件 Fuyutsui 与 config/keymap；构建/发布时完整复制
+Forever/       永久服插件 Shingen 与 config/keymap；构建/发布时完整复制
+Retail/config/ Retail/keymap/、Forever/config/ Forever/keymap/  运行时 JSON 数据(构建时复制到输出)
 module   运行时模块数据位于我的文档目录 {MyDocuments}/Shigure/module(启动时自动创建, 不随构建复制)
 cache    UI 缓存位于我的文档目录 {MyDocuments}/Shigure/cache(首次写入时自动创建)
-wow_process.txt 目标游戏进程名列表；构建时复制，运行期间每次定位都会重新读取
+game_profiles.json 游戏进程、版本与插件映射；构建时复制，启动时读取
 ```
 
 ## 模块解析（改逻辑前必读）
@@ -69,13 +70,13 @@ wow_process.txt 目标游戏进程名列表；构建时复制，运行期间每�
 - 选择优先级：`ModuleStore.FindSelectedOrBestMatch` —— 先用 UI/参数选定的 `ModuleId`；否则取 `Match` 命中字段最多者（`ModuleMatch.Specificity` 越大越优先），并列按名称。`Match` 字段留空 = 任意。`PartyType` 数字会归一化为 `"1-40"`。
 - 动态单位/数量/动态数值的语义见 [README.md](README.md#动态单位与数量字段)；列表与编辑器的人类可读摘要统一走 [UI/UnitSummary.cs](UI/UnitSummary.cs)`.Describe(...)`（单一来源，勿再复制一份描述逻辑）。
 
-## Fuyutsui 插件集成（配置/宏页面）
+## 插件集成（配置/宏页面）
 
-设置窗口的「配置」和「宏」两个页签编辑的是程序基准目录内 `Fuyutsui/` 的 Lua 文件，**不直接读取游戏插件目录**。项目插件是唯一权威源：保存后重新生成 Shigure 的 config/keymap，并把当前 Lua 部署到游戏；启动和「更新配置」会全量校验并部署整个插件。
+设置窗口的「配置」「宏」「模块」页签按通用页选定的**界面版本**编辑项目目录（`Retail/Fuyutsui/` 或 `Forever/Shingen/`），**不直接读取游戏插件目录**。前台游戏独立决定运行版本；通用页的手动按钮只切换编辑界面。项目插件是唯一权威源：保存后重新生成该版本的 config/keymap，并部署到映射的游戏；启动和「更新配置」会全量校验并部署对应插件。当前模块和默认模块设置仍跟随运行版本。
 
 ### 定位与部署
 
-[Infrastructure/WowProcessLocator.cs](Infrastructure/WowProcessLocator.cs) 读取 `wow_process.txt`，按 Windows Z 顺序选择最靠前的候选进程可见顶层窗口；[Infrastructure/WowAddonLocator.cs](Infrastructure/WowAddonLocator.cs) 由进程路径定位预期的 `Interface\AddOns`，即使 Fuyutsui 尚未安装也能返回部署位置。[Infrastructure/FuyutsuiAddonSyncService.cs](Infrastructure/FuyutsuiAddonSyncService.cs) 递归使用 SHA-256 比较项目文件与游戏文件，只复制缺失或不同的文件并保留游戏额外文件；也支持保存后的单文件同步。找不到游戏或启动同步失败不阻止程序运行。
+[Infrastructure/WowProcessLocator.cs](Infrastructure/WowProcessLocator.cs) 使用 `game_profiles.json` 的进程名，按 Windows Z 顺序选择最靠前的候选进程可见顶层窗口；部署时另查找映射进程的全部运行路径，不要求目标位于前台。[Infrastructure/WowAddonLocator.cs](Infrastructure/WowAddonLocator.cs) 由进程路径定位预期的 `Interface\AddOns`，即使插件尚未安装也能返回部署位置。[Infrastructure/FuyutsuiAddonSyncService.cs](Infrastructure/FuyutsuiAddonSyncService.cs) 递归使用 SHA-256 比较项目文件与各游戏目录，只复制缺失或不同的文件并保留游戏额外文件；也支持保存后的单文件同步。找不到游戏或启动同步失败不阻止程序运行。
 
 ### Lua 解析
 
@@ -106,7 +107,7 @@ wow_process.txt 目标游戏进程名列表；构建时复制，运行期间每�
 
 - [UI/ClassConfigEditorControl.cs](UI/ClassConfigEditorControl.cs)：左侧职业列表 + 右侧按专精切换的六页编辑器（状态/光环/冷却/队伍/技能列表/物品列表），状态字段用 `ClassStateCatalog` 驱动的 `ComboBoxColumn`。
 - [UI/ClassMacrosEditorControl.cs](UI/ClassMacrosEditorControl.cs)：左侧职业列表 + 右侧三页编辑器（动态宏/静态宏/特殊宏），偏移提示显示槽位编号计算。
-- 两个编辑器均接受 `Func<string?>` 项目路径解析器 + `Func<string, int, Task<ClassConfigPostSaveResult>>` 保存回调，由 `MainForm` 在构造时注入。保存流程：编辑器调 `Store.Save()` → 同步保存该职业模块依赖快照 → 传入已保存文件路径 → 重新生成 config/keymap → 单文件部署游戏 → 重启运行时；部署失败返回说明，但不回滚本地文件。
+- 两个编辑器均接受 `Func<string?>` 项目路径解析器 + `Func<string, int, Task<ClassConfigPostSaveResult>>` 保存回调，由 `MainForm` 在构造时注入。保存流程：编辑器调 `Store.Save()` → 根据已保存文件路径锁定版本 → 同步保存该职业模块依赖快照 → 重新生成该版本 config/keymap → 向映射游戏单文件部署；仅当该版本正在运行时重启运行时。部署失败返回说明，但不回滚本地文件。
 - 配置更新的多个入口通过任务尾队列串行执行；运行时重启会等待该队列稳定，主窗口关闭也会等待正在写盘的转换和部署完成。新增同步入口必须继续走这条队列。
 
 ## UI 约定

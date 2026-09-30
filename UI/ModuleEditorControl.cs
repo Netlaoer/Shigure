@@ -11,26 +11,27 @@ public sealed class ModuleEditorControl : UserControl
     // 使用独立列名避开旧版“注释”文字列缓存的较大宽度；新图标列从紧凑宽度重新开始缓存。
     private const string RuleCommentColumnName = "RuleComment";
 
-    private readonly ModuleStore _moduleStore;
+    private ModuleStore _moduleStore;
     private readonly Func<Task> _runtimeRestartRequested;
     private readonly Func<ModuleDefinition, string?> _captureDependencies;
     private readonly Func<Task> _modulesReloadRequested;
-    private readonly string _baseDirectory;
+    private readonly Func<GameProfile> _resolveProfile;
     private ConditionFieldCatalog _fieldCatalog;
     private KeymapCatalog _keymapCatalog;
-    private readonly ScrollAwareListBox _moduleList = new();
-    private readonly UiDarkScrollBar _moduleScrollBar = new();
-    private readonly TextBox _nameBox = new();
-    private readonly TextBox _authorBox = new();
-    private readonly TextBox _recommendedTalentBox = new();
+    private readonly UiThemedListBox _moduleList = new();
+    private readonly TextBox _nameBox = new UiThemedTextBox();
+    private readonly TextBox _authorBox = new UiThemedTextBox();
+    private readonly TextBox _recommendedTalentBox = new UiThemedTextBox();
     private readonly UiDropDown _classBox = new();
     private readonly UiDropDown _specBox = new();
     private readonly UiDropDown _partyTypeBox = new();
     private readonly UiDropDown _heroTalentBox = new();
-    private readonly DataGridView _rulesGrid = new();
-    private readonly UiDarkScrollBar _rulesScrollBar = new();
-    private readonly DataGridView _adjustmentsGrid = new();
-    private readonly DataGridView _formulaAdjustmentsGrid = new();
+    private TableLayoutPanel? _matchRow;
+    private Label? _specLabel;
+    private Label? _heroTalentLabel;
+    private readonly DataGridView _rulesGrid = new UiThemedDataGridView();
+    private readonly DataGridView _adjustmentsGrid = new UiThemedDataGridView();
+    private readonly DataGridView _formulaAdjustmentsGrid = new UiThemedDataGridView();
     private readonly DataGridViewComboBoxColumn _spellColumn = new();
     private readonly DataGridViewComboBoxColumn _unitColumn = new();
     private readonly DataGridViewComboBoxColumn _macroConditionColumn = new();
@@ -38,7 +39,7 @@ public sealed class ModuleEditorControl : UserControl
     private ToolStripDropDown? _adjustmentComboDropDown;
     private readonly DataGridViewTextBoxColumn _adjustmentFieldColumn = new();
     private readonly DataGridViewComboBoxColumn _adjustmentTypeColumn = new();
-    private readonly ListView _unitsList = new();
+    private readonly ListView _unitsList = new UiThemedListView();
     private readonly Label _pathLabel = new();
     private readonly Label _unitsEmptyHint = new();
     private readonly Label _editorEmptyHint = new();
@@ -60,6 +61,7 @@ public sealed class ModuleEditorControl : UserControl
     private List<ModuleDefinition> _modules = new();
     private int? _filterClassId;
     private ModuleDefinition? _selectedModule;
+    private string? _editorBaseline;
     // 当前编辑中模块的动态单位/数量字段(含未保存的新增), 供目标下拉与条件字段使用。
     private readonly List<ModuleUnit> _units = new();
     private readonly List<ModuleCountField> _counts = new();
@@ -88,12 +90,12 @@ public sealed class ModuleEditorControl : UserControl
         new("团队 (1-40)", "1-40"),
         new("队伍 (46)", "46")
     ];
-    private static readonly MatchOption[] ClassOptions = BuildClassOptions();
     private static readonly HashSet<string> NonAuraGroupFields = new(StringComparer.OrdinalIgnoreCase)
     {
         "生命值",
         "职责",
         "驱散",
+        "职业",
         "治疗吸收"
     };
     // 条件动态数值"类型"下拉: 决定"数值"可选项的过滤类别, 顺序与界面一致。
@@ -106,23 +108,23 @@ public sealed class ModuleEditorControl : UserControl
         ("动态数值", ConditionFieldCategory.DynamicValue)
     ];
 
-    public ModuleEditorControl(
+    internal ModuleEditorControl(
         ModuleStore moduleStore,
         Func<Task> runtimeRestartRequested,
         Func<ModuleDefinition, string?> captureDependencies,
         Func<Task> modulesReloadRequested,
-        string baseDirectory)
+        Func<GameProfile> resolveProfile)
     {
         _moduleStore = moduleStore;
         _runtimeRestartRequested = runtimeRestartRequested;
         _captureDependencies = captureDependencies;
         _modulesReloadRequested = modulesReloadRequested;
-        _baseDirectory = baseDirectory;
-        _fieldCatalog = ConditionFieldCatalog.Load(baseDirectory);
-        _keymapCatalog = KeymapCatalog.Load(baseDirectory);
+        _resolveProfile = resolveProfile;
+        _fieldCatalog = ConditionFieldCatalog.Load(resolveProfile().RuntimeDirectory, resolveProfile().AddonRoot);
+        _keymapCatalog = KeymapCatalog.Load(resolveProfile().RuntimeDirectory, resolveProfile().AddonRoot);
         InitializeComponent();
         SpellIconCatalog.CatalogChanged += OnSpellIconCatalogChanged;
-        LoadModules();
+        LoadModules(reloadStore: false);
     }
 
     protected override void Dispose(bool disposing)
@@ -139,8 +141,21 @@ public sealed class ModuleEditorControl : UserControl
 
     public void ReloadCatalogs()
     {
-        _fieldCatalog = ConditionFieldCatalog.Load(_baseDirectory);
-        _keymapCatalog = KeymapCatalog.Load(_baseDirectory);
+        var wasDirty = HasUnsavedChanges;
+        _fieldCatalog = ConditionFieldCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
+        _keymapCatalog = KeymapCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
+        UpdateMatchRowProfile();
+        var selectedClassId = ReadMatchCombo(_classBox);
+        ResetClassOptions(_classBox);
+        if (selectedClassId is not null)
+        {
+            var index = FindMatchOption(_classBox, selectedClassId);
+            if (index >= 0) _classBox.SelectedIndex = index;
+        }
+        var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
+        filterItems.AddRange(GetAvailableClasses().Select(item => ((int?)item.Id, item.Name)));
+        _classFilterStrip.SetItems(filterItems);
+        _classFilterStrip.SelectClassId(null);
         ReloadCurrentClassSpellIds();
         // “更新配置”可能刚重建了 keymap；立即刷新当前规则的技能/目标/宏条件下拉，
         // 避免必须切换职业或重启应用后才能看到新解析出的宏条件。
@@ -148,6 +163,61 @@ public sealed class ModuleEditorControl : UserControl
         RefreshAdjustmentFieldColumn();
         RefreshRuleSpellIcons();
         _rulesGrid.Invalidate();
+        if (!wasDirty && _selectedModule is not null)
+            _editorBaseline = CaptureEditorFingerprint();
+    }
+
+    internal bool HasUnsavedChanges => _selectedModule is not null
+        && !string.Equals(_editorBaseline, CaptureEditorFingerprint(), StringComparison.Ordinal);
+
+    internal void UseModuleStore(ModuleStore store)
+    {
+        if (ReferenceEquals(_moduleStore, store)) return;
+        _moduleStore = store;
+        ClearEditor();
+        ReloadCatalogs();
+        LoadModules(reloadStore: false);
+    }
+
+    private string CaptureEditorFingerprint()
+    {
+        static object[] GridRows(DataGridView grid) => grid.Rows.Cast<DataGridViewRow>()
+            .Where(row => !row.IsNewRow)
+            .Select(row => (object)new
+            {
+                Cells = row.Cells.Cast<DataGridViewCell>()
+                    .Select(cell => ReferenceEquals(grid.CurrentCell, cell) && grid.IsCurrentCellInEditMode
+                        ? cell.EditedFormattedValue?.ToString()
+                        : cell.Value?.ToString()).ToArray(),
+                Metadata = row.Tag is RuleRowMetadata metadata
+                    ? (object)new
+                    {
+                        metadata.SubConditions,
+                        metadata.DelayMs,
+                        metadata.LogicDelayMs,
+                        metadata.ContinueLogic
+                    }
+                    : row.Tag
+            }).ToArray();
+
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            Name = _nameBox.Text,
+            Author = _authorBox.Text,
+            RecommendedTalent = _recommendedTalentBox.Text,
+            Class = _classBox.SelectedIndex,
+            Spec = _specBox.SelectedIndex,
+            Party = _partyTypeBox.SelectedIndex,
+            Hero = _heroTalentBox.SelectedIndex,
+            Units = _units,
+            Counts = _counts,
+            EnemyCounts = _enemyCounts,
+            AverageHealthFields = _averageHealthFields,
+            ValueAdjustments = _valueAdjustments,
+            Rules = GridRows(_rulesGrid),
+            Adjustments = GridRows(_adjustmentsGrid),
+            FormulaAdjustments = GridRows(_formulaAdjustmentsGrid)
+        });
     }
 
     private const int ModuleFooterBarHeight = 64;
@@ -161,7 +231,7 @@ public sealed class ModuleEditorControl : UserControl
         Font = new Font("Microsoft YaHei UI", 9F, FontStyle.Regular, GraphicsUnit.Point);
 
         var filterItems = new List<(int? ClassId, string Tooltip)> { (null, "全部") };
-        filterItems.AddRange(ClassNames.GetClasses().Select(item => ((int?)item.Id, item.Name)));
+        filterItems.AddRange(GetAvailableClasses().Select(item => ((int?)item.Id, item.Name)));
         _classFilterStrip.SetItems(filterItems);
         _classFilterStrip.SelectClassId(null);
         _classFilterStrip.SelectionChanged += (_, _) =>
@@ -173,7 +243,7 @@ public sealed class ModuleEditorControl : UserControl
         var iconStack = UiTheme.CreateIconStripStack(_classFilterStrip);
         iconStack.Dock = DockStyle.None;
         iconStack.Margin = Padding.Empty;
-        var iconViewport = new Panel
+        var iconViewport = new UiThemedPanel
         {
             AutoScroll = true,
             Margin = Padding.Empty
@@ -454,32 +524,8 @@ public sealed class ModuleEditorControl : UserControl
                     : null);
         };
         _moduleList.MouseLeave += (_, _) => hoveredModuleIndex = -1;
-        var listHost = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty, BackColor = UiTheme.Surface };
-        listHost.Controls.Add(_moduleList);
-        AttachModuleScrollBar(listHost);
-        sidebar.Controls.Add(listHost, 0, 0);
+        sidebar.Controls.Add(_moduleList, 0, 0);
         return sidebar;
-    }
-
-    private void AttachModuleScrollBar(Panel host)
-    {
-        host.Controls.Add(_moduleScrollBar);
-        _moduleScrollBar.BringToFront();
-        void PositionBar() => _moduleScrollBar.SetBounds(
-            Math.Max(0, host.ClientSize.Width - SystemInformation.VerticalScrollBarWidth),
-            0,
-            SystemInformation.VerticalScrollBarWidth,
-            host.ClientSize.Height);
-        void SyncBar() => _moduleScrollBar.SetMetrics(
-            _moduleList.Items.Count,
-            Math.Max(1, _moduleList.ClientSize.Height / Math.Max(1, _moduleList.ItemHeight)),
-            _moduleList.TopIndex);
-
-        host.Resize += (_, _) => { PositionBar(); SyncBar(); };
-        _moduleList.ViewChanged += (_, _) => SyncBar();
-        _moduleScrollBar.ScrollRequested += value => _moduleList.TopIndex = value;
-        PositionBar();
-        SyncBar();
     }
 
     private Control BuildSidebarFooter()
@@ -715,99 +761,9 @@ public sealed class ModuleEditorControl : UserControl
         };
 
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        var gridHost = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            Margin = Padding.Empty,
-            BackColor = UiTheme.Surface,
-            ColumnCount = 2,
-            RowCount = 1
-        };
-        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, SystemInformation.VerticalScrollBarWidth));
-        gridHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        gridHost.Controls.Add(BuildRulesGrid(), 0, 0);
-        _rulesGrid.ScrollBars = ScrollBars.Horizontal;
-        _rulesScrollBar.Dock = DockStyle.Fill;
-        _rulesScrollBar.Margin = Padding.Empty;
-        gridHost.Controls.Add(_rulesScrollBar, 1, 0);
-        AttachRulesScrollBar(gridHost);
-        panel.Controls.Add(gridHost, 0, 0);
+        panel.Controls.Add(BuildRulesGrid(), 0, 0);
+        _rulesGrid.ScrollBars = ScrollBars.Both;
         return panel;
-    }
-
-    private void AttachRulesScrollBar(Control host)
-    {
-        var syncQueued = false;
-
-        void SyncBar()
-        {
-            if (_rulesGrid.IsDisposed || !_rulesGrid.IsHandleCreated)
-            {
-                return;
-            }
-
-            var visibleRows = Math.Max(1, _rulesGrid.DisplayedRowCount(includePartialRow: true));
-            var firstRow = _rulesGrid.FirstDisplayedScrollingRowIndex;
-            _rulesScrollBar.SetMetrics(_rulesGrid.Rows.Count, visibleRows, Math.Max(0, firstRow));
-        }
-
-        void ScheduleSync()
-        {
-            if (syncQueued || !_rulesGrid.IsHandleCreated || _rulesGrid.IsDisposed)
-            {
-                return;
-            }
-
-            syncQueued = true;
-            _rulesGrid.BeginInvoke(() =>
-            {
-                syncQueued = false;
-                SyncBar();
-            });
-        }
-
-        host.Resize += (_, _) => ScheduleSync();
-        _rulesGrid.Resize += (_, _) => ScheduleSync();
-        _rulesGrid.Scroll += (_, e) =>
-        {
-            if (e.ScrollOrientation == ScrollOrientation.VerticalScroll)
-            {
-                SyncBar();
-            }
-        };
-        _rulesGrid.RowsAdded += (_, _) => ScheduleSync();
-        _rulesGrid.RowsRemoved += (_, _) => ScheduleSync();
-        _rulesGrid.RowHeightChanged += (_, _) => ScheduleSync();
-        _rulesGrid.HandleCreated += (_, _) => ScheduleSync();
-        void ScrollRulesTo(int value)
-        {
-            if (value < 0 || value >= _rulesGrid.Rows.Count)
-            {
-                return;
-            }
-
-            try
-            {
-                _rulesGrid.FirstDisplayedScrollingRowIndex = value;
-            }
-            catch (InvalidOperationException)
-            {
-                // 表格正在重建行或切换页签时，下一次布局会同步滚动位置。
-            }
-        }
-
-        _rulesScrollBar.ScrollRequested += ScrollRulesTo;
-        _rulesGrid.MouseWheel += (_, e) =>
-        {
-            if (e.Delta != 0 && _rulesGrid.Rows.Count > 0)
-            {
-                ScrollRulesTo(Math.Clamp(
-                    Math.Max(0, _rulesGrid.FirstDisplayedScrollingRowIndex) - Math.Sign(e.Delta) * 3,
-                    0,
-                    _rulesGrid.Rows.Count - 1));
-            }
-        };
     }
 
     private Control BuildUnitsPanel()
@@ -972,8 +928,12 @@ public sealed class ModuleEditorControl : UserControl
         // 列：标签0 / 框1 / 隙2 / 标签3 / 框4 / …
         for (var i = 0; i < matchLabels.Length; i++)
         {
-            AddMatchField(row, matchLabels[i], matchBoxes[i], i * 3);
+            var label = AddMatchField(row, matchLabels[i], matchBoxes[i], i * 3);
+            if (i == 1) _specLabel = label;
+            if (i == 2) _heroTalentLabel = label;
         }
+        _matchRow = row;
+        UpdateMatchRowProfile();
 
         var recommendedTalentRow = new TableLayoutPanel
         {
@@ -1579,11 +1539,7 @@ public sealed class ModuleEditorControl : UserControl
             return;
         }
 
-        var classPath = Path.Combine(
-            _baseDirectory,
-            "Fuyutsui",
-            "class",
-            $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+        var classPath = Path.Combine(_resolveProfile().AddonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
         try
         {
             var document = ClassBlocksStore.Load(classPath);
@@ -2194,7 +2150,9 @@ public sealed class ModuleEditorControl : UserControl
             CollectTakenNames(),
             null,
             null,
-            null);
+            null,
+            hasNameplateImprovedGarrote: _fieldCatalog.HasNameplateImprovedGarrote(
+                ReadMatchCombo(_classBox), ReadMatchCombo(_specBox)));
         if (editor.ShowDialog(FindForm()) != DialogResult.OK)
         {
             return;
@@ -2246,7 +2204,8 @@ public sealed class ModuleEditorControl : UserControl
             existingUnit,
             existingCount,
             existingEnemyCount,
-            existingAverageHealth);
+            existingAverageHealth,
+            _fieldCatalog.HasNameplateImprovedGarrote(ReadMatchCombo(_classBox), ReadMatchCombo(_specBox)));
         if (editor.ShowDialog(FindForm()) != DialogResult.OK)
         {
             return;
@@ -4097,7 +4056,7 @@ public sealed class ModuleEditorControl : UserControl
     private IReadOnlyList<ConditionField> RefreshAndBuildConditionFields(bool includeRuleSettings = false)
     {
         // 配置可能由“更新配置”或外部文件同步在当前编辑会话中被重建；每次打开条件弹窗都读取最新目录。
-        _fieldCatalog = ConditionFieldCatalog.Load(_baseDirectory);
+        _fieldCatalog = ConditionFieldCatalog.Load(_resolveProfile().RuntimeDirectory, _resolveProfile().AddonRoot);
         InvalidateConditionFieldValidation();
         return BuildConditionFields(includeRuleSettings);
     }
@@ -4293,7 +4252,7 @@ public sealed class ModuleEditorControl : UserControl
 
     private void OpenModuleFolder()
     {
-        var moduleDirectory = ModuleStore.ResolveModuleDirectory();
+        var moduleDirectory = _moduleStore.ModuleDirectory;
         var filePath = _selectedModule?.FilePath;
         try
         {
@@ -4375,11 +4334,6 @@ public sealed class ModuleEditorControl : UserControl
         {
             _moduleList.EndUpdate();
         }
-
-        _moduleScrollBar.SetMetrics(
-            _moduleList.Items.Count,
-            Math.Max(1, _moduleList.ClientSize.Height / Math.Max(1, _moduleList.ItemHeight)),
-            _moduleList.TopIndex);
 
         if (_modules.Count == 0)
         {
@@ -4494,6 +4448,7 @@ public sealed class ModuleEditorControl : UserControl
             RebuildUnitCell(_rulesGrid.Rows[index], unitText);
             RebuildMacroConditionCell(_rulesGrid.Rows[index], rule.MacroCondition);
         }
+        _editorBaseline = CaptureEditorFingerprint();
     }
 
     private void ClearEditor()
@@ -4520,6 +4475,7 @@ public sealed class ModuleEditorControl : UserControl
         RefreshAdjustmentFieldColumn();
         _rulesGrid.Rows.Clear();
         SetEditorEnabled(hasModule: false);
+        _editorBaseline = null;
     }
 
     // 无选中模块时禁用保存/删除(否则点了静默无反应), 并在编辑区显示引导提示。
@@ -4661,9 +4617,11 @@ public sealed class ModuleEditorControl : UserControl
         module.Match = new ModuleMatch
         {
             ClassId = ReadMatchCombo(_classBox),
-            SpecId = ReadMatchCombo(_specBox),
+            SpecId = _resolveProfile().AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+                ? null : ReadMatchCombo(_specBox),
             PartyType = ReadPartyTypeCombo(),
-            HeroTalent = ReadMatchCombo(_heroTalentBox)
+            HeroTalent = _resolveProfile().AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase)
+                ? null : ReadMatchCombo(_heroTalentBox)
         };
 
         module.Units = _units.Select(unit => unit.Clone()).ToList();
@@ -5074,7 +5032,7 @@ public sealed class ModuleEditorControl : UserControl
         };
     }
 
-    private static void AddMatchField(
+    private static Label AddMatchField(
         TableLayoutPanel row,
         string label,
         UiDropDown box,
@@ -5089,6 +5047,46 @@ public sealed class ModuleEditorControl : UserControl
         box.Dock = DockStyle.Fill;
         box.Margin = Padding.Empty;
         row.Controls.Add(box, column + 1, 0);
+        return fieldLabel;
+    }
+
+    private void UpdateMatchRowProfile()
+    {
+        if (_matchRow is null) return;
+        var forever = _resolveProfile().AddonName.Equals("Shingen", StringComparison.OrdinalIgnoreCase);
+        if (forever)
+        {
+            _specBox.SelectedIndex = 0;
+            _heroTalentBox.SelectedIndex = 0;
+        }
+        _specBox.Visible = !forever;
+        _heroTalentBox.Visible = !forever;
+        if (_specLabel is not null) _specLabel.Visible = !forever;
+        if (_heroTalentLabel is not null) _heroTalentLabel.Visible = !forever;
+        for (var i = 0; i < 11; i++)
+        {
+            if (i is 2 or 5 or 8)
+            {
+                _matchRow.ColumnStyles[i].SizeType = forever && i != 2
+                    ? SizeType.Absolute : SizeType.Percent;
+                _matchRow.ColumnStyles[i].Width = forever && i != 2 ? 0 : 100;
+            }
+            else if (forever && i is >= 3 and <= 7)
+            {
+                _matchRow.ColumnStyles[i].SizeType = SizeType.Absolute;
+                _matchRow.ColumnStyles[i].Width = 0;
+            }
+            else if (!forever && (i is 3 or 6))
+            {
+                _matchRow.ColumnStyles[i].SizeType = SizeType.Absolute;
+                _matchRow.ColumnStyles[i].Width = MeasureLabelColumnWidth(i == 3 ? "专精:" : "英雄天赋:", Font);
+            }
+            else if (!forever && (i is 4 or 7))
+            {
+                _matchRow.ColumnStyles[i].SizeType = SizeType.Absolute;
+                _matchRow.ColumnStyles[i].Width = UiTheme.ModuleMatchFieldWidth;
+            }
+        }
     }
 
     private static Label CreateLabel(string text)
@@ -5189,10 +5187,13 @@ public sealed class ModuleEditorControl : UserControl
         return comboBox.SelectedItem is MatchOption option ? option.Value : null;
     }
 
-    private static void ResetClassOptions(UiDropDown comboBox)
+    private void ResetClassOptions(UiDropDown comboBox)
     {
         comboBox.Items.Clear();
-        comboBox.Items.AddRange(ClassOptions);
+        comboBox.Items.AddRange(GetAvailableClasses()
+            .Select(item => new MatchOption($"{item.Name} ({item.Id})", item.Id))
+            .Prepend(new MatchOption("任意 (*)", null))
+            .ToArray());
         comboBox.SelectedIndex = 0;
     }
 
@@ -5239,11 +5240,12 @@ public sealed class ModuleEditorControl : UserControl
         return -1;
     }
 
-    private static MatchOption[] BuildClassOptions()
+    private IReadOnlyList<(int Id, string Name)> GetAvailableClasses()
     {
+        var classDirectory = Path.Combine(_resolveProfile().AddonRoot, "class");
         return ClassNames.GetClasses()
-            .Select(item => new MatchOption($"{item.Name} ({item.Id})", item.Id))
-            .Prepend(new MatchOption("任意 (*)", null))
+            .Where(item => File.Exists(Path.Combine(classDirectory,
+                ClassNames.GetConfigFileName(item.Id) + ".lua")))
             .ToArray();
     }
 
@@ -5324,17 +5326,4 @@ public sealed class ModuleEditorControl : UserControl
         }
     }
 
-    private sealed class ScrollAwareListBox : ListBox
-    {
-        public event EventHandler? ViewChanged;
-
-        protected override void WndProc(ref Message m)
-        {
-            base.WndProc(ref m);
-            if (m.Msg is 0x0115 or 0x020A or 0x0100 or 0x0101)
-            {
-                ViewChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
 }

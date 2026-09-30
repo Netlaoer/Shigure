@@ -3,18 +3,32 @@ using System.Security.Cryptography;
 namespace Shigure;
 
 /// <summary>
-/// 将程序目录中的 Fuyutsui 单向部署到当前目标游戏。项目目录始终是权威源。
+/// 将项目插件部署到用户选择的目录及映射的所有正在运行的游戏目录。项目目录始终是权威源。
 /// </summary>
 internal sealed class FuyutsuiAddonSyncService
 {
-    private const string AddonDirectoryName = "Fuyutsui";
+    private static readonly string[] InterfaceIconNames =
+    [
+        "Ability_Rogue_Garrote.tga",
+        "INV12_Ability_Rogue_Garrote_Empowered.tga",
+    ];
     private readonly string _sourceRoot;
     private readonly WowProcessLocator _processLocator;
+    private readonly IReadOnlyList<string> _processNames;
+    private readonly string _addonName;
+    private readonly string? _selectedExecutablePath;
+    private readonly string _expectedExecutableName;
 
-    public FuyutsuiAddonSyncService(string sourceRoot, WowProcessLocator processLocator)
+    public FuyutsuiAddonSyncService(
+        string sourceRoot, WowProcessLocator processLocator, IReadOnlyList<string> processNames,
+        string? selectedExecutablePath, string expectedExecutableName)
     {
         _sourceRoot = Path.GetFullPath(sourceRoot);
         _processLocator = processLocator;
+        _processNames = processNames;
+        _addonName = Path.GetFileName(_sourceRoot);
+        _selectedExecutablePath = selectedExecutablePath;
+        _expectedExecutableName = expectedExecutableName;
     }
 
     public string SourceRoot => _sourceRoot;
@@ -23,25 +37,52 @@ internal sealed class FuyutsuiAddonSyncService
     {
         if (!Directory.Exists(_sourceRoot))
         {
-            throw new DirectoryNotFoundException($"找不到项目 Fuyutsui 目录: {_sourceRoot}");
+            throw new DirectoryNotFoundException($"找不到项目 {_addonName} 目录: {_sourceRoot}");
         }
 
-        var targetRoot = ResolveTargetRoot();
-        if (targetRoot is null)
+        var sourcePaths = Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories).ToArray();
+        return SynchronizeTargets(sourcePaths, includeInterfaceIcons: true);
+    }
+
+    private FuyutsuiAddonSyncResult SynchronizeTargets(
+        IReadOnlyList<string> sourcePaths, bool includeInterfaceIcons = false)
+    {
+        var (targets, warnings) = ResolveTargetRoots();
+        if (targets.Count == 0) return FuyutsuiAddonSyncResult.TargetNotFound(_sourceRoot, warnings);
+
+        var results = new List<FuyutsuiAddonSyncTargetResult>();
+        var iconsUpdated = false;
+        foreach (var targetRoot in targets)
         {
-            return FuyutsuiAddonSyncResult.TargetNotFound(_sourceRoot);
+            var copied = new List<string>();
+            var skipped = new List<string>();
+            var failures = new List<FuyutsuiAddonSyncFailure>();
+            foreach (var sourcePath in sourcePaths)
+            {
+                var relativePath = Path.GetRelativePath(_sourceRoot, sourcePath);
+                SynchronizeCore(sourcePath, relativePath, targetRoot, copied, skipped, failures);
+            }
+            if (includeInterfaceIcons && _expectedExecutableName.Equals("Wow.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                // 正式服纹理位于插件项目的同级 Interface，部署到游戏 Interface 而非 AddOns。
+                var interfaceRoot = Path.GetDirectoryName(Path.GetDirectoryName(targetRoot))!;
+                var iconSourceRoot = Path.Combine(Path.GetDirectoryName(_sourceRoot)!, "Interface", "ICONS");
+                var copiedBeforeIcons = copied.Count;
+                foreach (var name in InterfaceIconNames)
+                {
+                    SynchronizeCore(Path.Combine(iconSourceRoot, name), Path.Combine("ICONS", name),
+                        interfaceRoot, copied, skipped, failures, backupExisting: true);
+                }
+                iconsUpdated |= copied.Count > copiedBeforeIcons;
+            }
+            results.Add(new FuyutsuiAddonSyncTargetResult(targetRoot, copied, skipped, failures));
         }
-
-        var copied = new List<string>();
-        var skipped = new List<string>();
-        var failures = new List<FuyutsuiAddonSyncFailure>();
-        foreach (var sourcePath in Directory.EnumerateFiles(_sourceRoot, "*", SearchOption.AllDirectories))
+        return new FuyutsuiAddonSyncResult(_sourceRoot, results, null, warnings)
         {
-            var relativePath = Path.GetRelativePath(_sourceRoot, sourcePath);
-            SynchronizeCore(sourcePath, relativePath, targetRoot, copied, skipped, failures);
-        }
-
-        return new FuyutsuiAddonSyncResult(_sourceRoot, targetRoot, copied, skipped, failures, null);
+            Notices = iconsUpdated
+                ? ["锁喉图标纹理已更新；请完全退出并重新启动游戏，/reload 无法保证加载新纹理。"]
+                : [],
+        };
     }
 
     public FuyutsuiAddonSyncResult SynchronizeFile(string sourcePath)
@@ -52,7 +93,7 @@ internal sealed class FuyutsuiAddonSyncService
             || relativePath.Equals("..", StringComparison.Ordinal)
             || relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
         {
-            throw new InvalidOperationException($"待同步文件不在项目 Fuyutsui 目录内: {fullSourcePath}");
+            throw new InvalidOperationException($"待同步文件不在项目 {_addonName} 目录内: {fullSourcePath}");
         }
 
         if (!File.Exists(fullSourcePath))
@@ -60,25 +101,42 @@ internal sealed class FuyutsuiAddonSyncService
             throw new FileNotFoundException("找不到待同步的项目插件文件。", fullSourcePath);
         }
 
-        var targetRoot = ResolveTargetRoot();
-        if (targetRoot is null)
-        {
-            return FuyutsuiAddonSyncResult.TargetNotFound(_sourceRoot);
-        }
-
-        var copied = new List<string>();
-        var skipped = new List<string>();
-        var failures = new List<FuyutsuiAddonSyncFailure>();
-        SynchronizeCore(fullSourcePath, relativePath, targetRoot, copied, skipped, failures);
-        return new FuyutsuiAddonSyncResult(_sourceRoot, targetRoot, copied, skipped, failures, null);
+        return SynchronizeTargets([fullSourcePath]);
     }
 
-    private string? ResolveTargetRoot()
+    private (IReadOnlyList<string> Targets, IReadOnlyList<string> Warnings) ResolveTargetRoots()
     {
-        var addOnsDirectory = WowAddonLocator.FindAddOnsDirectory(_processLocator);
-        return string.IsNullOrWhiteSpace(addOnsDirectory)
-            ? null
-            : Path.Combine(addOnsDirectory, AddonDirectoryName);
+        var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var warnings = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_selectedExecutablePath))
+        {
+            if (GameExecutablePath.TryValidate(_selectedExecutablePath, _expectedExecutableName,
+                    out var selectedPath, out var error))
+            {
+                var selectedAddOnsDirectory = WowAddonLocator.FindAddOnsDirectoryFromProcessPath(selectedPath);
+                if (!string.IsNullOrWhiteSpace(selectedAddOnsDirectory))
+                {
+                    roots.Add(Path.Combine(selectedAddOnsDirectory, _addonName));
+                }
+            }
+            else
+            {
+                warnings.Add($"已保存的 {_expectedExecutableName} 路径不可用：{error}");
+            }
+        }
+
+        foreach (var processName in _processNames)
+        {
+            foreach (var processPath in _processLocator.FindRunningProcessPaths(processName))
+            {
+                var addOnsDirectory = WowAddonLocator.FindAddOnsDirectoryFromProcessPath(processPath);
+                if (!string.IsNullOrWhiteSpace(addOnsDirectory))
+                {
+                    roots.Add(Path.Combine(addOnsDirectory, _addonName));
+                }
+            }
+        }
+        return (roots.ToArray(), warnings);
     }
 
     private static void SynchronizeCore(
@@ -87,14 +145,20 @@ internal sealed class FuyutsuiAddonSyncService
         string targetRoot,
         ICollection<string> copied,
         ICollection<string> skipped,
-        ICollection<FuyutsuiAddonSyncFailure> failures)
+        ICollection<FuyutsuiAddonSyncFailure> failures,
+        bool backupExisting = false)
     {
+        var reportedPath = backupExisting ? Path.Combine("Interface", relativePath) : relativePath;
         try
         {
+            if (!File.Exists(sourcePath))
+            {
+                throw new FileNotFoundException("项目源文件缺失，未修改游戏文件。", sourcePath);
+            }
             var targetPath = Path.Combine(targetRoot, relativePath);
             if (File.Exists(targetPath) && FilesHaveSameHash(sourcePath, targetPath))
             {
-                skipped.Add(relativePath);
+                skipped.Add(reportedPath);
                 return;
             }
 
@@ -104,12 +168,34 @@ internal sealed class FuyutsuiAddonSyncService
                 Directory.CreateDirectory(targetDirectory);
             }
 
-            File.Copy(sourcePath, targetPath, overwrite: true);
-            copied.Add(relativePath);
+            if (backupExisting)
+            {
+                // 第一次覆盖时保留原纹理；后续更新不得覆盖最初备份。
+                var backupPath = targetPath + ".shigure-original";
+                if (File.Exists(targetPath) && !File.Exists(backupPath))
+                {
+                    File.Copy(targetPath, backupPath, overwrite: false);
+                }
+                var temporaryPath = targetPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    File.Copy(sourcePath, temporaryPath, overwrite: false);
+                    File.Move(temporaryPath, targetPath, overwrite: true);
+                }
+                finally
+                {
+                    if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+                }
+            }
+            else
+            {
+                File.Copy(sourcePath, targetPath, overwrite: true);
+            }
+            copied.Add(reportedPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            failures.Add(new FuyutsuiAddonSyncFailure(relativePath, ex.Message));
+            failures.Add(new FuyutsuiAddonSyncFailure(reportedPath, ex.Message));
         }
     }
 
@@ -125,22 +211,33 @@ internal sealed class FuyutsuiAddonSyncService
 
 internal sealed record FuyutsuiAddonSyncFailure(string RelativePath, string Message);
 
-internal sealed record FuyutsuiAddonSyncResult(
-    string SourceRoot,
-    string? TargetRoot,
+internal sealed record FuyutsuiAddonSyncTargetResult(
+    string TargetRoot,
     IReadOnlyList<string> CopiedFiles,
     IReadOnlyList<string> SkippedFiles,
-    IReadOnlyList<FuyutsuiAddonSyncFailure> Failures,
-    string? SkippedReason)
-{
-    public bool TargetFound => TargetRoot is not null;
-    public bool CompletedSuccessfully => TargetFound && Failures.Count == 0;
+    IReadOnlyList<FuyutsuiAddonSyncFailure> Failures);
 
-    public static FuyutsuiAddonSyncResult TargetNotFound(string sourceRoot) => new(
+internal sealed record FuyutsuiAddonSyncResult(
+    string SourceRoot,
+    IReadOnlyList<FuyutsuiAddonSyncTargetResult> Targets,
+    string? SkippedReason,
+    IReadOnlyList<string> Warnings)
+{
+    public IReadOnlyList<string> Notices { get; init; } = [];
+    public bool TargetFound => Targets.Count > 0;
+    public string? TargetRoot => TargetFound
+        ? string.Join("；", Targets.Select(target => target.TargetRoot)) : null;
+    public IReadOnlyList<string> CopiedFiles => Targets.SelectMany(target => target.CopiedFiles).ToArray();
+    public IReadOnlyList<string> SkippedFiles => Targets.SelectMany(target => target.SkippedFiles).ToArray();
+    public IReadOnlyList<FuyutsuiAddonSyncFailure> Failures => Targets.SelectMany(target =>
+        target.Failures.Select(failure => new FuyutsuiAddonSyncFailure(
+            $"{target.TargetRoot}: {failure.RelativePath}", failure.Message))).ToArray();
+    public bool CompletedSuccessfully => TargetFound && Failures.Count == 0 && Warnings.Count == 0;
+
+    public static FuyutsuiAddonSyncResult TargetNotFound(
+        string sourceRoot, IReadOnlyList<string> warnings) => new(
         sourceRoot,
-        null,
         [],
-        [],
-        [],
-        "未找到目标游戏进程，已跳过游戏插件同步。");
+        "未找到可用的游戏插件目录，已跳过游戏插件同步。",
+        warnings);
 }

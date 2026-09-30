@@ -19,9 +19,9 @@ related:
   - "[[20-Fuyutsui/00-Fuyutsui-MOC|Fuyutsui MOC]]"
   - "[[30-Shigure/00-Shigure-MOC|Shigure MOC]]"
 source_files:
-  - "Fuyutsui/main.lua"
-  - "Fuyutsui/core/block.lua"
-  - "Fuyutsui/core/classmacros.lua"
+  - "Retail/Fuyutsui/main.lua"
+  - "Retail/Fuyutsui/core/block.lua"
+  - "Retail/Fuyutsui/core/classmacros.lua"
   - "Runtime/PixelScanner.cs"
   - "Infrastructure/FuyutsuiConfigConverter.cs"
   - "Infrastructure/FuyutsuiKeymapConverter.cs"
@@ -45,7 +45,7 @@ verified_at: "2026-08-10"
 - [[40-跨项目/02-Shigure-ClassBlocks到config同步契约|ClassBlocks 到 config 同步契约]]：职业 Lua 声明如何变成 Shigure 的字段映射。
 - [[40-跨项目/03-Shigure-ClassMacros到keymap与按键契约|ClassMacros 到 keymap 与按键契约]]：职业宏顺序如何变成可解析、可发送的热键。
 
-契约没有独立协商或握手机制。仓库内置 `Fuyutsui/` 让两端源码能够同版本发布，但不会自动消除协议漂移；任何格式变化仍必须按 [[40-跨项目/04-Shigure-兼容性变更检查清单|兼容性变更检查清单]] 同步修改、重新生成并验证游戏部署副本。
+契约没有独立协商或握手机制。仓库内置 `Retail/Fuyutsui/` 让两端源码能够同版本发布，但不会自动消除协议漂移；任何格式变化仍必须按 [[40-跨项目/04-Shigure-兼容性变更检查清单|兼容性变更检查清单]] 同步修改、重新生成并验证游戏部署副本。
 
 ## 范围
 
@@ -87,7 +87,7 @@ verified_at: "2026-08-10"
 
 - **同一事实只有一个契约主页。** 项目页可以解释本地算法，但共享字段顺序、字节含义和单位编号必须回链到这里。
 - **生产和生成必须同源。** `LoadPlayerBlocks` 与 ConfigConverter 对 `ClassBlocks` 顺序的理解必须一致；`CreateMacro` 与 KeymapConverter 对宏槽位的理解必须一致。
-- **内置源单向部署。** 仓库/发布目录中的 `Fuyutsui/` 是唯一权威源，游戏 `Interface/AddOns/Fuyutsui` 是可覆盖的运行副本；同步不删除游戏额外文件，也不把游戏修改反向合并。
+- **内置源单向部署。** 仓库/发布目录中的 `Retail/Fuyutsui/` 是唯一权威源，游戏 `Interface/AddOns/Fuyutsui` 是可覆盖的运行副本；同步不删除游戏额外文件，也不把游戏修改反向合并。
 - **生成文件可重建。** `config`、`keymap` 是消费端缓存/产物，不是绕过 Lua 源文件的长期修复点。
 - **协议变化必须显式。** 当前像素中没有独立版本字节；无法依赖运行时自动协商。
 - **名称也是接口。** 状态、光环、技能和动态字段名称进入 JSON 和 module 条件，重命名具有数据迁移成本。

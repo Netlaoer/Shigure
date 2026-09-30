@@ -126,24 +126,25 @@ public sealed class ConditionFieldCatalog
     };
 
     private readonly ConfigService? _config;
-    private readonly string _baseDirectory;
+    private readonly string _addonRoot;
 
-    private ConditionFieldCatalog(ConfigService? config, string baseDirectory)
+    private ConditionFieldCatalog(ConfigService? config, string baseDirectory, string addonRoot)
     {
         _config = config;
-        _baseDirectory = baseDirectory;
+        _addonRoot = addonRoot;
     }
 
-    public static ConditionFieldCatalog Load(string baseDirectory)
+    public static ConditionFieldCatalog Load(string baseDirectory, string? addonRoot = null)
     {
+        addonRoot ??= Path.Combine(baseDirectory, "Fuyutsui");
         try
         {
-            return new ConditionFieldCatalog(ConfigService.LoadFromBaseDirectory(baseDirectory), baseDirectory);
+            return new ConditionFieldCatalog(ConfigService.LoadFromBaseDirectory(baseDirectory), baseDirectory, addonRoot);
         }
         catch
         {
             // config 缺失或损坏时返回空目录，编辑器降级为手动输入。
-            return new ConditionFieldCatalog(null, baseDirectory);
+            return new ConditionFieldCatalog(null, baseDirectory, addonRoot);
         }
     }
 
@@ -268,17 +269,29 @@ public sealed class ConditionFieldCatalog
                 AddField(fields, seen, prefix + "距离", $"姓名板{slot} / 距离", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
                 AddField(fields, seen, prefix + "战斗", $"姓名板{slot} / 战斗", ConditionFieldType.Bool, ConditionFieldCategory.State, "姓名板");
                 AddField(fields, seen, prefix + "TTD", $"姓名板{slot} / TTD", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
+                if (JsonHelpers.GetInt(JsonHelpers.Get(nameplates, "improvedGarroteOffset")) is > 0)
+                {
+                    AddField(fields, seen, prefix + NameplateStateLayout.ImprovedGarroteField,
+                        $"姓名板{slot} / 强化锁喉", ConditionFieldType.Int, ConditionFieldCategory.State, "姓名板");
+                }
                 for (var auraIndex = 1; auraIndex <= auraCount; auraIndex++)
                 {
                     var name = $"光环{auraIndex}";
+                    var hasApplications = false;
                     if (JsonHelpers.Get(nameplates, "auras") is JsonArray auraList
                         && auraIndex - 1 < auraList.Count
                         && auraList[auraIndex - 1] is JsonObject aura)
                     {
-                        name = JsonHelpers.GetString(JsonHelpers.Get(aura, "name")) ?? name;
+                        var configuredName = JsonHelpers.GetString(JsonHelpers.Get(aura, "name"));
+                        if (!string.IsNullOrWhiteSpace(configuredName)) name = configuredName;
+                        hasApplications = JsonHelpers.GetInt(JsonHelpers.Get(aura, "appsOffset")) is > 0;
                     }
 
                     AddField(fields, seen, prefix + $"光环{auraIndex}", $"姓名板{slot} / {name}", ConditionFieldType.Int, ConditionFieldCategory.Aura, "姓名板");
+                    if (hasApplications)
+                    {
+                        AddField(fields, seen, prefix + $"光环{auraIndex}层数", $"姓名板{slot} / {name}层数", ConditionFieldType.Int, ConditionFieldCategory.Aura, "姓名板");
+                    }
                 }
             }
 
@@ -364,8 +377,14 @@ public sealed class ConditionFieldCatalog
     }
 
     /// <summary>
-    /// 返回姓名板配置的光环，字段名统一为 auras.{spellId}.value，供敌人数量编辑器选择光环。
+    /// 姓名板是否配置了独立锁喉类型像素，供敌人筛选编辑器决定可用字段。
     /// </summary>
+    public bool HasNameplateImprovedGarrote(int? classId, int? specId)
+        => _config is not null
+            && JsonHelpers.Get(_config.BuildStateConfig(classId, specId), "nameplates") is JsonObject nameplates
+            && JsonHelpers.GetInt(JsonHelpers.Get(nameplates, "improvedGarroteOffset")) is > 0;
+
+    /// <summary>返回姓名板光环，字段名统一为 auras.{spellId}.value。</summary>
     public IReadOnlyList<ConditionField> GetNameplateAuraFields(int? classId, int? specId)
     {
         var fields = new List<ConditionField>();
@@ -501,11 +520,7 @@ public sealed class ConditionFieldCatalog
 
         try
         {
-            var path = Path.Combine(
-                _baseDirectory,
-                "Fuyutsui",
-                "class",
-                $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
+            var path = Path.Combine(_addonRoot, "class", $"{ClassNames.GetConfigFileName(classId.Value)}.lua");
             if (!File.Exists(path))
             {
                 return result;

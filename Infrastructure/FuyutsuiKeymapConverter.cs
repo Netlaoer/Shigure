@@ -85,8 +85,8 @@ internal static partial class FuyutsuiKeymapConverter
 
         Directory.CreateDirectory(keymapDirectory);
         var lua = File.ReadAllText(classMacrosPath, Encoding.UTF8);
-        var classMacros = ExtractAssignedTable(lua, "Fuyutsui.ClassMacros")
-            ?? throw new InvalidDataException("classmacros.lua 中未找到 Fuyutsui.ClassMacros");
+        var classMacros = ExtractAssignedTable(lua, AddonLuaNames.Assignment(lua, "ClassMacros"))
+            ?? throw new InvalidDataException("classmacros.lua 中未找到 ClassMacros");
 
         var updated = new List<string>();
         var warnings = new List<string>();
@@ -95,7 +95,20 @@ internal static partial class FuyutsuiKeymapConverter
         {
             if (classMacros.GetTable(classFile) is not { } classTable)
             {
-                warnings.Add($"跳过 {classFile}: ClassMacros 中无此职业表");
+                if (string.Equals(Path.GetFileName(Path.GetDirectoryName(classMacrosPath)),
+                        "core", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(
+                        Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(classMacrosPath))),
+                        "Shingen", StringComparison.OrdinalIgnoreCase))
+                {
+                    var stalePath = Path.Combine(keymapDirectory,
+                        ClassNames.GetConfigFileName(classId).ToLowerInvariant() + ".json");
+                    if (File.Exists(stalePath)) File.Delete(stalePath);
+                }
+                else
+                {
+                    warnings.Add($"跳过 {classFile}: ClassMacros 中无此职业表");
+                }
                 continue;
             }
 

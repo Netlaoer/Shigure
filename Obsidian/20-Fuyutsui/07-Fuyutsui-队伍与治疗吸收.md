@@ -19,10 +19,10 @@ related:
   - "[[40-跨项目/01-Shigure-像素生产消费契约]]"
   - "[[30-Shigure/03-Shigure-配置合并与GameState构建]]"
 source_files:
-  - Fuyutsui/core/group.lua
-  - Fuyutsui/core/block.lua
-  - Fuyutsui/main.lua
-  - Fuyutsui/core/events.lua
+  - Retail/Fuyutsui/core/group.lua
+  - Retail/Fuyutsui/core/block.lua
+  - Retail/Fuyutsui/main.lua
+  - Retail/Fuyutsui/core/events.lua
 source_symbols:
   - Fuyutsui:IterateGroupMembers
   - Fuyutsui:UpdateGroup
@@ -154,12 +154,12 @@ GROUP_ROSTER_UPDATE / 专精重建
 
 ## 源码索引
 
-- `Fuyutsui/main.lua:171-180`：成员块起点与字段定义。
-- `Fuyutsui/core/group.lua:22-97`：成员遍历、健康与每帧轮转。
-- `Fuyutsui/core/group.lua:100-149`：死亡、视线与治疗预估。
-- `Fuyutsui/core/group.lua:151-202`：清理和 roster 重建。
-- `Fuyutsui/core/block.lua:299-457`：治疗吸收网格、绑定和事件。
-- `Fuyutsui/core/block.lua:1136-1404`：队伍光环、职责覆盖与驱散成员槽。
+- `Retail/Fuyutsui/main.lua:171-180`：成员块起点与字段定义。
+- `Retail/Fuyutsui/core/group.lua:22-97`：成员遍历、健康与每帧轮转。
+- `Retail/Fuyutsui/core/group.lua:100-149`：死亡、视线与治疗预估。
+- `Retail/Fuyutsui/core/group.lua:151-202`：清理和 roster 重建。
+- `Retail/Fuyutsui/core/block.lua:299-457`：治疗吸收网格、绑定和事件。
+- `Retail/Fuyutsui/core/block.lua:1136-1404`：队伍光环、职责覆盖与驱散成员槽。
 
 ## 知识图谱
 
