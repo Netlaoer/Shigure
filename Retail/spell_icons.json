@@ -2,7 +2,7 @@
   {
     "name": "吐金",
     "spellId": 265773,
-    "boss": "黄金风蛇",
+    "boss": 94,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_creature_amber_01",
@@ -11,7 +11,7 @@
   {
     "name": "甩尾",
     "spellId": 265910,
-    "boss": "黄金风蛇",
+    "boss": 94,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_hunter_pet_windserpent",
@@ -20,7 +20,7 @@
   {
     "name": "蛇之风",
     "spellId": 1311987,
-    "boss": "黄金风蛇",
+    "boss": 94,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_skyreach_four_wind",
@@ -29,7 +29,7 @@
   {
     "name": "卢彻的召唤",
     "spellId": 265923,
-    "boss": "黄金风蛇",
+    "boss": 94,
     "mapId": 1,
     "Type": "cast",
     "iconName": "spell_holy_purifyingpower",
@@ -38,7 +38,7 @@
   {
     "name": "燃烧腐蚀",
     "spellId": 267639,
-    "boss": "殓尸者姆沁巴",
+    "boss": 96,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_siege_engineer_purification_beam",
@@ -47,7 +47,7 @@
   {
     "name": "埋葬",
     "spellId": 267702,
-    "boss": "殓尸者姆沁巴",
+    "boss": 96,
     "mapId": 1,
     "Type": "cast",
     "iconName": "achievement_bg_xkills_avgraveyard",
@@ -56,7 +56,7 @@
   {
     "name": "排干体液",
     "spellId": 267618,
-    "boss": "殓尸者姆沁巴",
+    "boss": 96,
     "mapId": 1,
     "Type": "cast",
     "iconName": "inv_misc_volatilewater",
@@ -65,7 +65,7 @@
   {
     "name": "觉醒猛击",
     "spellId": 1312146,
-    "boss": "殓尸者姆沁巴",
+    "boss": 96,
     "mapId": 1,
     "Type": "cast",
     "iconName": "spell_necro_deathsdoor",
@@ -74,7 +74,7 @@
   {
     "name": "旋转利斧",
     "spellId": 266206,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_butcher_whirl",
@@ -83,7 +83,7 @@
   {
     "name": "斩首之斧",
     "spellId": 266231,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_hunter_swiftstrike",
@@ -92,7 +92,7 @@
   {
     "name": "翻滚",
     "spellId": 266951,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_monk_clashingoxcharge",
@@ -101,7 +101,7 @@
   {
     "name": "衰弱抽击",
     "spellId": 266237,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "inv_relics_totemofrage",
@@ -110,7 +110,7 @@
   {
     "name": "电弧",
     "spellId": 1305810,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "spell_nature_chainlightning",
@@ -119,7 +119,7 @@
   {
     "name": "毒性新星",
     "spellId": 267273,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_creature_disease_02",
@@ -128,7 +128,7 @@
   {
     "name": "元素的召唤",
     "spellId": 267060,
-    "boss": "部族议会",
+    "boss": 95,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_shaman_echooftheelements",
@@ -137,7 +137,7 @@
   {
     "name": "凌空猛击",
     "spellId": 1303105,
-    "boss": "达萨大王",
+    "boss": 97,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_heroicleap",
@@ -146,7 +146,7 @@
   {
     "name": "剑刃连击",
     "spellId": 268586,
-    "boss": "达萨大王",
+    "boss": 97,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_ironmaidens_bladerush",
@@ -155,7 +155,7 @@
   {
     "name": "镀金毁灭",
     "spellId": 1303267,
-    "boss": "达萨大王",
+    "boss": 97,
     "mapId": 1,
     "Type": "cast",
     "iconName": "inv_sword_2h_zandalarquest_b_01",
@@ -164,7 +164,7 @@
   {
     "name": "狩猎跃击",
     "spellId": 269232,
-    "boss": "达萨大王",
+    "boss": 97,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_druid_ravage",
@@ -173,7 +173,7 @@
   {
     "name": "致命咆哮",
     "spellId": 269369,
-    "boss": "达萨大王",
+    "boss": 97,
     "mapId": 1,
     "Type": "cast",
     "iconName": "ability_hunter_beastmastery",
@@ -182,7 +182,7 @@
   {
     "name": "野蛮槌击",
     "spellId": 1303488,
-    "boss": "达萨大王",
+    "boss": 97,
     "mapId": 1,
     "Type": "cast",
     "iconName": "inv_misc_raptorfoot_white",
@@ -191,7 +191,7 @@
   {
     "name": "电闪雷鸣",
     "spellId": 1288235,
-    "boss": "阿德里斯和阿斯匹克斯",
+    "boss": 104,
     "mapId": 2,
     "Type": "cast",
     "iconName": "spell_nature_unrelentingstorm",
@@ -200,7 +200,7 @@
   {
     "name": "过载",
     "spellId": 1288428,
-    "boss": "阿德里斯和阿斯匹克斯",
+    "boss": 104,
     "mapId": 2,
     "Type": "cast",
     "iconName": "ability_thunderking_overcharge",
@@ -209,7 +209,7 @@
   {
     "name": "暴风",
     "spellId": 1288864,
-    "boss": "阿德里斯和阿斯匹克斯",
+    "boss": 104,
     "mapId": 2,
     "Type": "cast",
     "iconName": "achievement_raidprimalist_windelemental",
@@ -218,7 +218,7 @@
   {
     "name": "狂风之力",
     "spellId": 1289062,
-    "boss": "阿德里斯和阿斯匹克斯",
+    "boss": 104,
     "mapId": 2,
     "Type": "cast",
     "iconName": "ability_skyreach_four_wind",
@@ -227,7 +227,7 @@
   {
     "name": "钻地",
     "spellId": 264172,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "spell_shaman_earthquake",
@@ -236,7 +236,7 @@
   {
     "name": "缠绕蛇群",
     "spellId": 1290031,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "ability_hunter_snaketrap",
@@ -245,7 +245,7 @@
   {
     "name": "雷霆喷吐",
     "spellId": 1289602,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "ability_thunderking_thunderstruck",
@@ -254,7 +254,7 @@
   {
     "name": "孵化",
     "spellId": 1289205,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "inv_egg_03",
@@ -263,7 +263,7 @@
   {
     "name": "闪电撕咬",
     "spellId": 1290797,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "ability_thunderking_balllightning",
@@ -272,7 +272,7 @@
   {
     "name": "毒蛇风暴",
     "spellId": 1293048,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "spell_nature_lightningoverload",
@@ -281,7 +281,7 @@
   {
     "name": "风暴吐息",
     "spellId": 1293154,
-    "boss": "米利克萨",
+    "boss": 105,
     "mapId": 2,
     "Type": "cast",
     "iconName": "spell_nature_stormreach",
@@ -290,7 +290,7 @@
   {
     "name": "诱导",
     "spellId": 1290531,
-    "boss": "加瓦兹特",
+    "boss": 106,
     "mapId": 2,
     "Type": "cast",
     "iconName": "ability_thunderking_overcharge",
@@ -299,7 +299,7 @@
   {
     "name": "冰雹爆裂",
     "spellId": 396044,
-    "boss": "梅莉杜莎·寒妆",
+    "boss": 98,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_frost_frostshock",
@@ -308,7 +308,7 @@
   {
     "name": "霜风",
     "spellId": 372851,
-    "boss": "梅莉杜莎·寒妆",
+    "boss": 98,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_shadow_soulleech_2",
@@ -317,7 +317,7 @@
   {
     "name": "冰霜过载",
     "spellId": 373680,
-    "boss": "梅莉杜莎·寒妆",
+    "boss": 98,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_fire_blueflamering",
@@ -326,7 +326,7 @@
   {
     "name": "唤醒雏龙",
     "spellId": 373046,
-    "boss": "梅莉杜莎·寒妆",
+    "boss": 98,
     "mapId": 3,
     "Type": "cast",
     "iconName": "inv_dragonwhelp3_gemmed_red",
@@ -335,7 +335,7 @@
   {
     "name": "缚焰仪式",
     "spellId": 372863,
-    "boss": "柯姬雅·焰蹄",
+    "boss": 99,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_fire_totemofwrath",
@@ -344,7 +344,7 @@
   {
     "name": "熔火巨石",
     "spellId": 372107,
-    "boss": "柯姬雅·焰蹄",
+    "boss": 99,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_mage_flameorb",
@@ -353,7 +353,7 @@
   {
     "name": "灼热打击",
     "spellId": 372858,
-    "boss": "柯姬雅·焰蹄",
+    "boss": 99,
     "mapId": 3,
     "Type": "cast",
     "iconName": "ability_shaman_lavalash",
@@ -362,7 +362,7 @@
   {
     "name": "阻断暴雨",
     "spellId": 381516,
-    "boss": "基拉卡与厄克哈特·风脉",
+    "boss": 100,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_nature_cyclone",
@@ -371,7 +371,7 @@
   {
     "name": "变迁之风",
     "spellId": 381517,
-    "boss": "基拉卡与厄克哈特·风脉",
+    "boss": 100,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_nature_purge",
@@ -380,7 +380,7 @@
   {
     "name": "风暴猛击",
     "spellId": 381512,
-    "boss": "基拉卡与厄克哈特·风脉",
+    "boss": 100,
     "mapId": 3,
     "Type": "cast",
     "iconName": "ability_shaman_stormstrike",
@@ -389,7 +389,7 @@
   {
     "name": "烈焰喷吐",
     "spellId": 381602,
-    "boss": "基拉卡与厄克哈特·风脉",
+    "boss": 100,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_fire_firebolt",
@@ -398,7 +398,7 @@
   {
     "name": "怒吼火息",
     "spellId": 381525,
-    "boss": "基拉卡与厄克哈特·风脉",
+    "boss": 100,
     "mapId": 3,
     "Type": "cast",
     "iconName": "ability_warlock_inferno",
@@ -407,7 +407,7 @@
   {
     "name": "烈焰喷吐",
     "spellId": 381605,
-    "boss": "基拉卡与厄克哈特·风脉",
+    "boss": 100,
     "mapId": 3,
     "Type": "cast",
     "iconName": "spell_fire_firebolt",
@@ -416,7 +416,7 @@
   {
     "name": "邪能飞溅",
     "spellId": 1253811,
-    "boss": "凯斯媞亚·魔力之心",
+    "boss": 86,
     "mapId": 4,
     "Type": "cast",
     "iconName": "spell_fire_felflamebreath",
@@ -425,7 +425,7 @@
   {
     "name": "邪能新星",
     "spellId": 1223906,
-    "boss": "凯斯媞亚·魔力之心",
+    "boss": 86,
     "mapId": 4,
     "Type": "cast",
     "iconName": "spell_fire_felflamering",
@@ -434,7 +434,7 @@
   {
     "name": "光明灌注",
     "spellId": 1230304,
-    "boss": "凯斯媞亚·魔力之心",
+    "boss": 86,
     "mapId": 4,
     "Type": "cast",
     "iconName": "spell_paladin_lightofdawn",
@@ -443,7 +443,7 @@
   {
     "name": "绝命凶径",
     "spellId": 1218347,
-    "boss": "赞恩·刃悲",
+    "boss": 87,
     "mapId": 4,
     "Type": "cast",
     "iconName": "inv_legendary_gun",
@@ -452,7 +452,7 @@
   {
     "name": "影舞步",
     "spellId": 474478,
-    "boss": "赞恩·刃悲",
+    "boss": 87,
     "mapId": 4,
     "Type": "cast",
     "iconName": "inv_112_rogue_betweentheeyes",
@@ -461,7 +461,7 @@
   {
     "name": "毒伤",
     "spellId": 1222795,
-    "boss": "赞恩·刃悲",
+    "boss": 87,
     "mapId": 4,
     "Type": "cast",
     "iconName": "ability_rogue_disembowel",
@@ -470,7 +470,7 @@
   {
     "name": "军团打击",
     "spellId": 473898,
-    "boss": "歼灭者萨祖克斯",
+    "boss": 88,
     "mapId": 4,
     "Type": "cast",
     "iconName": "inv_axe_09",
@@ -479,7 +479,7 @@
   {
     "name": "魔化狂怒",
     "spellId": 474197,
-    "boss": "歼灭者萨祖克斯",
+    "boss": 88,
     "mapId": 4,
     "Type": "cast",
     "iconName": "ability_warlock_demonicempowerment",
@@ -488,7 +488,7 @@
   {
     "name": "利斧投掷",
     "spellId": 1214641,
-    "boss": "歼灭者萨祖克斯",
+    "boss": 88,
     "mapId": 4,
     "Type": "cast",
     "iconName": "ability_warrior_titansgrip",
@@ -497,7 +497,7 @@
   {
     "name": "地狱火碾压",
     "spellId": 1295453,
-    "boss": "歼灭者萨祖克斯",
+    "boss": 88,
     "mapId": 4,
     "Type": "cast",
     "iconName": "ability_bossfellord_felspike",
@@ -506,7 +506,7 @@
   {
     "name": "古尔丹之指",
     "spellId": 474462,
-    "boss": "利希尔·烬怒",
+    "boss": 89,
     "mapId": 4,
     "Type": "cast",
     "iconName": "ability_warlock_handofguldan",
@@ -515,7 +515,7 @@
   {
     "name": "召唤邪犬",
     "spellId": 474408,
-    "boss": "利希尔·烬怒",
+    "boss": 89,
     "mapId": 4,
     "Type": "cast",
     "iconName": "inv_argusfelstalkermount",
@@ -524,7 +524,7 @@
   {
     "name": "灾厄浪潮",
     "spellId": 1217345,
-    "boss": "利希尔·烬怒",
+    "boss": 89,
     "mapId": 4,
     "Type": "cast",
     "iconName": "ability_felarakkoa_feldetonation_green",
@@ -533,7 +533,7 @@
   {
     "name": "腐坏补给",
     "spellId": 1234233,
-    "boss": "囤宝狂人",
+    "boss": 83,
     "mapId": 5,
     "Type": "cast",
     "iconName": "ability_creature_disease_01",
@@ -542,7 +542,7 @@
   {
     "name": "裂地强击",
     "spellId": 1234021,
-    "boss": "囤宝狂人",
+    "boss": 83,
     "mapId": 5,
     "Type": "cast",
     "iconName": "spell_shaman_earthquake",
@@ -551,7 +551,7 @@
   {
     "name": "贪婪咆哮",
     "spellId": 1234681,
-    "boss": "囤宝狂人",
+    "boss": 83,
     "mapId": 5,
     "Type": "cast",
     "iconName": "ability_druid_challangingroar",
@@ -560,7 +560,7 @@
   {
     "name": "冰川折磨",
     "spellId": 1235548,
-    "boss": "寒冬哨兵",
+    "boss": 84,
     "mapId": 5,
     "Type": "cast",
     "iconName": "inv12_apextalent_mage_handoffrost",
@@ -569,7 +569,7 @@
   {
     "name": "狂怒的飑风",
     "spellId": 1235623,
-    "boss": "寒冬哨兵",
+    "boss": 84,
     "mapId": 5,
     "Type": "cast",
     "iconName": "ability_deathknight_frozencenter",
@@ -578,7 +578,7 @@
   {
     "name": "粉碎冰刺",
     "spellId": 1235783,
-    "boss": "寒冬哨兵",
+    "boss": 84,
     "mapId": 5,
     "Type": "cast",
     "iconName": "ability_deathknight_pillaroffrost",
@@ -587,7 +587,7 @@
   {
     "name": "寒冰暴雨",
     "spellId": 1235656,
-    "boss": "寒冬哨兵",
+    "boss": 84,
     "mapId": 5,
     "Type": "cast",
     "iconName": "spell_frost_ring-of-frost",
@@ -596,7 +596,7 @@
   {
     "name": "强力咆哮",
     "spellId": 1255385,
-    "boss": "纳洛拉克",
+    "boss": 85,
     "mapId": 5,
     "Type": "cast",
     "iconName": "spell_druid_stamedingroar",
@@ -605,7 +605,7 @@
   {
     "name": "回响重击",
     "spellId": 1242860,
-    "boss": "纳洛拉克",
+    "boss": 85,
     "mapId": 5,
     "Type": "cast",
     "iconName": "inv_ability_druidoftheclawdruid_ravage",
@@ -614,7 +614,7 @@
   {
     "name": "战神之怒",
     "spellId": 1243273,
-    "boss": "纳洛拉克",
+    "boss": 85,
     "mapId": 5,
     "Type": "cast",
     "iconName": "ability_warrior_charge",
@@ -623,7 +623,7 @@
   {
     "name": "压制强攻",
     "spellId": 1297792,
-    "boss": "纳洛拉克",
+    "boss": 85,
     "mapId": 5,
     "Type": "cast",
     "iconName": "spell_druid_thrash",
@@ -632,7 +632,7 @@
   {
     "name": "基岩猛击",
     "spellId": 1234753,
-    "boss": "光明众花",
+    "boss": 90,
     "mapId": 6,
     "Type": "cast",
     "iconName": "spell_nature_earthquake",
@@ -641,7 +641,7 @@
   {
     "name": "播光急奔",
     "spellId": 1234850,
-    "boss": "光明众花",
+    "boss": 90,
     "mapId": 6,
     "Type": "cast",
     "iconName": "rogue_burstofspeed",
@@ -650,7 +650,7 @@
   {
     "name": "荆棘之刃",
     "spellId": 1235640,
-    "boss": "光明众花",
+    "boss": 90,
     "mapId": 6,
     "Type": "cast",
     "iconName": "spell_nature_thorns",
@@ -659,7 +659,7 @@
   {
     "name": "光明之花射线",
     "spellId": 1235564,
-    "boss": "光明众花",
+    "boss": 90,
     "mapId": 6,
     "Type": "cast",
     "iconName": "ability_paladin_infusionoflight",
@@ -668,7 +668,7 @@
   {
     "name": "青翠践踏",
     "spellId": 1236746,
-    "boss": "圣光猎手伊库兹",
+    "boss": 91,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_raptortravelform",
@@ -677,7 +677,7 @@
   {
     "name": "唤棘者咆哮",
     "spellId": 1236709,
-    "boss": "圣光猎手伊库兹",
+    "boss": 91,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_misc_herb_nightmarevine",
@@ -686,7 +686,7 @@
   {
     "name": "嗜血注视",
     "spellId": 1253410,
-    "boss": "圣光猎手伊库兹",
+    "boss": 91,
     "mapId": 6,
     "Type": "cast",
     "iconName": "ability_fixated_state_red",
@@ -695,7 +695,7 @@
   {
     "name": "光狂疯乱",
     "spellId": 1237073,
-    "boss": "圣光猎手伊库兹",
+    "boss": 91,
     "mapId": 6,
     "Type": "cast",
     "iconName": "ability_monk_explodingjadeblossom",
@@ -704,7 +704,7 @@
   {
     "name": "光明之火",
     "spellId": 1239824,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_ability_holyfire_buff",
@@ -713,7 +713,7 @@
   {
     "name": "粉碎打击",
     "spellId": 1240210,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "ability_druid_swipe",
@@ -722,7 +722,7 @@
   {
     "name": "凶残痛击",
     "spellId": 1241058,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "spell_druid_bloodythrash",
@@ -731,7 +731,7 @@
   {
     "name": "变形：熊",
     "spellId": 1239885,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "ability_racial_bearform",
@@ -740,7 +740,7 @@
   {
     "name": "变形：枭兽",
     "spellId": 1239882,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "talentspec_druid_balance",
@@ -749,7 +749,7 @@
   {
     "name": "变形：哈籁尼尔",
     "spellId": 1239883,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "talentspec_druid_restoration",
@@ -758,7 +758,7 @@
   {
     "name": "峡谷之灵",
     "spellId": 1241067,
-    "boss": "护光者鲁伊亚",
+    "boss": 92,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_ability_druid_convokethespirits",
@@ -767,7 +767,7 @@
   {
     "name": "唤醒光绽",
     "spellId": 1246372,
-    "boss": "兹欧凯特",
+    "boss": 93,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_desertlasherorchid_yellow",
@@ -776,7 +776,7 @@
   {
     "name": "棘刺",
     "spellId": 1247685,
-    "boss": "兹欧凯特",
+    "boss": 93,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_misc_herb_goldthorn_bramble",
@@ -785,7 +785,7 @@
   {
     "name": "凝聚光线",
     "spellId": 1246607,
-    "boss": "兹欧凯特",
+    "boss": 93,
     "mapId": 6,
     "Type": "cast",
     "iconName": "ability_priest_flashoflight",
@@ -794,7 +794,7 @@
   {
     "name": "光绽精华",
     "spellId": 1246858,
-    "boss": "兹欧凯特",
+    "boss": 93,
     "mapId": 6,
     "Type": "cast",
     "iconName": "inv_ability_holyfire_orb",
@@ -803,7 +803,7 @@
   {
     "name": "虚空冲击",
     "spellId": 1297017,
-    "boss": "塔兹拉尔",
+    "boss": 101,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_cosmicvoid_orb",
@@ -812,7 +812,7 @@
   {
     "name": "黑暗绽放",
     "spellId": 1300259,
-    "boss": "塔兹拉尔",
+    "boss": 101,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_ability_voidweaverpriest_entropicrift",
@@ -821,7 +821,7 @@
   {
     "name": "空灵冲刺",
     "spellId": 1222098,
-    "boss": "塔兹拉尔",
+    "boss": 101,
     "mapId": 7,
     "Type": "cast",
     "iconName": "ability_mount_voidelfstridermount",
@@ -830,7 +830,7 @@
   {
     "name": "幽影破裂",
     "spellId": 1296963,
-    "boss": "塔兹拉尔",
+    "boss": 101,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_cosmicvoid_groundstate",
@@ -839,7 +839,7 @@
   {
     "name": "巨型爪击",
     "spellId": 1222642,
-    "boss": "阿特洛苏斯",
+    "boss": 102,
     "mapId": 7,
     "Type": "cast",
     "iconName": "ability_creature_poison_03",
@@ -848,7 +848,7 @@
   {
     "name": "毒性吐息",
     "spellId": 1222721,
-    "boss": "阿特洛苏斯",
+    "boss": 102,
     "mapId": 7,
     "Type": "cast",
     "iconName": "ability_creature_poison_05",
@@ -857,7 +857,7 @@
   {
     "name": "毒液喷溅",
     "spellId": 1226120,
-    "boss": "阿特洛苏斯",
+    "boss": 102,
     "mapId": 7,
     "Type": "cast",
     "iconName": "spell_nature_corrosivebreath",
@@ -866,7 +866,7 @@
   {
     "name": "巨响咆哮",
     "spellId": 1262497,
-    "boss": "阿特洛苏斯",
+    "boss": 102,
     "mapId": 7,
     "Type": "cast",
     "iconName": "ability_racial_darkflight",
@@ -875,7 +875,7 @@
   {
     "name": "不稳定的奇点",
     "spellId": 1248112,
-    "boss": "煞戎努斯",
+    "boss": 103,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_ability_voidweaverpriest_entropicrift",
@@ -884,7 +884,7 @@
   {
     "name": "星辰坠击",
     "spellId": 1227197,
-    "boss": "煞戎努斯",
+    "boss": 103,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_cosmicvoid_groundsate",
@@ -893,7 +893,7 @@
   {
     "name": "引力宝珠",
     "spellId": 1310025,
-    "boss": "煞戎努斯",
+    "boss": 103,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_enchant_voidsphere",
@@ -902,7 +902,7 @@
   {
     "name": "虚空奔涌",
     "spellId": 1227247,
-    "boss": "煞戎努斯",
+    "boss": 103,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_cosmicvoid_missile",
@@ -911,7 +911,7 @@
   {
     "name": "暗影浪潮",
     "spellId": 1311923,
-    "boss": "煞戎努斯",
+    "boss": 103,
     "mapId": 7,
     "Type": "cast",
     "iconName": "inv_cosmicvoid_wave",
@@ -920,7 +920,7 @@
   {
     "name": "深渊之雨",
     "spellId": 1260837,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "cast",
     "iconName": "spell_fire_bluerainoffire",
@@ -929,7 +929,7 @@
   {
     "name": "刺骨寒霜",
     "spellId": 1313393,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "cast",
     "iconName": "spell_fire_blueimmolation",
@@ -938,7 +938,7 @@
   {
     "name": "嘶嘶食腐",
     "spellId": 1298223,
-    "boss": "拉维",
+    "boss": 80,
     "mapId": 9,
     "Type": "cast",
     "iconName": "trade_archaeology_bones-of-transformation",
@@ -947,7 +947,7 @@
   {
     "name": "恶臭咆哮",
     "spellId": 1296219,
-    "boss": "拉维",
+    "boss": 80,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_monk_jadeserpentbreath",
@@ -956,7 +956,7 @@
   {
     "name": "三重喷吐",
     "spellId": 1296220,
-    "boss": "拉维",
+    "boss": 80,
     "mapId": 9,
     "Type": "cast",
     "iconName": "spell_nature_corrosivebreath",
@@ -965,7 +965,7 @@
   {
     "name": "反刍",
     "spellId": 1296058,
-    "boss": "拉维",
+    "boss": 80,
     "mapId": 9,
     "Type": "cast",
     "iconName": "inv_ability_poison_wave",
@@ -974,7 +974,7 @@
   {
     "name": "贪婪践踏",
     "spellId": 1307894,
-    "boss": "拉维",
+    "boss": 80,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_earthen_pillar",
@@ -983,7 +983,7 @@
   {
     "name": "进食狂热",
     "spellId": 1307768,
-    "boss": "拉维",
+    "boss": 80,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_racial_cannibalize",
@@ -992,7 +992,7 @@
   {
     "name": "同步毒液",
     "spellId": 1299154,
-    "boss": "扭缠盘蛇",
+    "boss": 81,
     "mapId": 9,
     "Type": "cast",
     "iconName": "inv_ability_poison_missile",
@@ -1001,7 +1001,7 @@
   {
     "name": "镰尾",
     "spellId": 1298949,
-    "boss": "扭缠盘蛇",
+    "boss": 81,
     "mapId": 9,
     "Type": "cast",
     "iconName": "inv_knife_1h_felfireraid_d_04",
@@ -1010,7 +1010,7 @@
   {
     "name": "复仇猛攻",
     "spellId": 1299130,
-    "boss": "扭缠盘蛇",
+    "boss": 81,
     "mapId": 9,
     "Type": "cast",
     "iconName": "spell_nature_earthquake",
@@ -1019,7 +1019,7 @@
   {
     "name": "濒死喘息",
     "spellId": 1299053,
-    "boss": "扭缠盘蛇",
+    "boss": 81,
     "mapId": 9,
     "Type": "cast",
     "iconName": "inv_sonic_debuff",
@@ -1028,7 +1028,7 @@
   {
     "name": "怨毒狩猎",
     "spellId": 1300503,
-    "boss": "扭缠盘蛇",
+    "boss": 81,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_fixated_state_green",
@@ -1037,7 +1037,7 @@
   {
     "name": "切骨者",
     "spellId": 1301413,
-    "boss": "祖尔加",
+    "boss": 82,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_hunter_swiftstrike",
@@ -1046,7 +1046,7 @@
   {
     "name": "毒牙仪式",
     "spellId": 1300876,
-    "boss": "祖尔加",
+    "boss": 82,
     "mapId": 9,
     "Type": "cast",
     "iconName": "inv_achievement_dungeon_altaroffangs",
@@ -1055,7 +1055,7 @@
   {
     "name": "碎斧",
     "spellId": 1301111,
-    "boss": "祖尔加",
+    "boss": 82,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_warrior_bladestorm",
@@ -1064,7 +1064,7 @@
   {
     "name": "砍倒",
     "spellId": 1301350,
-    "boss": "祖尔加",
+    "boss": 82,
     "mapId": 9,
     "Type": "cast",
     "iconName": "ability_criticalstrike",
@@ -1073,7 +1073,7 @@
   {
     "name": "盘魂点燃",
     "spellId": 1285681,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_shadow_soulleech_2",
@@ -1082,7 +1082,7 @@
   {
     "name": "虔诚呼唤",
     "spellId": 1289923,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_holy_devotion",
@@ -1091,7 +1091,7 @@
   {
     "name": "复仇嘶鸣",
     "spellId": 1290679,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_sonic_debuff",
@@ -1100,7 +1100,7 @@
   {
     "name": "祈求",
     "spellId": 1299673,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "cast",
     "iconName": "warrior_disruptingshout",
@@ -1109,7 +1109,7 @@
   {
     "name": "毒液凝块",
     "spellId": 1284251,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_ability_poison_nova",
@@ -1118,7 +1118,7 @@
   {
     "name": "剧毒水滴",
     "spellId": 1284434,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_ability_poison_orb",
@@ -1127,7 +1127,7 @@
   {
     "name": "强化猛击",
     "spellId": 1284458,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_mace_1h_pvppandarias3_c_01",
@@ -1136,7 +1136,7 @@
   {
     "name": "鲜血毒液注射",
     "spellId": 1284487,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_warrior_bloodbath",
@@ -1145,7 +1145,7 @@
   {
     "name": "凋零之血",
     "spellId": 1284483,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_shadow_lifedrain",
@@ -1154,7 +1154,7 @@
   {
     "name": "衰弱瘴气",
     "spellId": 1284485,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_deathwing_bloodcorruption_death",
@@ -1163,7 +1163,7 @@
   {
     "name": "强酸静滞",
     "spellId": 1284588,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_10_enchanting2_magicswirl_red",
@@ -1172,7 +1172,7 @@
   {
     "name": "不稳定的瘴气",
     "spellId": 1288232,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_deathwing_bloodcorruption_death",
@@ -1181,7 +1181,7 @@
   {
     "name": "变幻的原型毒液",
     "spellId": 1296878,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_deathvortex",
@@ -1190,7 +1190,7 @@
   {
     "name": "灾变祈求",
     "spellId": 1291390,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_fire_selfdestruct",
@@ -1199,7 +1199,7 @@
   {
     "name": "闪现新星",
     "spellId": 1296025,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_arcane_blink",
@@ -1208,7 +1208,7 @@
   {
     "name": "闪现新星",
     "spellId": 1290742,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_arcane_blink",
@@ -1217,7 +1217,7 @@
   {
     "name": "投掷垃圾",
     "spellId": 1291933,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_crate_01",
@@ -1226,7 +1226,7 @@
   {
     "name": "蘑菇投掷",
     "spellId": 1292104,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_mushroom_12",
@@ -1235,7 +1235,7 @@
   {
     "name": "闪现新星",
     "spellId": 1290740,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_arcane_blink",
@@ -1244,7 +1244,7 @@
   {
     "name": "闪现新星",
     "spellId": 1290743,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_arcane_blink",
@@ -1253,7 +1253,7 @@
   {
     "name": "撕裂碎片",
     "spellId": 1295854,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_frost_iceshard",
@@ -1262,7 +1262,7 @@
   {
     "name": "爆炸惊喜",
     "spellId": 1297625,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_misc_bomb_01",
@@ -1271,7 +1271,7 @@
   {
     "name": "最终扬升",
     "spellId": 1292779,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_animarevendreth_nova",
@@ -1280,7 +1280,7 @@
   {
     "name": "滴毒之牙",
     "spellId": 1280935,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_creature_poison_01",
@@ -1289,7 +1289,7 @@
   {
     "name": "剧毒涌动",
     "spellId": 1305959,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_creature_poison_06",
@@ -1298,7 +1298,7 @@
   {
     "name": "腐蚀利爪",
     "spellId": 1296310,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_misc_felsaber_claw",
@@ -1307,7 +1307,7 @@
   {
     "name": "腐蚀洪流",
     "spellId": 1289192,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_ability_poison_beam",
@@ -1316,7 +1316,7 @@
   {
     "name": "邪恶洪流",
     "spellId": 1294293,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_rogue_deviouspoisons",
@@ -1325,7 +1325,7 @@
   {
     "name": "洪流",
     "spellId": 1294921,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_creature_poison_06",
@@ -1334,7 +1334,7 @@
   {
     "name": "搅动深渊",
     "spellId": 1290956,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_ability_poison_wave",
@@ -1343,7 +1343,7 @@
   {
     "name": "盘卷脓液",
     "spellId": 1290809,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_ironmaidens_whirlofblood",
@@ -1352,7 +1352,7 @@
   {
     "name": "剧毒涌现",
     "spellId": 1291404,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_nature_poisoncleansingtotem",
@@ -1361,7 +1361,7 @@
   {
     "name": "贪婪盛宴",
     "spellId": 1290516,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_warrior_bloodnova",
@@ -1370,7 +1370,7 @@
   {
     "name": "腐蚀唾液",
     "spellId": 1291478,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_deathvortex",
@@ -1379,7 +1379,7 @@
   {
     "name": "鲜血洪流",
     "spellId": 1303230,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_artifact_corruptedbloodofzakajz",
@@ -1388,7 +1388,7 @@
   {
     "name": "血色风暴",
     "spellId": 1306872,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_artifact_bloodoftheassassinated",
@@ -1397,7 +1397,7 @@
   {
     "name": "唤醒子嗣",
     "spellId": 1308356,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_giantsnake_black",
@@ -1406,7 +1406,7 @@
   {
     "name": "令人不安的凝视",
     "spellId": 1285911,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_fixated_state_purple",
@@ -1415,7 +1415,7 @@
   {
     "name": "盘卷祭坛之牙",
     "spellId": 1282487,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_nature_poisoncleansingtotem",
@@ -1424,7 +1424,7 @@
   {
     "name": "碎斧",
     "spellId": 1283832,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_warrior_bladestorm",
@@ -1433,7 +1433,7 @@
   {
     "name": "永恒夜幕",
     "spellId": 1286918,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_shadow_twilight",
@@ -1442,7 +1442,7 @@
   {
     "name": "幽暗炸弹",
     "spellId": 1310882,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_shadow_shadowfury",
@@ -1451,7 +1451,7 @@
   {
     "name": "灵魂撕裂",
     "spellId": 1286573,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_demonhunter_soulcleave2",
@@ -1460,7 +1460,7 @@
   {
     "name": "精魂狂笑",
     "spellId": 1286441,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "spell_shadow_deathsembrace",
@@ -1469,7 +1469,7 @@
   {
     "name": "盘卷祭坛亵渎",
     "spellId": 1298381,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_warlock_shadowflame",
@@ -1478,7 +1478,7 @@
   {
     "name": "撕裂",
     "spellId": 1299680,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_criticalstrike",
@@ -1487,7 +1487,7 @@
   {
     "name": "凋零撕裂",
     "spellId": 1307279,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_creature_felsunder",
@@ -1496,7 +1496,7 @@
   {
     "name": "蛇母之怒",
     "spellId": 1298367,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_misc_monsterfang_02",
@@ -1505,7 +1505,7 @@
   {
     "name": "被缚之怒",
     "spellId": 1286860,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_121_raid_achievement_ulatek",
@@ -1514,7 +1514,7 @@
   {
     "name": "怒火释放",
     "spellId": 1286905,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv12_apextalent_evoker_risingfury",
@@ -1523,7 +1523,7 @@
   {
     "name": "毒蛇之咬",
     "spellId": 1295905,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_121_trinket_raid_ulatek_fang_red",
@@ -1532,7 +1532,7 @@
   {
     "name": "毒蛇呼唤",
     "spellId": 1300751,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "8125100",
@@ -1541,7 +1541,7 @@
   {
     "name": "恶臭痛击",
     "spellId": 1296301,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "ability_creature_poison_04",
@@ -1550,7 +1550,7 @@
   {
     "name": "蛇母之怒",
     "spellId": 1311037,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "cast",
     "iconName": "inv_misc_monsterfang_02",
@@ -2783,7 +2783,7 @@
   {
     "name": "自律",
     "spellId": 25771,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_holy_removecurse",
@@ -2792,7 +2792,7 @@
   {
     "name": "低温",
     "spellId": 41425,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_fire_blueimmolation",
@@ -2801,7 +2801,7 @@
   {
     "name": "时空错位",
     "spellId": 80354,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "ability_mage_timewarp",
@@ -2810,7 +2810,7 @@
   {
     "name": "恶魔传送门",
     "spellId": 113942,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_warlock_demonicportal_green",
@@ -2819,7 +2819,7 @@
   {
     "name": "中度醉拳",
     "spellId": 124274,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "priest_icon_chakra",
@@ -2828,7 +2828,7 @@
   {
     "name": "轻度醉拳",
     "spellId": 124275,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "priest_icon_chakra_green",
@@ -2837,7 +2837,7 @@
   {
     "name": "正在复活",
     "spellId": 160029,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_holy_guardianspirit",
@@ -2846,7 +2846,7 @@
   {
     "name": "精确本能",
     "spellId": 382912,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "ability_druid_tigersroar",
@@ -2855,7 +2855,7 @@
   {
     "name": "邪甲术",
     "spellId": 387847,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_shadow_felarmour",
@@ -2864,7 +2864,7 @@
   {
     "name": "筋疲力尽",
     "spellId": 390435,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_nature_sleep",
@@ -2873,7 +2873,7 @@
   {
     "name": "殉道者之光",
     "spellId": 448005,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "ability_paladin_lightofthemartyr",
@@ -2882,7 +2882,7 @@
   {
     "name": "终有极限",
     "spellId": 458386,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "ability_rogue_sprint",
@@ -2891,7 +2891,7 @@
   {
     "name": "残留冰霜",
     "spellId": 1257654,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_hunter_icetrap",
@@ -2900,7 +2900,7 @@
   {
     "name": "水流喷射",
     "spellId": 1258901,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "ability_mage_waterjet",
@@ -2909,7 +2909,7 @@
   {
     "name": "水流喷射",
     "spellId": 1260637,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "ability_mage_waterjet",
@@ -2918,7 +2918,7 @@
   {
     "name": "深渊之雨",
     "spellId": 1260843,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_fire_bluerainoffire",
@@ -2927,7 +2927,7 @@
   {
     "name": "野性撕咬",
     "spellId": 1265425,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "inv_pet_babyshark",
@@ -2936,7 +2936,7 @@
   {
     "name": "旅行常客",
     "spellId": 1271712,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "achievement_dungeon_outland_dungeonmaster",
@@ -2945,7 +2945,7 @@
   {
     "name": "冰刃乱舞",
     "spellId": 1282937,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "inv_polearm_2h_draenorchallenge_d_01_02",
@@ -2954,7 +2954,7 @@
   {
     "name": "冰刃乱舞",
     "spellId": 1282947,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "inv_polearm_2h_draenorchallenge_d_01_02",
@@ -2963,7 +2963,7 @@
   {
     "name": "衰弱毒液",
     "spellId": 1295123,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "inv_121_trinket_dungeon_ulatek_vile",
@@ -2972,7 +2972,7 @@
   {
     "name": "冰霜宝珠",
     "spellId": 1313448,
-    "boss": "尼姆瑞莎·唤波者",
+    "boss": 15,
     "mapId": 8,
     "Type": "aura",
     "iconName": "spell_frost_frozencore",
@@ -2981,7 +2981,7 @@
   {
     "name": "装死",
     "spellId": 45181,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_cheatdeath",
@@ -2990,7 +2990,7 @@
   {
     "name": "天使壁垒",
     "spellId": 114216,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_priest_angelicbulwark",
@@ -2999,7 +2999,7 @@
   {
     "name": "重度醉拳",
     "spellId": 124273,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "priest_icon_chakra_red",
@@ -3008,7 +3008,7 @@
   {
     "name": "代偿",
     "spellId": 211319,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_staff_2h_artifactheartofkure_d_03",
@@ -3017,7 +3017,7 @@
   {
     "name": "餍足",
     "spellId": 326809,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_argus_deathfog",
@@ -3026,7 +3026,7 @@
   {
     "name": "营救",
     "spellId": 370665,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_evoker_flywithme",
@@ -3035,7 +3035,7 @@
   {
     "name": "金色瓦格里的礼物",
     "spellId": 393879,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_valkiergoldpet",
@@ -3044,7 +3044,7 @@
   {
     "name": "沐焰为殇",
     "spellId": 453286,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_felhellfire",
@@ -3053,7 +3053,7 @@
   {
     "name": "曙光意志",
     "spellId": 456779,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_divineprovidence",
@@ -3062,7 +3062,7 @@
   {
     "name": "残毁创伤",
     "spellId": 1277051,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_venomouswounds",
@@ -3071,7 +3071,7 @@
   {
     "name": "劫掠",
     "spellId": 1277105,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_10_specialreagentfoozles_tuskclaw-black",
@@ -3080,7 +3080,7 @@
   {
     "name": "侵蚀毒液",
     "spellId": 1282873,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_druid_infectedwound",
@@ -3089,7 +3089,7 @@
   {
     "name": "狂怒侧风",
     "spellId": 1285425,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_skyreach_wind",
@@ -3098,7 +3098,7 @@
   {
     "name": "湍流阵风",
     "spellId": 1285447,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_skyreach_four_wind",
@@ -3107,7 +3107,7 @@
   {
     "name": "狂怒侧风",
     "spellId": 1285453,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_skyreach_wind",
@@ -3116,7 +3116,7 @@
   {
     "name": "风暴",
     "spellId": 1287083,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_beam",
@@ -3125,7 +3125,7 @@
   {
     "name": "粘稠囊肿",
     "spellId": 1287205,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_nova",
@@ -3134,7 +3134,7 @@
   {
     "name": "腐蚀残渣",
     "spellId": 1296667,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_groundstate",
@@ -3143,7 +3143,7 @@
   {
     "name": "狂怒侧风",
     "spellId": 1297096,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_skyreach_wind",
@@ -3152,7 +3152,7 @@
   {
     "name": "狂怒侧风",
     "spellId": 1297111,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_skyreach_wind",
@@ -3161,7 +3161,7 @@
   {
     "name": "剧毒",
     "spellId": 1297707,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_03",
@@ -3170,7 +3170,7 @@
   {
     "name": "剧毒",
     "spellId": 1299899,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_03",
@@ -3179,7 +3179,7 @@
   {
     "name": "毒蛇之怒",
     "spellId": 1305621,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_evoker_dragonrage2",
@@ -3188,7 +3188,7 @@
   {
     "name": "剧毒涌动",
     "spellId": 1305963,
-    "boss": "斯索拉克",
+    "boss": 20,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_06",
@@ -3197,7 +3197,7 @@
   {
     "name": "天灾契约",
     "spellId": 48743,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_deathpact",
@@ -3206,7 +3206,7 @@
   {
     "name": "筋疲力尽",
     "spellId": 57723,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_sleep",
@@ -3215,7 +3215,7 @@
   {
     "name": "新近触发",
     "spellId": 313015,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_racial_rearm",
@@ -3224,7 +3224,7 @@
   {
     "name": "碎石击",
     "spellId": 1289092,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_smash",
@@ -3233,7 +3233,7 @@
   {
     "name": "永恒毒液",
     "spellId": 1290336,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_nullifypoison",
@@ -3242,7 +3242,7 @@
   {
     "name": "盘卷脓液",
     "spellId": 1290814,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_ironmaidens_whirlofblood",
@@ -3251,7 +3251,7 @@
   {
     "name": "凝结的鲜血",
     "spellId": 1292552,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_ironmaidens_corruptedblood",
@@ -3260,7 +3260,7 @@
   {
     "name": "搅动深渊",
     "spellId": 1292807,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_wave",
@@ -3269,7 +3269,7 @@
   {
     "name": "腐蚀唾液",
     "spellId": 1293979,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathvortex",
@@ -3278,7 +3278,7 @@
   {
     "name": "邪恶洪流",
     "spellId": 1294605,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_deviouspoisons",
@@ -3287,7 +3287,7 @@
   {
     "name": "致命剧毒",
     "spellId": 1297338,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_06",
@@ -3296,7 +3296,7 @@
   {
     "name": "鲜血洪流",
     "spellId": 1303235,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_artifact_corruptedbloodofzakajz",
@@ -3305,7 +3305,7 @@
   {
     "name": "凝结的鲜血",
     "spellId": 1306925,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "artifactability_blooddeathknight_umbilicuseternus",
@@ -3314,7 +3314,7 @@
   {
     "name": "剧毒粘液",
     "spellId": 1309471,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_groundstate",
@@ -3323,7 +3323,7 @@
   {
     "name": "饱餐",
     "spellId": 1310096,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_deathwing_bloodcorruption_earth",
@@ -3332,7 +3332,7 @@
   {
     "name": "污血",
     "spellId": 1310102,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_corpseexplode",
@@ -3341,7 +3341,7 @@
   {
     "name": "中毒",
     "spellId": 1310360,
-    "boss": "双子毒牙",
+    "boss": 21,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_debuff",
@@ -3350,7 +3350,7 @@
   {
     "name": "制裁之锤",
     "spellId": 853,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_sealofmight",
@@ -3359,7 +3359,7 @@
   {
     "name": "痛楚",
     "spellId": 980,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_curseofsargeras",
@@ -3368,7 +3368,7 @@
   {
     "name": "混乱烙印",
     "spellId": 1490,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_demonhunter_empowerwards",
@@ -3377,7 +3377,7 @@
   {
     "name": "夺命药膏",
     "spellId": 2818,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_dualweild",
@@ -3386,7 +3386,7 @@
   {
     "name": "吸血鬼之触",
     "spellId": 34914,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_stoicism",
@@ -3395,7 +3395,7 @@
   {
     "name": "无法移动",
     "spellId": 45334,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_slow",
@@ -3404,7 +3404,7 @@
   {
     "name": "锋锐之霜",
     "spellId": 51714,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathknight_frozenruneweapon",
@@ -3413,7 +3413,7 @@
   {
     "name": "血之疫病",
     "spellId": 55078,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathknight_bloodplague",
@@ -3422,7 +3422,7 @@
   {
     "name": "冰霜疫病",
     "spellId": 55095,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathknight_frostfever",
@@ -3431,7 +3431,7 @@
   {
     "name": "心满意足",
     "spellId": 57724,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_sleep",
@@ -3440,7 +3440,7 @@
   {
     "name": "罪与罚",
     "spellId": 87204,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_prayerofshadowprotection",
@@ -3449,7 +3449,7 @@
   {
     "name": "冲锋",
     "spellId": 105771,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warrior_charge",
@@ -3458,7 +3458,7 @@
   {
     "name": "玄秘掌",
     "spellId": 113746,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_monk_sparring",
@@ -3467,7 +3467,7 @@
   {
     "name": "致死之伤",
     "spellId": 115804,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_criticalstrike",
@@ -3476,7 +3476,7 @@
   {
     "name": "乌索尔旋风",
     "spellId": 127797,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_druid_ursolsvortex",
@@ -3485,7 +3485,7 @@
   {
     "name": "月火术",
     "spellId": 164812,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_starfall",
@@ -3494,7 +3494,7 @@
   {
     "name": "阳炎术",
     "spellId": 164815,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_mage_firestarter",
@@ -3503,7 +3503,7 @@
   {
     "name": "混乱新星",
     "spellId": 179057,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_felfirenova",
@@ -3512,7 +3512,7 @@
   {
     "name": "烈焰震击",
     "spellId": 188389,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_flameshock",
@@ -3521,7 +3521,7 @@
   {
     "name": "恶性病变",
     "spellId": 191587,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_disease_02",
@@ -3530,7 +3530,7 @@
   {
     "name": "引雷针",
     "spellId": 197209,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_rod_enchantedcobalt",
@@ -3539,7 +3539,7 @@
   {
     "name": "审判",
     "spellId": 197277,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_righteousfury",
@@ -3548,7 +3548,7 @@
   {
     "name": "奉献",
     "spellId": 204242,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_innerfire",
@@ -3557,7 +3557,7 @@
   {
     "name": "祝福之锤",
     "spellId": 204301,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "paladin_retribution",
@@ -3566,7 +3566,7 @@
   {
     "name": "心脏打击",
     "spellId": 206930,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_weapon_shortblade_40",
@@ -3575,7 +3575,7 @@
   {
     "name": "巨人打击",
     "spellId": 208086,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warrior_colossussmash",
@@ -3584,7 +3584,7 @@
   {
     "name": "爆炸射击",
     "spellId": 212431,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_hunter_explosiveshot",
@@ -3593,7 +3593,7 @@
   {
     "name": "心脏打击",
     "spellId": 228645,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_weapon_shortblade_40",
@@ -3602,7 +3602,7 @@
   {
     "name": "重伤",
     "spellId": 262115,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_backstab",
@@ -3611,7 +3611,7 @@
   {
     "name": "狙击高手",
     "spellId": 269576,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_hunter_mastermarksman",
@@ -3620,7 +3620,7 @@
   {
     "name": "饥荒",
     "spellId": 327092,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_disease_03",
@@ -3629,7 +3629,7 @@
   {
     "name": "疫病",
     "spellId": 327093,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathknight_explode_ghoul",
@@ -3638,7 +3638,7 @@
   {
     "name": "死亡",
     "spellId": 327095,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_deathlyecho",
@@ -3647,7 +3647,7 @@
   {
     "name": "战争",
     "spellId": 327096,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_fumble",
@@ -3656,7 +3656,7 @@
   {
     "name": "火焰吐息",
     "spellId": 357209,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_evoker_firebreath",
@@ -3665,7 +3665,7 @@
   {
     "name": "紧绷之握",
     "spellId": 374776,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_coneofsilence",
@@ -3674,7 +3674,7 @@
   {
     "name": "永冻之冰",
     "spellId": 376974,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_mage_deepfreeze",
@@ -3683,7 +3683,7 @@
   {
     "name": "增效药膏",
     "spellId": 383414,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_misc_herb_fellotus",
@@ -3692,7 +3692,7 @@
   {
     "name": "致死印记",
     "spellId": 383704,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "achievement_bg_killingblow_berserker",
@@ -3701,7 +3701,7 @@
   {
     "name": "十字军的决心",
     "spellId": 383843,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_paladin_shieldofthetemplar",
@@ -3710,7 +3710,7 @@
   {
     "name": "撕裂",
     "spellId": 388539,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_gouge",
@@ -3719,7 +3719,7 @@
   {
     "name": "崩坏缠绕",
     "spellId": 390271,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_malkorok_blightofyshaarj_green",
@@ -3728,7 +3728,7 @@
   {
     "name": "萎缩药膏",
     "spellId": 392388,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_nervesofsteel",
@@ -3737,7 +3737,7 @@
   {
     "name": "赤喉之咬",
     "spellId": 426593,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_knife_1h_artifactfangs_d_01",
@@ -3746,7 +3746,7 @@
   {
     "name": "大气曝露",
     "spellId": 430589,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_cosmicvoid_nova",
@@ -3755,7 +3755,7 @@
   {
     "name": "不堪一击",
     "spellId": 445836,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_mage_tormentoftheweak",
@@ -3764,7 +3764,7 @@
   {
     "name": "霜侵热毒",
     "spellId": 458169,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_bluefire",
@@ -3773,7 +3773,7 @@
   {
     "name": "煽动惊恐",
     "spellId": 458478,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warlock_improveddemonictactics",
@@ -3782,7 +3782,7 @@
   {
     "name": "精炼圣火",
     "spellId": 469882,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_everburningignition_yellow",
@@ -3791,7 +3791,7 @@
   {
     "name": "感染之爪",
     "spellId": 1241786,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_disease_05",
@@ -3800,7 +3800,7 @@
   {
     "name": "圣洁武装",
     "spellId": 1253836,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_polearm_2h_arakkoa_c_01",
@@ -3809,7 +3809,7 @@
   {
     "name": "大灭",
     "spellId": 1256676,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_netherportal",
@@ -3818,7 +3818,7 @@
   {
     "name": "阴燃星能",
     "spellId": 1263250,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_bluefire",
@@ -3827,7 +3827,7 @@
   {
     "name": "恶毒荆棘",
     "spellId": 1270065,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_misc_herb_nightmarevine_stem",
@@ -3836,7 +3836,7 @@
   {
     "name": "烈性毒液",
     "spellId": 1282419,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_disease_02",
@@ -3845,7 +3845,7 @@
   {
     "name": "剧毒之地",
     "spellId": 1283290,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_06",
@@ -3854,7 +3854,7 @@
   {
     "name": "处斩",
     "spellId": 1283485,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "warrior_talent_icon_mastercleaver",
@@ -3863,7 +3863,7 @@
   {
     "name": "碎斧",
     "spellId": 1285017,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warrior_bladestorm",
@@ -3872,7 +3872,7 @@
   {
     "name": "墓缚",
     "spellId": 1286837,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_demonhunter_shatteredsouls",
@@ -3881,7 +3881,7 @@
   {
     "name": "窒息黑暗",
     "spellId": 1286947,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_envelopingshadows",
@@ -3890,7 +3890,7 @@
   {
     "name": "萦绕符文",
     "spellId": 1287663,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "item_shadowcloth",
@@ -3899,7 +3899,7 @@
   {
     "name": "回响符文",
     "spellId": 1289063,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_rogue_shadow_reflection",
@@ -3908,7 +3908,7 @@
   {
     "name": "恐惧行军",
     "spellId": 1297445,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nzinsanity_fearofdeath",
@@ -3917,7 +3917,7 @@
   {
     "name": "亵渎大地",
     "spellId": 1298591,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_shadesofdarkness",
@@ -3926,7 +3926,7 @@
   {
     "name": "盘卷祭坛亵渎",
     "spellId": 1298594,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warlock_shadowflame",
@@ -3935,7 +3935,7 @@
   {
     "name": "腐化毒素",
     "spellId": 1298795,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warlock_soulswap",
@@ -3944,7 +3944,7 @@
   {
     "name": "冷酷处斩",
     "spellId": 1299266,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_polearm_2h_mawnecromancerboss_d_01_darkblue",
@@ -3953,7 +3953,7 @@
   {
     "name": "毒液爆裂",
     "spellId": 1299838,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_nova",
@@ -3962,7 +3962,7 @@
   {
     "name": "精魂抹除",
     "spellId": 1300665,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_misc_zandalari_council_soulswap",
@@ -3971,7 +3971,7 @@
   {
     "name": "撕裂",
     "spellId": 1301690,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_criticalstrike",
@@ -3980,7 +3980,7 @@
   {
     "name": "雪恨圣印",
     "spellId": 1302139,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_holy_sealoffury",
@@ -3989,7 +3989,7 @@
   {
     "name": "毒牙",
     "spellId": 1306635,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_121_trinket_raid_ulatek_fang_green",
@@ -3998,7 +3998,7 @@
   {
     "name": "毒牙",
     "spellId": 1306906,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_poisonedknife",
@@ -4007,7 +4007,7 @@
   {
     "name": "凋零撕裂",
     "spellId": 1307403,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_felsunder",
@@ -4016,7 +4016,7 @@
   {
     "name": "处斩",
     "spellId": 1307425,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "warrior_talent_icon_mastercleaver",
@@ -4025,7 +4025,7 @@
   {
     "name": "冷酷处斩",
     "spellId": 1307652,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_polearm_2h_mawnecromancerboss_d_01_darkblue",
@@ -4034,7 +4034,7 @@
   {
     "name": "灵魂撕裂",
     "spellId": 1307959,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_demonhunter_soulcleave2",
@@ -4043,7 +4043,7 @@
   {
     "name": "诱变毒液",
     "spellId": 1310498,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_disease_03",
@@ -4052,7 +4052,7 @@
   {
     "name": "幽暗炸弹",
     "spellId": 1310881,
-    "boss": "盘卷祭坛",
+    "boss": 22,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_shadowfury",
@@ -4061,7 +4061,7 @@
   {
     "name": "鲜血毒液",
     "spellId": 1284210,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_bloodboil",
@@ -4070,7 +4070,7 @@
   {
     "name": "凋零之血",
     "spellId": 1284471,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_lifedrain",
@@ -4079,7 +4079,7 @@
   {
     "name": "鲜血毒液注射",
     "spellId": 1284491,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warrior_bloodbath",
@@ -4088,7 +4088,7 @@
   {
     "name": "酸液印记",
     "spellId": 1284500,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_arcanegolem2mount_green",
@@ -4097,7 +4097,7 @@
   {
     "name": "鲜血印记",
     "spellId": 1284506,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_arcanegolem2mount_red",
@@ -4106,7 +4106,7 @@
   {
     "name": "螺旋毒素",
     "spellId": 1284590,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_112_warlock_bloodstone",
@@ -4115,7 +4115,7 @@
   {
     "name": "不稳定的瘴气",
     "spellId": 1288260,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_deathwing_bloodcorruption_death",
@@ -4124,7 +4124,7 @@
   {
     "name": "附着幽暗",
     "spellId": 1288297,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_moltenblood",
@@ -4133,7 +4133,7 @@
   {
     "name": "变幻的原型毒液",
     "spellId": 1296880,
-    "boss": "陵寝哨兵",
+    "boss": 17,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathvortex",
@@ -4142,7 +4142,7 @@
   {
     "name": "沙漏尽枯",
     "spellId": 404369,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_bossmagistrix_timewarp1",
@@ -4151,7 +4151,7 @@
   {
     "name": "滴毒之牙",
     "spellId": 1280934,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_01",
@@ -4160,7 +4160,7 @@
   {
     "name": "瘟疫泡沫",
     "spellId": 1281910,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_debuff",
@@ -4169,7 +4169,7 @@
   {
     "name": "瘟疫泡沫",
     "spellId": 1281913,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_debuff",
@@ -4178,7 +4178,7 @@
   {
     "name": "腐蚀涌动",
     "spellId": 1285979,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shaman_firenova",
@@ -4187,7 +4187,7 @@
   {
     "name": "剧毒烟雾",
     "spellId": 1291461,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_deathvortex",
@@ -4196,7 +4196,7 @@
   {
     "name": "冥河感染",
     "spellId": 1294994,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_envelopingshadows",
@@ -4205,7 +4205,7 @@
   {
     "name": "爆炸感染",
     "spellId": 1295173,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_incinerate",
@@ -4214,7 +4214,7 @@
   {
     "name": "凝结之箭",
     "spellId": 1305833,
-    "boss": "万毒邪祟者瓦什尼克",
+    "boss": 19,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_cursed_03",
@@ -4223,7 +4223,7 @@
   {
     "name": "疲倦",
     "spellId": 264689,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_focusedmind",
@@ -4232,7 +4232,7 @@
   {
     "name": "附身弹幕",
     "spellId": 1284103,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_possession",
@@ -4241,7 +4241,7 @@
   {
     "name": "摄魂打击",
     "spellId": 1284109,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "warlock_spelldrain",
@@ -4250,7 +4250,7 @@
   {
     "name": "盘魂之井",
     "spellId": 1285623,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_deathrift",
@@ -4259,7 +4259,7 @@
   {
     "name": "精华撕裂",
     "spellId": 1287427,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_deathall",
@@ -4268,7 +4268,7 @@
   {
     "name": "精华撕裂",
     "spellId": 1287434,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_deathall",
@@ -4277,7 +4277,7 @@
   {
     "name": "潜藏的教徒",
     "spellId": 1288554,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_hextrollpet_blue",
@@ -4286,7 +4286,7 @@
   {
     "name": "盘魂仪式",
     "spellId": 1288772,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_deathsknell",
@@ -4295,7 +4295,7 @@
   {
     "name": "焚化",
     "spellId": 1289875,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_warlock_cremation",
@@ -4304,7 +4304,7 @@
   {
     "name": "紧攫深渊",
     "spellId": 1293214,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_inevitableend",
@@ -4313,7 +4313,7 @@
   {
     "name": "蛇行烈焰",
     "spellId": 1294933,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_guardianward",
@@ -4322,7 +4322,7 @@
   {
     "name": "仪式灼烧",
     "spellId": 1297624,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_everburningignition_blue",
@@ -4331,7 +4331,7 @@
   {
     "name": "祈求",
     "spellId": 1299722,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "warrior_disruptingshout",
@@ -4340,7 +4340,7 @@
   {
     "name": "不朽缠绕",
     "spellId": 1299988,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_necro_deathlyecho",
@@ -4349,7 +4349,7 @@
   {
     "name": "灵魂疲惫",
     "spellId": 1300235,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_soulbarrier",
@@ -4358,7 +4358,7 @@
   {
     "name": "盘旋精魂",
     "spellId": 1300239,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "achievement_halloween_ghost_01",
@@ -4367,7 +4367,7 @@
   {
     "name": "不朽缠绕",
     "spellId": 1300521,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_10_dungeonjewelry_dragon_ring_2coiledserpent_green",
@@ -4376,7 +4376,7 @@
   {
     "name": "不朽缠绕",
     "spellId": 1300524,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_10_dungeonjewelry_dragon_ring_2coiledserpent_green",
@@ -4385,7 +4385,7 @@
   {
     "name": "残骸凋零",
     "spellId": 1307939,
-    "boss": "盘魂者内克扎莉",
+    "boss": 16,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_corpseexplode",
@@ -4394,7 +4394,7 @@
   {
     "name": "炼狱蔽体",
     "spellId": 116888,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_misc_shadowegg",
@@ -4403,7 +4403,7 @@
   {
     "name": "永劫不复",
     "spellId": 123981,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_misc_shadowegg",
@@ -4412,7 +4412,7 @@
   {
     "name": "复生",
     "spellId": 225080,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shaman_improvedreincarnation",
@@ -4421,7 +4421,7 @@
   {
     "name": "剧毒撕咬",
     "spellId": 1287036,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_venomouswounds",
@@ -4430,7 +4430,7 @@
   {
     "name": "毒蛇之咬",
     "spellId": 1288879,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_121_trinket_raid_ulatek_fang_red",
@@ -4439,7 +4439,7 @@
   {
     "name": "腐蚀浪潮",
     "spellId": 1292403,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_wave",
@@ -4448,7 +4448,7 @@
   {
     "name": "恶性甲壳",
     "spellId": 1295360,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_item_dragonegg_bluebroken01",
@@ -4457,7 +4457,7 @@
   {
     "name": "岩石剧毒",
     "spellId": 1298417,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "trade_archaeology_whitehydrafigurine",
@@ -4466,7 +4466,7 @@
   {
     "name": "厄鳞外壳",
     "spellId": 1300312,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_12_profession_skinning_thalassianscale_violet",
@@ -4475,7 +4475,7 @@
   {
     "name": "灵魂绞杀者",
     "spellId": 1300685,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_ardenweald_warlock",
@@ -4484,7 +4484,7 @@
   {
     "name": "步履维艰",
     "spellId": 1300938,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_rogue_trip",
@@ -4493,7 +4493,7 @@
   {
     "name": "腐臭薄膜",
     "spellId": 1301268,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "achievement_halloween_rottenegg_01",
@@ -4502,7 +4502,7 @@
   {
     "name": "酸液爆发",
     "spellId": 1301800,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_poison_05",
@@ -4511,7 +4511,7 @@
   {
     "name": "剧毒灼烧",
     "spellId": 1302842,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_fire_felfire",
@@ -4520,7 +4520,7 @@
   {
     "name": "绝望鞭笞",
     "spellId": 1305709,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "artifactability_feraldruid_ashamanesbite",
@@ -4529,7 +4529,7 @@
   {
     "name": "守卫的保护",
     "spellId": 1306858,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_racial_wardoftheloanature",
@@ -4538,7 +4538,7 @@
   {
     "name": "剧毒之壳",
     "spellId": 1307612,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_raid_mercurialegg_green",
@@ -4547,7 +4547,7 @@
   {
     "name": "溃烂爆发",
     "spellId": 1310763,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_ability_poison_nova",
@@ -4556,7 +4556,7 @@
   {
     "name": "凋萎静脉",
     "spellId": 1311609,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_ironmaidens_bloodritual",
@@ -4565,7 +4565,7 @@
   {
     "name": "攫取毒牙",
     "spellId": 1311611,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_121_trinket_raid_ulatek_ulatekclaw",
@@ -4574,7 +4574,7 @@
   {
     "name": "腐臭卵心",
     "spellId": 1312150,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "ability_creature_amber_01",
@@ -4583,7 +4583,7 @@
   {
     "name": "易爆清除",
     "spellId": 1312967,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_plaguecloud",
@@ -4592,7 +4592,7 @@
   {
     "name": "摄入毒液",
     "spellId": 1313529,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_deathcoil",
@@ -4601,7 +4601,7 @@
   {
     "name": "酸液喷发",
     "spellId": 1313531,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_121_professions_fishing_eal_green",
@@ -4610,7 +4610,7 @@
   {
     "name": "易爆清除",
     "spellId": 1316356,
-    "boss": "乌拉特克",
+    "boss": 23,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_shadow_plaguecloud",
@@ -4619,7 +4619,7 @@
   {
     "name": "旋壳",
     "spellId": 1291918,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_cape_special_turtleshell_c_02",
@@ -4628,7 +4628,7 @@
   {
     "name": "稳固打击",
     "spellId": 1291929,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_1115_warrior_fastermeleeattacks",
@@ -4637,7 +4637,7 @@
   {
     "name": "撕裂碎片",
     "spellId": 1295858,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_frost_iceshard",
@@ -4646,7 +4646,7 @@
   {
     "name": "延烧之火",
     "spellId": 1297650,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_burningbladeshaman_blazing_radiance",
@@ -4655,7 +4655,7 @@
   {
     "name": "弹射",
     "spellId": 1299854,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_mushroom_06",
@@ -4664,7 +4664,7 @@
   {
     "name": "木刺炸裂",
     "spellId": 1308853,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_artifact_bloodoftheassassinated",
@@ -4673,7 +4673,7 @@
   {
     "name": "余震",
     "spellId": 1310500,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "spell_nature_earthquake",
@@ -4682,7 +4682,7 @@
   {
     "name": "木刺炸裂",
     "spellId": 1312853,
-    "boss": "迷失的探险者",
+    "boss": 18,
     "mapId": 10,
     "Type": "aura",
     "iconName": "inv_artifact_bloodoftheassassinated",
